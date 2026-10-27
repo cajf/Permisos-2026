@@ -67,7 +67,7 @@ Las solicitudes admiten horas y días completos. La jornada laboral diaria es de
 
 Para Ordinario-Remunerado se confirma un máximo de tres días hábiles por semestre del año en curso, equivalentes a 1.530 minutos o 25,5 horas. Todos los permisos por horas, incluidos los de hasta dos horas, consumen ese cupo.
 
-La solicitud debe presentarse con al menos 48 horas laborales de anticipación, equivalentes a 2.880 minutos efectivos. Se permite enviarla fuera del plazo justificando la excepción. La jornada de lunes a jueves es de 07:30 a 12:00 y de 13:00 a 17:00; los viernes, de 07:00 a 12:00 y de 12:30 a 16:00. Deben admitirse horarios temporales con vigencia. Los tiempos se distribuyen por semestre según cada fecha solicitada. La versión inicial admite fechas futuras; el tratamiento está documentado en el manual.
+La solicitud debe presentarse con al menos 48 horas calendario dentro de días hábiles, equivalentes a 2.880 minutos. Para este plazo cuentan las 24 horas de cada día hábil, incluidos almuerzos y horas fuera de la jornada. Se excluyen sábados, domingos y festivos completos, según la zona horaria de Bogotá. Los horarios temporales no limitan las horas del plazo. Se permite enviarla fuera del plazo justificando la excepción. La jornada de lunes a jueves es de 07:30 a 12:00 y de 13:00 a 17:00; los viernes, de 07:00 a 12:00 y de 12:30 a 16:00. Deben admitirse horarios temporales con vigencia. Los tiempos se distribuyen por semestre según cada fecha solicitada. La versión inicial admite fechas futuras; el tratamiento está documentado en el manual.
 
 ## Actos administrativos y saldos
 

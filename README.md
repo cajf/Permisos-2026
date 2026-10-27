@@ -47,6 +47,12 @@ php scripts/mail-worker.php
 
 Sin SMTP, las novedades quedan pendientes y no se envían. El trabajador procesa hasta 50 mensajes por ejecución y reintenta los fallidos hasta cinco veces. Un envío que quede en estado `sending` por una interrupción requiere revisar la entrega antes de reponerlo en la cola, para evitar duplicados.
 
+## Plazo de anticipación
+
+Las solicitudes requieren **48 horas calendario dentro de días hábiles**. Cada día hábil aporta hasta 24 horas, incluyendo almuerzos y noches; sábados, domingos y festivos no aportan tiempo. Se considera la zona horaria de Bogotá. Por ejemplo, del lunes a las 08:00 al miércoles a las 08:00 se cumplen 48 horas cuando no hay festivos.
+
+Si no se cumple el plazo, se conserva el envío con excepción justificada. La duración de permisos y los saldos siguen calculándose con las franjas de la jornada laboral.
+
 ## Aprobación masiva
 
 En **Por aprobar**, el jefe inmediato y el subsecretario pueden marcar solicitudes o usar **Seleccionar todas de esta página**, ingresar una observación común opcional y pulsar **Aprobar seleccionadas**. Se procesan hasta 100 por acción, con paginación de la bandeja.
@@ -69,7 +75,7 @@ El resultado de esa ejecución queda en `.work/test-result.json`. Use su campo `
 ./.runtime/php/php.exe -c .runtime/php/php.ini tests/http.php
 ```
 
-Resultado actualizado: 73 verificaciones funcionales y 58 verificaciones HTTP, incluyendo soporte obligatorio y opcional en las cuatro familias, migración de bases existentes, autorización del administrador, PDF con y sin anexos e importación real de XLSX. Las pruebas usan fechas de referencia de 2026 y deben actualizarse al cambiar esa ventana de prueba. No se verificó entrega de correo contra un SMTP institucional.
+Resultado actualizado: 89 verificaciones funcionales y 58 verificaciones HTTP, incluyendo soporte obligatorio y opcional en las cuatro familias, migración de bases existentes, autorización del administrador, PDF con y sin anexos e importación real de XLSX. Las pruebas usan fechas de referencia de 2026 y deben actualizarse al cambiar esa ventana de prueba. No se verificó entrega de correo contra un SMTP institucional.
 
 Las bases existentes reciben automáticamente la columna `supports_required` al abrir una conexión. La actualización es aditiva y conserva todos los tipos como obligatorios hasta que el administrador cambie su configuración. También puede ejecutarse explícitamente con `php scripts/migrate.php`.
 

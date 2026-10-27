@@ -2,10 +2,14 @@
 declare(strict_types=1);
 
 final class WorkCalendar {
+    public function isBusinessDay(string $date): bool {
+        ensure(validDate($date),'La fecha no es válida.');
+        return (int)(new DateTimeImmutable($date))->format('N')<=5 && row('SELECT date FROM holidays WHERE date=?',[$date])===null;
+    }
     public function periods(string $date): array {
         ensure(validDate($date),'La fecha no es válida.');
         $weekday=(int)(new DateTimeImmutable($date))->format('N');
-        if ($weekday>5 || row('SELECT date FROM holidays WHERE date=?',[$date])) return [];
+        if (!$this->isBusinessDay($date)) return [];
         $override=row('SELECT * FROM schedules WHERE start_date<=? AND end_date>=? ORDER BY id DESC LIMIT 1',[$date,$date]);
         if ($override) return json_decode($override['periods'],true,512,JSON_THROW_ON_ERROR)[(string)$weekday]??[];
         return $weekday===5 ? [['07:00','12:00'],['12:30','16:00']] : [['07:30','12:00'],['13:00','17:00']];
@@ -35,6 +39,19 @@ final class WorkCalendar {
             }
         }
         return $sum;
+    }
+    /** Anticipación: todas las horas del día hábil, excluyendo días no hábiles completos. */
+    public function noticeMinutes(DateTimeImmutable $from,DateTimeImmutable $to): int {
+        $zone=new DateTimeZone('America/Bogota');
+        $from=$from->setTimezone($zone);$to=$to->setTimezone($zone);
+        if ($to<=$from) return 0;
+        ensure($from->diff($to)->days<=1100,'El intervalo supera tres años.');
+        $seconds=0;
+        for ($day=$from->setTime(0,0);$day<$to;$day=$day->modify('+1 day')) {
+            if (!$this->isBusinessDay($day->format('Y-m-d'))) continue;
+            $seconds+=max(0,min($to->getTimestamp(),$day->modify('+1 day')->getTimestamp())-max($from->getTimestamp(),$day->getTimestamp()));
+        }
+        return intdiv($seconds,60);
     }
     public function slots(array $input,DateTimeImmutable $clock): array {
         ensure(count($input)>0 && count($input)<=90,'Registre entre una y 90 fechas.');

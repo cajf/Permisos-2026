@@ -28,9 +28,9 @@ check($cal->minutes('2026-10-30','07:00','16:00')===510,'Jornada del viernes: 51
 check($cal->minutes('2026-10-27','11:30','13:30')===60,'Almuerzo excluido entre semana');
 check($cal->minutes('2026-10-30','11:30','13:00')===60,'Almuerzo del viernes de 30 minutos');
 check($cal->periods('2026-10-31')===[]&&$cal->periods('2026-11-02')===[],'Exclusión de fin de semana y festivo trasladado');
-check($cal->between(new DateTimeImmutable('2026-10-30 15:00'),new DateTimeImmutable('2026-11-03 08:00'))===90,'Anticipación: excluye fin de semana y lunes festivo');
-check($cal->between(new DateTimeImmutable('2026-10-26 07:30'),new DateTimeImmutable('2026-11-03 13:00'))===2820,'Antes del umbral de 48 horas laborales');
-check($cal->between(new DateTimeImmutable('2026-10-26 07:30'),new DateTimeImmutable('2026-11-03 14:00'))===2880,'Umbral exacto de 48 horas laborales');
+check($cal->between(new DateTimeImmutable('2026-10-30 15:00'),new DateTimeImmutable('2026-11-03 08:00'))===90,'Tiempo laborable: excluye fin de semana y lunes festivo');
+check($cal->between(new DateTimeImmutable('2026-10-26 07:30'),new DateTimeImmutable('2026-11-03 13:00'))===2820,'Intervalo de 2.820 minutos de jornada laboral');
+check($cal->between(new DateTimeImmutable('2026-10-26 07:30'),new DateTimeImmutable('2026-11-03 14:00'))===2880,'Intervalo de 2.880 minutos de jornada laboral');
 check(isset(nationalHolidays(2026)['2026-07-13']),'Festivo nacional de julio de 2026 trasladado');
 check(array_column($wf->route(person(1),cat('ordinario'),120),'role')===['manager'],'Dos horas: solo jefe inmediato');
 check(array_column($wf->route(person(1),cat('ordinario'),121),'role')===['manager','subsecretary'],'Más de dos horas: dos etapas');
@@ -131,6 +131,32 @@ check(count($stale['failed'])===1 && row('SELECT status FROM requests WHERE id=?
 $dual2=testSubmit(1,'academico',[slot('2026-12-31','10:00','11:00')]);
 $dualBatch=$wf->approveMany(person(3),[approvalId($dual2),approvalId($dual2,2)]);
 check(count($dualBatch['approved'])===1 && count($dualBatch['failed'])===1 && row('SELECT status FROM requests WHERE id=?',[$dual2])['status']==='pending','Un lote permite como máximo una etapa por solicitud');
+
+
+check($cal->noticeMinutes(new DateTimeImmutable('2026-10-26 08:00'),new DateTimeImmutable('2026-10-28 08:00'))===2880,'Anticipación: lunes a miércoles a la misma hora suma 48 horas calendario hábiles');
+check($cal->noticeMinutes(new DateTimeImmutable('2026-10-26 08:00'),new DateTimeImmutable('2026-10-28 07:59'))===2879,'Anticipación: un minuto antes del umbral no completa 48 horas');
+check($cal->noticeMinutes(new DateTimeImmutable('2026-10-26 08:00'),new DateTimeImmutable('2026-10-28 07:59:59'))===2879,'Anticipación: un segundo antes del umbral no completa 48 horas');
+check($cal->noticeMinutes(new DateTimeImmutable('2026-10-26 12:00'),new DateTimeImmutable('2026-10-26 13:00'))===60,'Anticipación incluye el almuerzo de un día hábil');
+check($cal->noticeMinutes(new DateTimeImmutable('2026-10-26 17:00'),new DateTimeImmutable('2026-10-27 07:30'))===870,'Anticipación incluye la noche entre días hábiles');
+check($cal->noticeMinutes(new DateTimeImmutable('2026-10-30 08:00'),new DateTimeImmutable('2026-11-03 08:00'))===1440,'Anticipación excluye sábado domingo y lunes festivo completos');
+check($cal->noticeMinutes(new DateTimeImmutable('2026-10-30 08:00'),new DateTimeImmutable('2026-11-04 08:00'))===2880,'Anticipación alcanza 48 horas tras un puente festivo');
+check($cal->noticeMinutes(new DateTimeImmutable('2026-10-31 08:00'),new DateTimeImmutable('2026-11-04 08:00'))===1920,'Solicitud registrada en fin de semana comienza a contar en el siguiente día hábil');
+check($cal->noticeMinutes(new DateTimeImmutable('2026-10-30 23:30'),new DateTimeImmutable('2026-11-03 00:30'))===60,'Anticipación suma fracciones de días hábiles alrededor de medianoche');
+check($cal->noticeMinutes(new DateTimeImmutable('2026-12-01 00:00'),new DateTimeImmutable('2026-12-03 00:00'))===2880,'Los horarios temporales no limitan las horas calendario de anticipación');
+check($cal->noticeMinutes(new DateTimeImmutable('2026-10-26T13:00:00Z'),new DateTimeImmutable('2026-10-28T13:00:00Z'))===2880,'Anticipación usa la zona horaria de Bogotá');
+check($cal->noticeMinutes(new DateTimeImmutable('2026-10-28 08:00'),new DateTimeImmutable('2026-10-26 08:00'))===0,'Anticipación no devuelve duraciones negativas');
+$noticeCategory=cat('academico');run('UPDATE categories SET supports_required=0 WHERE id=?',[$noticeCategory['id']]);
+$noticeInput=['category_id'=>$noticeCategory['id'],'slots'=>[slot('2026-11-11','07:30','08:30')],'justification'=>'Solicitud con dos días hábiles completos de anticipación'];
+$noticeRequest=$wf->submit(person(8),$noticeInput,[],null,new DateTimeImmutable('2026-11-09 07:30'));
+check(row('SELECT status FROM requests WHERE id=?',[$noticeRequest])['status']==='pending','Solicitud con 48 horas calendario hábiles se envía sin excepción');
+$noticeInput['slots']=[slot('2026-11-11','09:00','10:00')];
+refuses(fn()=>$wf->submit(person(8),$noticeInput,[],null,new DateTimeImmutable('2026-11-09 09:01')),'Solicitud con menos de 48 horas calendario hábiles exige excepción');
+$noticeInput['exception_reason']='Justificación de excepción de anticipación para prueba';
+$noticeException=$wf->submit(person(8),$noticeInput,[],null,new DateTimeImmutable('2026-11-09 09:01'));
+check(row('SELECT status FROM requests WHERE id=?',[$noticeException])['status']==='pending','Se conserva el envío fuera de plazo con excepción justificada');
+$noticeInput['slots']=[slot('2026-11-09','07:30','08:30')];unset($noticeInput['exception_reason']);
+refuses(fn()=>$wf->submit(person(8),$noticeInput,[],null,new DateTimeImmutable('2026-11-06 07:30')),'Un fin de semana no completa por sí solo la anticipación requerida');
+run('UPDATE categories SET supports_required=1 WHERE id=?',[$noticeCategory['id']]);
 
 echo "\n$checks comprobaciones correctas.\n";
 file_put_contents(ROOT.'/.work/test-result.json',json_encode(['checks'=>$checks,'database'=>$GLOBALS['config']['database'],'completed'=>now()],JSON_PRETTY_PRINT));

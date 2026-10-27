@@ -44,7 +44,7 @@ final class Workflow {
             ensure(mb_strlen($reason)>=10 && mb_strlen($reason)<=5000,'La justificación debe contener entre 10 y 5.000 caracteres.');
             ensure(mb_strlen($exception)<=3000,'La justificación de excepción es demasiado extensa.');
             $first=$slots[0];
-            if ($this->calendar->between($clock,new DateTimeImmutable($first['date'].' '.$first['start_time']))<2880) ensure(mb_strlen($exception)>=10,'Faltan 48 horas laborales de anticipación. Debe justificar la excepción.');
+            if ($this->calendar->noticeMinutes($clock,new DateTimeImmutable($first['date'].' '.$first['start_time']))<2880) ensure(mb_strlen($exception)>=10,'No se completan 48 horas calendario dentro de días hábiles. Debe justificar la excepción.');
             if ($category['max_minutes']!==null && (int)$category['policy_confirmed']===1) ensure($total<=(int)$category['max_minutes'],'La duración supera el límite configurado para este tipo.');
             $relationship=trim($input['relationship']??'');
             if ($category['slug']==='luto') ensure($relationship!=='','Indique el parentesco para la licencia por luto.');
