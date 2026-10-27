@@ -12,7 +12,7 @@ return [
  ['compensatorio','Bici usuario','bici','Registro de ingreso y salida en bicicleta.',null,0,'El formato menciona 1 día. Duración y frecuencia pendientes de confirmar.'],
  ['compensatorio','Sufragar','sufragar','Certificado electoral.',null,0,'El formato menciona medio día. Duración y frecuencia pendientes de confirmar.'],
  ['compensatorio','Claveros / Jurado de votación','jurado','Certificación de la Registraduría como clavero o jurado de votación.',null,0,'El formato menciona 1 día. Duración y frecuencia pendientes de confirmar.'],
- ['compensatorio','Cumpleaños','cumpleanos','Documento de identidad que permita acreditar la fecha de nacimiento.',null,0,'El formato menciona 1 día. Duración y frecuencia pendientes de confirmar.'],
+ ['compensatorio','Cumpleaños','cumpleanos','Documento de identidad que permita acreditar la fecha de nacimiento.',null,1,'Una jornada completa por vigencia. Nacidos en diciembre: disfrute hasta el 30 de enero siguiente con cargo a la vigencia anterior.'],
  ['remunerada','Matrimonio','matrimonio','Registro civil de matrimonio.',null,0,'El formato menciona 5 días. Duración y condiciones pendientes de confirmar.'],
  ['remunerada','Luto','luto','Documentos para acreditar el fallecimiento y el parentesco.',null,0,'El formato menciona 5 días. Matriz de parentesco y documentos pendientes de validar.'],
  ['remunerada','Actividades deportivas','deportes','Solicitud o certificación de la entidad deportiva competente.',null,0,'Entidad y duración pendientes de validar con Talento Humano.'],

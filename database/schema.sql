@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS users (
  job_title TEXT NOT NULL, code TEXT NOT NULL DEFAULT '', grade TEXT NOT NULL DEFAULT '',
  appointment_type TEXT NOT NULL DEFAULT 'Carrera administrativa',
  department_id INTEGER NOT NULL REFERENCES departments(id), manager_id INTEGER REFERENCES users(id),
- deputy_manager_id INTEGER REFERENCES users(id), high_rank TEXT NOT NULL DEFAULT '',
+ deputy_manager_id INTEGER REFERENCES users(id), high_rank TEXT NOT NULL DEFAULT '', birth_date TEXT,
  roles TEXT NOT NULL DEFAULT '[]', active INTEGER NOT NULL DEFAULT 1,
  force_password INTEGER NOT NULL DEFAULT 1, failures INTEGER NOT NULL DEFAULT 0, locked_until TEXT
 );
@@ -33,17 +33,20 @@ CREATE TABLE IF NOT EXISTS requests (
  status TEXT NOT NULL DEFAULT 'pending', justification TEXT NOT NULL, exception_reason TEXT NOT NULL DEFAULT '',
  relationship TEXT NOT NULL DEFAULT '', total_minutes INTEGER NOT NULL CHECK(total_minutes>0),
  snapshot TEXT NOT NULL, revision INTEGER NOT NULL DEFAULT 1, created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
- cancellation_reason TEXT, cancelled_at TEXT, route_note TEXT NOT NULL DEFAULT ''
+ cancellation_reason TEXT, cancelled_at TEXT, route_note TEXT NOT NULL DEFAULT '',
+ department_id INTEGER REFERENCES departments(id), birthday_year INTEGER,
+ special_note TEXT NOT NULL DEFAULT '', cancellation_assignee_id INTEGER REFERENCES users(id)
 );
 CREATE TABLE IF NOT EXISTS request_slots (
  id INTEGER PRIMARY KEY, request_id INTEGER NOT NULL REFERENCES requests(id), date TEXT NOT NULL,
  start_time TEXT NOT NULL, end_time TEXT NOT NULL, minutes INTEGER NOT NULL CHECK(minutes>0), segments TEXT NOT NULL,
- semester TEXT NOT NULL
+ semester TEXT NOT NULL, start_at TEXT, end_at TEXT, special_periods TEXT NOT NULL DEFAULT '', is_full_day INTEGER NOT NULL DEFAULT 0
 );
 CREATE TABLE IF NOT EXISTS approvals (
  id INTEGER PRIMARY KEY, request_id INTEGER NOT NULL REFERENCES requests(id), revision INTEGER NOT NULL,
  step INTEGER NOT NULL, role TEXT NOT NULL, assigned_user_id INTEGER NOT NULL REFERENCES users(id),
  status TEXT NOT NULL DEFAULT 'waiting', acted_by INTEGER REFERENCES users(id), acted_at TEXT, comment TEXT,
+ designation_id INTEGER REFERENCES designations(id),
  UNIQUE(request_id,revision,step)
 );
 CREATE TABLE IF NOT EXISTS allocations (
@@ -70,3 +73,18 @@ CREATE INDEX IF NOT EXISTS idx_request_user ON requests(user_id,status);
 CREATE INDEX IF NOT EXISTS idx_approval_assignee ON approvals(assigned_user_id,status);
 CREATE INDEX IF NOT EXISTS idx_slot_dates ON request_slots(date,semester);
 CREATE INDEX IF NOT EXISTS idx_allocation_act ON allocations(act_id,state);
+
+CREATE TABLE IF NOT EXISTS designations (
+ id INTEGER PRIMARY KEY, role TEXT NOT NULL CHECK(role IN ('manager','subsecretary')),
+ department_id INTEGER REFERENCES departments(id), user_id INTEGER NOT NULL REFERENCES users(id),
+ alternate_id INTEGER REFERENCES users(id), start_date TEXT NOT NULL, end_date TEXT,
+ created_by INTEGER NOT NULL REFERENCES users(id), created_at TEXT NOT NULL,
+ CHECK((role='manager' AND department_id IS NOT NULL) OR (role='subsecretary' AND department_id IS NULL)),
+ CHECK(end_date IS NULL OR end_date>=start_date), CHECK(alternate_id IS NULL OR alternate_id!=user_id)
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_designation_start ON designations(role,COALESCE(department_id,0),start_date);
+CREATE TABLE IF NOT EXISTS balance_snapshots (
+ id INTEGER PRIMARY KEY, user_id INTEGER NOT NULL REFERENCES users(id), department_id INTEGER NOT NULL REFERENCES departments(id),
+ created_at TEXT NOT NULL, data TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_balance_cutoff ON balance_snapshots(user_id,created_at,id);

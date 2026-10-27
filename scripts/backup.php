@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 if(PHP_SAPI!=='cli')exit;
+define('SKIP_DATABASE_MIGRATIONS',true); // El respaldo debe conservar el esquema previo a una actualización.
 require __DIR__.'/../app/bootstrap.php';
 $dir=ROOT.'/storage/backups/'.date('Ymd-His').'-'.bin2hex(random_bytes(3));
 mkdir($dir.'/uploads',0700,true);

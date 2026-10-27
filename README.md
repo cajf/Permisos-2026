@@ -36,7 +36,7 @@ El servidor incorporado de PHP se utiliza para la revisión local. La instalaci�
 ## Configuración inicial por Talento Humano
 
 1. Cree dependencias y funcionarios o importe el Excel adaptándolo a la plantilla descargable.
-2. Configure jefes inmediatos, clasificación de alto rango y responsables institucionales. Los suplentes solo deben registrarse cuando exista designación competente.
+2. Registre fecha de nacimiento, clasificación de alto rango y roles. En **Designaciones**, asigne jefes por dependencia y subsecretario con suplentes y fecha de inicio. Asigne el rol **Nómina** a quienes revisarán los actos administrativos. Los suplentes solo deben registrarse cuando exista designación competente.
 3. En **Tipos y soportes**, marque o desmarque **Exigir al menos un soporte** en cada tipo de permiso, compensatorio o licencia y pulse **Guardar regla**. Al desmarcarlo se permite enviar sin adjuntos. La opción es independiente de **Regla revisada por Talento Humano**. Los archivos que se carguen se siguen validando. El documento al registrar un acto administrativo para otorgar saldo continúa siendo obligatorio. Revise también los límites adicionales pendientes de validar; el texto de frecuencia es informativo.
 4. Revise el calendario precargado y registre horarios temporales.
 5. Configure SMTP y programe el trabajador de correo usando el programador de tareas del servidor:
@@ -75,9 +75,9 @@ El resultado de esa ejecución queda en `.work/test-result.json`. Use su campo `
 ./.runtime/php/php.exe -c .runtime/php/php.ini tests/http.php
 ```
 
-Resultado actualizado: 89 verificaciones funcionales y 58 verificaciones HTTP, incluyendo soporte obligatorio y opcional en las cuatro familias, migración de bases existentes, autorización del administrador, PDF con y sin anexos e importación real de XLSX. Las pruebas usan fechas de referencia de 2026 y deben actualizarse al cambiar esa ventana de prueba. No se verificó entrega de correo contra un SMTP institucional.
+Los resultados de la última ejecución se registran en `.work/test-result.json` y `.work/http-result.json`. Incluyen los flujos originales y las nuevas designaciones, Nómina, cumpleaños, saldos por periodo y turnos nocturnos. Las fechas de referencia son de 2026 y deben actualizarse al cambiar esa ventana. No se verificó entrega de correo contra SMTP institucional.
 
-Las bases existentes reciben automáticamente la columna `supports_required` al abrir una conexión. La actualización es aditiva y conserva todos los tipos como obligatorios hasta que el administrador cambie su configuración. También puede ejecutarse explícitamente con `php scripts/migrate.php`.
+Las bases existentes reciben automáticamente las migraciones al abrir una conexión: campos de nacimiento, vigencia de cumpleaños y horarios, tablas de designaciones y saldos históricos, y compatibilidad con soportes configurables. Se conservan solicitudes, aprobadores y la obligatoriedad ya configurada. Cumpleaños aplica la nueva regla confirmada de una jornada completa anual. También puede ejecutarse explícitamente con `php scripts/migrate.php`.
 
 ## Respaldos y estructura
 
@@ -93,3 +93,14 @@ La aplicación utiliza PDO con consultas parametrizadas, transacciones `BEGIN IM
 - [Circular MTIC 23 de 2026 sobre el festivo nacional del 9 de julio](https://normograma.mintic.gov.co/mintic/compilacion/docs/circular_mintic_0023_2026.htm).
 
 Los soportes y duraciones del catálogo se basan en el formato aportado y en las decisiones del usuario; no representan una validación normativa adicional.
+
+
+## Designaciones, Nómina y horarios especiales
+
+- **Designaciones:** un jefe y suplente por una o varias dependencias; subsecretario y suplente institucional con vigencia. Un relevo cierra el periodo anterior el día calendario previo y guarda actor, fecha y hora. Los trámites pendientes permanecen con su responsable original; el nuevo recibe envíos y reenvíos desde su inicio. No desactive a quienes aún tengan trámites o designaciones pendientes.
+- **Consulta de saldos:** fecha de corte limitada a las dependencias y periodos designados. Las instantáneas históricas comienzan con esta actualización; no se reconstruyen saldos anteriores sin evidencia. Cada solicitante también puede consultar sus propios saldos.
+- **Nómina:** único rol autorizado para aprobar o rechazar el registro de actos administrativos. Conserva observación, responsable y fecha/hora; no admite autoaprobación. El rol de Talento Humano por sí solo no permite validarlos.
+- **Cumpleaños:** una jornada completa por año del beneficio; diciembre permite disfrute hasta el 30 de enero siguiente sin consumir la nueva vigencia. Fecha de nacimiento administrada por Talento Humano y columna opcional `fecha_nacimiento` (texto `AAAA-MM-DD`) en Excel/CSV. Rechazo o cancelación sin disfrute libera el beneficio; disfrute parcial lo conserva consumido.
+- **Horario especial:** el solicitante declara por fecha hasta tres franjas que sumen entre 8 y 8,5 horas efectivas, con descansos excluidos. Admite fines de semana, festivos y cruces de medianoche dentro de un turno máximo de 24 horas; el aprobador valida el horario. La anticipación conserva su regla de 48 horas calendario en días hábiles.
+
+Antes de actualizar una base existente ejecute `php scripts/backup.php` y luego `php scripts/migrate.php`. La migración agrega campos y tablas sin reemplazar registros ni reasignar aprobaciones anteriores. Hasta la fecha de inicio de la primera designación de cada dependencia se conserva la relación individual anterior; no se inventan periodos históricos. Las cuentas nuevas requieren que Talento Humano configure la designación vigente.

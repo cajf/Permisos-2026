@@ -74,4 +74,5 @@ foreach($bulkRequests as $request)ok(str_contains(http('page=request&id='.$reque
 http('page=inbox',$subPost,true);$repeated=http('page=inbox')['body'];ok(str_contains($repeated,'0 aprobaciones registradas.') && str_contains($repeated,'2 solicitudes sin aprobar.'),'Repetir un lote no vuelve a aprobarlo');
 $csrf=login('qa8');$subPost['csrf']=$csrf;ok(str_contains(http('page=inbox',$subPost,true)['body'],'requiere rol de jefe inmediato o subsecretario'),'Solicitante no puede invocar aprobación masiva por HTTP');
 
+require __DIR__.'/designations-http.php';
 file_put_contents($root.'/.work/http-result.json',json_encode(['checks'=>$checks,'request_id'=>$id,'completed'=>date(DATE_ATOM)],JSON_PRETTY_PRINT));echo "\n$checks comprobaciones HTTP correctas.\n";

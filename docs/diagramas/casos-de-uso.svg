@@ -2,84 +2,94 @@
 <!DOCTYPE svg
   PUBLIC '-//W3C//DTD SVG 1.0//EN'
   'http://www.w3.org/TR/2001/REC-SVG-20010904/DTD/svg10.dtd'>
-<svg width="1100" height="720" preserveAspectRatio="xMinYMin meet" viewBox="0 0 1100 720" xmlns="http://www.w3.org/2000/svg" version="1.0" fill-rule="evenodd" xmlns:xlink="http://www.w3.org/1999/xlink">
+<svg width="1100" height="800" preserveAspectRatio="xMinYMin meet" viewBox="0 0 1100 800" xmlns="http://www.w3.org/2000/svg" version="1.0" fill-rule="evenodd" xmlns:xlink="http://www.w3.org/1999/xlink">
 	<title>...</title>
 	<desc>...</desc>
 	<clipPath id="clip">
-		<rect x="0" y="0" width="1100" height="720"/>
+		<rect x="0" y="0" width="1100" height="800"/>
 	</clipPath>
-	<g id="group" transform="scale(1,-1) translate(0,-720)" style="clip-path: url(#clip)">
+	<g id="group" transform="scale(1,-1) translate(0,-800)" style="clip-path: url(#clip)">
 		<g transform="">
-			<rect x="205" y="20" width="690" height="675" rx="10" ry="10" style="stroke: rgb(86%,89%,87%); stroke-linecap: butt; stroke-width: 1; fill: rgb(100%,100%,100%); fill-rule: evenodd;"/>
-			<text x="371.986328125" y="668" style="font-family: SegoeBold; font-size: 19px;fill: rgb(8%,18%,21%); stroke:none;" transform="translate(0,1336) scale(1,-1)">Sistema de gestión del Talento Humano</text>
-			<circle cx="80" cy="450" r="12" style="stroke: rgb(8%,18%,21%); stroke-linecap: butt; stroke-width: 1.5; fill: none; fill-rule: evenodd;"/>
-			<path d="M 80,438 L 80,400 Z" style="stroke: rgb(8%,18%,21%); stroke-linecap: butt; stroke-width: 1.5;"/>
-			<path d="M 60,425 L 100,425 Z" style="stroke: rgb(8%,18%,21%); stroke-linecap: butt; stroke-width: 1.5;"/>
-			<path d="M 80,400 L 62,376 Z" style="stroke: rgb(8%,18%,21%); stroke-linecap: butt; stroke-width: 1.5;"/>
-			<path d="M 80,400 L 98,376 Z" style="stroke: rgb(8%,18%,21%); stroke-linecap: butt; stroke-width: 1.5;"/>
-			<text x="43.97705078125" y="354" style="font-family: SegoeBold; font-size: 13px;fill: rgb(8%,18%,21%); stroke:none;" transform="translate(0,708) scale(1,-1)">Funcionario</text>
-			<circle cx="1010" cy="630" r="12" style="stroke: rgb(8%,18%,21%); stroke-linecap: butt; stroke-width: 1.5; fill: none; fill-rule: evenodd;"/>
-			<path d="M 1010,618 L 1010,580 Z" style="stroke: rgb(8%,18%,21%); stroke-linecap: butt; stroke-width: 1.5;"/>
-			<path d="M 990,605 L 1030,605 Z" style="stroke: rgb(8%,18%,21%); stroke-linecap: butt; stroke-width: 1.5;"/>
-			<path d="M 1010,580 L 992,556 Z" style="stroke: rgb(8%,18%,21%); stroke-linecap: butt; stroke-width: 1.5;"/>
-			<path d="M 1010,580 L 1028,556 Z" style="stroke: rgb(8%,18%,21%); stroke-linecap: butt; stroke-width: 1.5;"/>
-			<text x="964.6650390625" y="534" style="font-family: SegoeBold; font-size: 13px;fill: rgb(8%,18%,21%); stroke:none;" transform="translate(0,1068) scale(1,-1)">Jefe inmediato</text>
-			<circle cx="1010" cy="430" r="12" style="stroke: rgb(8%,18%,21%); stroke-linecap: butt; stroke-width: 1.5; fill: none; fill-rule: evenodd;"/>
-			<path d="M 1010,418 L 1010,380 Z" style="stroke: rgb(8%,18%,21%); stroke-linecap: butt; stroke-width: 1.5;"/>
-			<path d="M 990,405 L 1030,405 Z" style="stroke: rgb(8%,18%,21%); stroke-linecap: butt; stroke-width: 1.5;"/>
-			<path d="M 1010,380 L 992,356 Z" style="stroke: rgb(8%,18%,21%); stroke-linecap: butt; stroke-width: 1.5;"/>
-			<path d="M 1010,380 L 1028,356 Z" style="stroke: rgb(8%,18%,21%); stroke-linecap: butt; stroke-width: 1.5;"/>
-			<text x="968.359375" y="334" style="font-family: SegoeBold; font-size: 13px;fill: rgb(8%,18%,21%); stroke:none;" transform="translate(0,668) scale(1,-1)">Subsecretario</text>
-			<circle cx="1010" cy="285" r="12" style="stroke: rgb(8%,18%,21%); stroke-linecap: butt; stroke-width: 1.5; fill: none; fill-rule: evenodd;"/>
-			<path d="M 1010,273 L 1010,235 Z" style="stroke: rgb(8%,18%,21%); stroke-linecap: butt; stroke-width: 1.5;"/>
-			<path d="M 990,260 L 1030,260 Z" style="stroke: rgb(8%,18%,21%); stroke-linecap: butt; stroke-width: 1.5;"/>
-			<path d="M 1010,235 L 992,211 Z" style="stroke: rgb(8%,18%,21%); stroke-linecap: butt; stroke-width: 1.5;"/>
-			<path d="M 1010,235 L 1028,211 Z" style="stroke: rgb(8%,18%,21%); stroke-linecap: butt; stroke-width: 1.5;"/>
-			<text x="987.576904296875" y="189" style="font-family: SegoeBold; font-size: 13px;fill: rgb(8%,18%,21%); stroke:none;" transform="translate(0,378) scale(1,-1)">Alcalde</text>
-			<circle cx="1010" cy="150" r="12" style="stroke: rgb(8%,18%,21%); stroke-linecap: butt; stroke-width: 1.5; fill: none; fill-rule: evenodd;"/>
-			<path d="M 1010,138 L 1010,100 Z" style="stroke: rgb(8%,18%,21%); stroke-linecap: butt; stroke-width: 1.5;"/>
-			<path d="M 990,125 L 1030,125 Z" style="stroke: rgb(8%,18%,21%); stroke-linecap: butt; stroke-width: 1.5;"/>
-			<path d="M 1010,100 L 992,76 Z" style="stroke: rgb(8%,18%,21%); stroke-linecap: butt; stroke-width: 1.5;"/>
-			<path d="M 1010,100 L 1028,76 Z" style="stroke: rgb(8%,18%,21%); stroke-linecap: butt; stroke-width: 1.5;"/>
-			<text x="965.766357421875" y="54" style="font-family: SegoeBold; font-size: 13px;fill: rgb(8%,18%,21%); stroke:none;" transform="translate(0,108) scale(1,-1)">Administrador</text>
-			<text x="958.83154296875" y="36" style="font-family: SegoeBold; font-size: 13px;fill: rgb(8%,18%,21%); stroke:none;" transform="translate(0,72) scale(1,-1)">Talento Humano</text>
-			<polyline points="108 420, 230 585" style="stroke: rgb(39%,47%,43%); stroke-linecap: butt; stroke-width: 1.4; fill: None; fill-rule: evenodd;"/>
-			<polyline points="108 420, 230 430" style="stroke: rgb(39%,47%,43%); stroke-linecap: butt; stroke-width: 1.4; fill: None; fill-rule: evenodd;"/>
-			<polyline points="108 420, 230 275" style="stroke: rgb(39%,47%,43%); stroke-linecap: butt; stroke-width: 1.4; fill: None; fill-rule: evenodd;"/>
-			<polyline points="108 420, 230 120" style="stroke: rgb(39%,47%,43%); stroke-linecap: butt; stroke-width: 1.4; fill: None; fill-rule: evenodd;"/>
-			<polyline points="980 600, 870 600" style="stroke: rgb(39%,47%,43%); stroke-linecap: butt; stroke-width: 1.4; fill: None; fill-rule: evenodd;"/>
-			<polyline points="980 400, 910 400, 910 600, 870 600" style="stroke: rgb(39%,47%,43%); stroke-linecap: butt; stroke-width: 1.4; fill: None; fill-rule: evenodd;"/>
-			<polyline points="980 400, 870 445" style="stroke: rgb(39%,47%,43%); stroke-linecap: butt; stroke-width: 1.4; fill: None; fill-rule: evenodd;"/>
-			<polyline points="980 255, 910 255, 910 290, 870 290" style="stroke: rgb(39%,47%,43%); stroke-linecap: butt; stroke-width: 1.4; fill: None; fill-rule: evenodd;"/>
-			<polyline points="980 120, 870 135" style="stroke: rgb(39%,47%,43%); stroke-linecap: butt; stroke-width: 1.4; fill: None; fill-rule: evenodd;"/>
-			<polyline points="980 120, 910 120, 910 55, 870 55" style="stroke: rgb(39%,47%,43%); stroke-linecap: butt; stroke-width: 1.4; fill: None; fill-rule: evenodd;"/>
-			<ellipse cx="350.0" cy="585.0" rx="118.0" ry="31.0" style="stroke: rgb(86%,89%,87%); stroke-linecap: butt; stroke-width: 1.3; fill: rgb(93%,95%,94%); fill-rule: evenodd;"/>
-			<text x="294.7998046875" y="590" style="font-family: Segoe; font-size: 14px;fill: rgb(8%,18%,21%); stroke:none;" transform="translate(0,1180) scale(1,-1)">Registrar solicitud</text>
-			<text x="290.3837890625" y="572" style="font-family: Segoe; font-size: 14px;fill: rgb(8%,18%,21%); stroke:none;" transform="translate(0,1144) scale(1,-1)">y adjuntar soportes</text>
-			<ellipse cx="350.0" cy="430.0" rx="118.0" ry="31.0" style="stroke: rgb(86%,89%,87%); stroke-linecap: butt; stroke-width: 1.3; fill: rgb(93%,95%,94%); fill-rule: evenodd;"/>
-			<text x="297.9033203125" y="435" style="font-family: Segoe; font-size: 14px;fill: rgb(8%,18%,21%); stroke:none;" transform="translate(0,870) scale(1,-1)">Consultar estado</text>
-			<text x="300.4326171875" y="417" style="font-family: Segoe; font-size: 14px;fill: rgb(8%,18%,21%); stroke:none;" transform="translate(0,834) scale(1,-1)">y descargar PDF</text>
-			<ellipse cx="350.0" cy="275.0" rx="118.0" ry="31.0" style="stroke: rgb(86%,89%,87%); stroke-linecap: butt; stroke-width: 1.3; fill: rgb(93%,95%,94%); fill-rule: evenodd;"/>
-			<text x="307.3779296875" y="280" style="font-family: Segoe; font-size: 14px;fill: rgb(8%,18%,21%); stroke:none;" transform="translate(0,560) scale(1,-1)">Registrar acto</text>
-			<text x="306.07568359375" y="262" style="font-family: Segoe; font-size: 14px;fill: rgb(8%,18%,21%); stroke:none;" transform="translate(0,524) scale(1,-1)">administrativo</text>
-			<ellipse cx="350.0" cy="120.0" rx="118.0" ry="31.0" style="stroke: rgb(86%,89%,87%); stroke-linecap: butt; stroke-width: 1.3; fill: rgb(93%,95%,94%); fill-rule: evenodd;"/>
-			<text x="287.6767578125" y="115" style="font-family: Segoe; font-size: 14px;fill: rgb(8%,18%,21%); stroke:none;" transform="translate(0,230) scale(1,-1)">Solicitar cancelación</text>
-			<ellipse cx="750.0" cy="600.0" rx="118.0" ry="31.0" style="stroke: rgb(86%,89%,87%); stroke-linecap: butt; stroke-width: 1.3; fill: rgb(93%,95%,94%); fill-rule: evenodd;"/>
-			<text x="694.9091796875" y="605" style="font-family: Segoe; font-size: 14px;fill: rgb(8%,18%,21%); stroke:none;" transform="translate(0,1210) scale(1,-1)">Aprobar, devolver</text>
-			<text x="717.97021484375" y="587" style="font-family: Segoe; font-size: 14px;fill: rgb(8%,18%,21%); stroke:none;" transform="translate(0,1174) scale(1,-1)">o rechazar</text>
-			<ellipse cx="750.0" cy="445.0" rx="118.0" ry="31.0" style="stroke: rgb(86%,89%,87%); stroke-linecap: butt; stroke-width: 1.3; fill: rgb(93%,95%,94%); fill-rule: evenodd;"/>
-			<text x="686.12158203125" y="450" style="font-family: Segoe; font-size: 14px;fill: rgb(8%,18%,21%); stroke:none;" transform="translate(0,900) scale(1,-1)">Resolver cancelación</text>
-			<text x="682.96337890625" y="432" style="font-family: Segoe; font-size: 14px;fill: rgb(8%,18%,21%); stroke:none;" transform="translate(0,864) scale(1,-1)">de solicitud aprobada</text>
-			<ellipse cx="750.0" cy="290.0" rx="118.0" ry="31.0" style="stroke: rgb(86%,89%,87%); stroke-linecap: butt; stroke-width: 1.3; fill: rgb(93%,95%,94%); fill-rule: evenodd;"/>
-			<text x="701.21533203125" y="295" style="font-family: Segoe; font-size: 14px;fill: rgb(8%,18%,21%); stroke:none;" transform="translate(0,590) scale(1,-1)">Revisar permiso</text>
-			<text x="708.4716796875" y="277" style="font-family: Segoe; font-size: 14px;fill: rgb(8%,18%,21%); stroke:none;" transform="translate(0,554) scale(1,-1)">de alto rango</text>
-			<ellipse cx="750.0" cy="135.0" rx="118.0" ry="31.0" style="stroke: rgb(86%,89%,87%); stroke-linecap: butt; stroke-width: 1.3; fill: rgb(93%,95%,94%); fill-rule: evenodd;"/>
-			<text x="713.39697265625" y="140" style="font-family: Segoe; font-size: 14px;fill: rgb(8%,18%,21%); stroke:none;" transform="translate(0,280) scale(1,-1)">Validar acto</text>
-			<text x="706.07568359375" y="122" style="font-family: Segoe; font-size: 14px;fill: rgb(8%,18%,21%); stroke:none;" transform="translate(0,244) scale(1,-1)">administrativo</text>
-			<ellipse cx="750.0" cy="55.0" rx="118.0" ry="31.0" style="stroke: rgb(86%,89%,87%); stroke-linecap: butt; stroke-width: 1.3; fill: rgb(93%,95%,94%); fill-rule: evenodd;"/>
-			<text x="678.80029296875" y="60" style="font-family: Segoe; font-size: 14px;fill: rgb(8%,18%,21%); stroke:none;" transform="translate(0,120) scale(1,-1)">Mantener funcionarios,</text>
-			<text x="692.30810546875" y="42" style="font-family: Segoe; font-size: 14px;fill: rgb(8%,18%,21%); stroke:none;" transform="translate(0,84) scale(1,-1)">reglas y calendario</text>
-			<text x="319.8671875" y="0" style="font-family: Segoe; font-size: 12px;fill: rgb(39%,47%,43%); stroke:none;" transform="translate(0,0) scale(1,-1)">Los aprobadores también pueden actuar como solicitantes; no se permite autoaprobar.</text>
+			<rect x="205" y="20" width="690" height="735" rx="10" ry="10" style="stroke: rgb(86%,89%,87%); stroke-linecap: butt; stroke-width: 1; fill: rgb(100%,100%,100%); fill-rule: evenodd;"/>
+			<text x="371.986328125" y="775" style="font-family: SegoeBold; font-size: 19px;fill: rgb(8%,18%,21%); stroke:none;" transform="translate(0,1550) scale(1,-1)">Sistema de gestión del Talento Humano</text>
+			<circle cx="80" cy="600" r="12" style="stroke: rgb(8%,18%,21%); stroke-linecap: butt; stroke-width: 1.5; fill: none; fill-rule: evenodd;"/>
+			<path d="M 80,588 L 80,550 Z" style="stroke: rgb(8%,18%,21%); stroke-linecap: butt; stroke-width: 1.5;"/>
+			<path d="M 60,575 L 100,575 Z" style="stroke: rgb(8%,18%,21%); stroke-linecap: butt; stroke-width: 1.5;"/>
+			<path d="M 80,550 L 62,526 Z" style="stroke: rgb(8%,18%,21%); stroke-linecap: butt; stroke-width: 1.5;"/>
+			<path d="M 80,550 L 98,526 Z" style="stroke: rgb(8%,18%,21%); stroke-linecap: butt; stroke-width: 1.5;"/>
+			<text x="43.97705078125" y="504" style="font-family: SegoeBold; font-size: 13px;fill: rgb(8%,18%,21%); stroke:none;" transform="translate(0,1008) scale(1,-1)">Funcionario</text>
+			<circle cx="80" cy="140" r="12" style="stroke: rgb(8%,18%,21%); stroke-linecap: butt; stroke-width: 1.5; fill: none; fill-rule: evenodd;"/>
+			<path d="M 80,128 L 80,90 Z" style="stroke: rgb(8%,18%,21%); stroke-linecap: butt; stroke-width: 1.5;"/>
+			<path d="M 60,115 L 100,115 Z" style="stroke: rgb(8%,18%,21%); stroke-linecap: butt; stroke-width: 1.5;"/>
+			<path d="M 80,90 L 62,66 Z" style="stroke: rgb(8%,18%,21%); stroke-linecap: butt; stroke-width: 1.5;"/>
+			<path d="M 80,90 L 98,66 Z" style="stroke: rgb(8%,18%,21%); stroke-linecap: butt; stroke-width: 1.5;"/>
+			<text x="55.6630859375" y="44" style="font-family: SegoeBold; font-size: 13px;fill: rgb(8%,18%,21%); stroke:none;" transform="translate(0,88) scale(1,-1)">Nómina</text>
+			<circle cx="1010" cy="690" r="12" style="stroke: rgb(8%,18%,21%); stroke-linecap: butt; stroke-width: 1.5; fill: none; fill-rule: evenodd;"/>
+			<path d="M 1010,678 L 1010,640 Z" style="stroke: rgb(8%,18%,21%); stroke-linecap: butt; stroke-width: 1.5;"/>
+			<path d="M 990,665 L 1030,665 Z" style="stroke: rgb(8%,18%,21%); stroke-linecap: butt; stroke-width: 1.5;"/>
+			<path d="M 1010,640 L 992,616 Z" style="stroke: rgb(8%,18%,21%); stroke-linecap: butt; stroke-width: 1.5;"/>
+			<path d="M 1010,640 L 1028,616 Z" style="stroke: rgb(8%,18%,21%); stroke-linecap: butt; stroke-width: 1.5;"/>
+			<text x="964.6650390625" y="594" style="font-family: SegoeBold; font-size: 13px;fill: rgb(8%,18%,21%); stroke:none;" transform="translate(0,1188) scale(1,-1)">Jefe inmediato</text>
+			<circle cx="1010" cy="500" r="12" style="stroke: rgb(8%,18%,21%); stroke-linecap: butt; stroke-width: 1.5; fill: none; fill-rule: evenodd;"/>
+			<path d="M 1010,488 L 1010,450 Z" style="stroke: rgb(8%,18%,21%); stroke-linecap: butt; stroke-width: 1.5;"/>
+			<path d="M 990,475 L 1030,475 Z" style="stroke: rgb(8%,18%,21%); stroke-linecap: butt; stroke-width: 1.5;"/>
+			<path d="M 1010,450 L 992,426 Z" style="stroke: rgb(8%,18%,21%); stroke-linecap: butt; stroke-width: 1.5;"/>
+			<path d="M 1010,450 L 1028,426 Z" style="stroke: rgb(8%,18%,21%); stroke-linecap: butt; stroke-width: 1.5;"/>
+			<text x="968.359375" y="404" style="font-family: SegoeBold; font-size: 13px;fill: rgb(8%,18%,21%); stroke:none;" transform="translate(0,808) scale(1,-1)">Subsecretario</text>
+			<circle cx="1010" cy="315" r="12" style="stroke: rgb(8%,18%,21%); stroke-linecap: butt; stroke-width: 1.5; fill: none; fill-rule: evenodd;"/>
+			<path d="M 1010,303 L 1010,265 Z" style="stroke: rgb(8%,18%,21%); stroke-linecap: butt; stroke-width: 1.5;"/>
+			<path d="M 990,290 L 1030,290 Z" style="stroke: rgb(8%,18%,21%); stroke-linecap: butt; stroke-width: 1.5;"/>
+			<path d="M 1010,265 L 992,241 Z" style="stroke: rgb(8%,18%,21%); stroke-linecap: butt; stroke-width: 1.5;"/>
+			<path d="M 1010,265 L 1028,241 Z" style="stroke: rgb(8%,18%,21%); stroke-linecap: butt; stroke-width: 1.5;"/>
+			<text x="987.576904296875" y="219" style="font-family: SegoeBold; font-size: 13px;fill: rgb(8%,18%,21%); stroke:none;" transform="translate(0,438) scale(1,-1)">Alcalde</text>
+			<circle cx="1010" cy="130" r="12" style="stroke: rgb(8%,18%,21%); stroke-linecap: butt; stroke-width: 1.5; fill: none; fill-rule: evenodd;"/>
+			<path d="M 1010,118 L 1010,80 Z" style="stroke: rgb(8%,18%,21%); stroke-linecap: butt; stroke-width: 1.5;"/>
+			<path d="M 990,105 L 1030,105 Z" style="stroke: rgb(8%,18%,21%); stroke-linecap: butt; stroke-width: 1.5;"/>
+			<path d="M 1010,80 L 992,56 Z" style="stroke: rgb(8%,18%,21%); stroke-linecap: butt; stroke-width: 1.5;"/>
+			<path d="M 1010,80 L 1028,56 Z" style="stroke: rgb(8%,18%,21%); stroke-linecap: butt; stroke-width: 1.5;"/>
+			<text x="965.766357421875" y="34" style="font-family: SegoeBold; font-size: 13px;fill: rgb(8%,18%,21%); stroke:none;" transform="translate(0,68) scale(1,-1)">Administrador</text>
+			<text x="958.83154296875" y="16" style="font-family: SegoeBold; font-size: 13px;fill: rgb(8%,18%,21%); stroke:none;" transform="translate(0,32) scale(1,-1)">Talento Humano</text>
+			<polyline points="108 570, 230 675" style="stroke: rgb(39%,47%,43%); stroke-linecap: butt; stroke-width: 1.4; fill: None; fill-rule: evenodd;"/>
+			<polyline points="108 570, 230 525" style="stroke: rgb(39%,47%,43%); stroke-linecap: butt; stroke-width: 1.4; fill: None; fill-rule: evenodd;"/>
+			<polyline points="108 570, 230 375" style="stroke: rgb(39%,47%,43%); stroke-linecap: butt; stroke-width: 1.4; fill: None; fill-rule: evenodd;"/>
+			<polyline points="108 570, 230 225" style="stroke: rgb(39%,47%,43%); stroke-linecap: butt; stroke-width: 1.4; fill: None; fill-rule: evenodd;"/>
+			<polyline points="108 110, 230 80" style="stroke: rgb(39%,47%,43%); stroke-linecap: butt; stroke-width: 1.4; fill: None; fill-rule: evenodd;"/>
+			<polyline points="980 660, 870 670" style="stroke: rgb(39%,47%,43%); stroke-linecap: butt; stroke-width: 1.4; fill: None; fill-rule: evenodd;"/>
+			<polyline points="980 660, 915 660, 915 525, 870 525" style="stroke: rgb(39%,47%,43%); stroke-linecap: butt; stroke-width: 1.4; fill: None; fill-rule: evenodd;"/>
+			<polyline points="980 470, 925 470, 925 670, 870 670" style="stroke: rgb(39%,47%,43%); stroke-linecap: butt; stroke-width: 1.4; fill: None; fill-rule: evenodd;"/>
+			<polyline points="980 470, 870 375" style="stroke: rgb(39%,47%,43%); stroke-linecap: butt; stroke-width: 1.4; fill: None; fill-rule: evenodd;"/>
+			<polyline points="980 285, 870 230" style="stroke: rgb(39%,47%,43%); stroke-linecap: butt; stroke-width: 1.4; fill: None; fill-rule: evenodd;"/>
+			<polyline points="980 100, 870 80" style="stroke: rgb(39%,47%,43%); stroke-linecap: butt; stroke-width: 1.4; fill: None; fill-rule: evenodd;"/>
+			<ellipse cx="350.0" cy="675.0" rx="118.0" ry="31.0" style="stroke: rgb(86%,89%,87%); stroke-linecap: butt; stroke-width: 1.3; fill: rgb(93%,95%,94%); fill-rule: evenodd;"/>
+			<text x="293.2822265625" y="680" style="font-family: Segoe; font-size: 14px;fill: rgb(8%,18%,21%); stroke:none;" transform="translate(0,1360) scale(1,-1)">Registrar solicitud,</text>
+			<text x="292.61572265625" y="662" style="font-family: Segoe; font-size: 14px;fill: rgb(8%,18%,21%); stroke:none;" transform="translate(0,1324) scale(1,-1)">soportes y jornada</text>
+			<ellipse cx="350.0" cy="525.0" rx="118.0" ry="31.0" style="stroke: rgb(86%,89%,87%); stroke-linecap: butt; stroke-width: 1.3; fill: rgb(93%,95%,94%); fill-rule: evenodd;"/>
+			<text x="297.9033203125" y="530" style="font-family: Segoe; font-size: 14px;fill: rgb(8%,18%,21%); stroke:none;" transform="translate(0,1060) scale(1,-1)">Consultar estado</text>
+			<text x="300.4326171875" y="512" style="font-family: Segoe; font-size: 14px;fill: rgb(8%,18%,21%); stroke:none;" transform="translate(0,1024) scale(1,-1)">y descargar PDF</text>
+			<ellipse cx="350.0" cy="375.0" rx="118.0" ry="31.0" style="stroke: rgb(86%,89%,87%); stroke-linecap: butt; stroke-width: 1.3; fill: rgb(93%,95%,94%); fill-rule: evenodd;"/>
+			<text x="307.3779296875" y="380" style="font-family: Segoe; font-size: 14px;fill: rgb(8%,18%,21%); stroke:none;" transform="translate(0,760) scale(1,-1)">Registrar acto</text>
+			<text x="306.07568359375" y="362" style="font-family: Segoe; font-size: 14px;fill: rgb(8%,18%,21%); stroke:none;" transform="translate(0,724) scale(1,-1)">administrativo</text>
+			<ellipse cx="350.0" cy="225.0" rx="118.0" ry="31.0" style="stroke: rgb(86%,89%,87%); stroke-linecap: butt; stroke-width: 1.3; fill: rgb(93%,95%,94%); fill-rule: evenodd;"/>
+			<text x="287.6767578125" y="220" style="font-family: Segoe; font-size: 14px;fill: rgb(8%,18%,21%); stroke:none;" transform="translate(0,440) scale(1,-1)">Solicitar cancelación</text>
+			<ellipse cx="350.0" cy="80.0" rx="118.0" ry="31.0" style="stroke: rgb(86%,89%,87%); stroke-linecap: butt; stroke-width: 1.3; fill: rgb(93%,95%,94%); fill-rule: evenodd;"/>
+			<text x="290.77685546875" y="85" style="font-family: Segoe; font-size: 14px;fill: rgb(8%,18%,21%); stroke:none;" transform="translate(0,170) scale(1,-1)">Aprobar o rechazar</text>
+			<text x="290.8896484375" y="67" style="font-family: Segoe; font-size: 14px;fill: rgb(8%,18%,21%); stroke:none;" transform="translate(0,134) scale(1,-1)">acto administrativo</text>
+			<ellipse cx="750.0" cy="670.0" rx="118.0" ry="31.0" style="stroke: rgb(86%,89%,87%); stroke-linecap: butt; stroke-width: 1.3; fill: rgb(93%,95%,94%); fill-rule: evenodd;"/>
+			<text x="694.9091796875" y="675" style="font-family: Segoe; font-size: 14px;fill: rgb(8%,18%,21%); stroke:none;" transform="translate(0,1350) scale(1,-1)">Aprobar, devolver</text>
+			<text x="717.97021484375" y="657" style="font-family: Segoe; font-size: 14px;fill: rgb(8%,18%,21%); stroke:none;" transform="translate(0,1314) scale(1,-1)">o rechazar</text>
+			<ellipse cx="750.0" cy="525.0" rx="118.0" ry="31.0" style="stroke: rgb(86%,89%,87%); stroke-linecap: butt; stroke-width: 1.3; fill: rgb(93%,95%,94%); fill-rule: evenodd;"/>
+			<text x="699.2705078125" y="530" style="font-family: Segoe; font-size: 14px;fill: rgb(8%,18%,21%); stroke:none;" transform="translate(0,1060) scale(1,-1)">Consultar saldos</text>
+			<text x="680.14013671875" y="512" style="font-family: Segoe; font-size: 14px;fill: rgb(8%,18%,21%); stroke:none;" transform="translate(0,1024) scale(1,-1)">del periodo designado</text>
+			<ellipse cx="750.0" cy="375.0" rx="118.0" ry="31.0" style="stroke: rgb(86%,89%,87%); stroke-linecap: butt; stroke-width: 1.3; fill: rgb(93%,95%,94%); fill-rule: evenodd;"/>
+			<text x="686.12158203125" y="380" style="font-family: Segoe; font-size: 14px;fill: rgb(8%,18%,21%); stroke:none;" transform="translate(0,760) scale(1,-1)">Resolver cancelación</text>
+			<text x="682.96337890625" y="362" style="font-family: Segoe; font-size: 14px;fill: rgb(8%,18%,21%); stroke:none;" transform="translate(0,724) scale(1,-1)">de solicitud aprobada</text>
+			<ellipse cx="750.0" cy="230.0" rx="118.0" ry="31.0" style="stroke: rgb(86%,89%,87%); stroke-linecap: butt; stroke-width: 1.3; fill: rgb(93%,95%,94%); fill-rule: evenodd;"/>
+			<text x="701.21533203125" y="235" style="font-family: Segoe; font-size: 14px;fill: rgb(8%,18%,21%); stroke:none;" transform="translate(0,470) scale(1,-1)">Revisar permiso</text>
+			<text x="708.4716796875" y="217" style="font-family: Segoe; font-size: 14px;fill: rgb(8%,18%,21%); stroke:none;" transform="translate(0,434) scale(1,-1)">de alto rango</text>
+			<ellipse cx="750.0" cy="80.0" rx="118.0" ry="31.0" style="stroke: rgb(86%,89%,87%); stroke-linecap: butt; stroke-width: 1.3; fill: rgb(93%,95%,94%); fill-rule: evenodd;"/>
+			<text x="673.29052734375" y="85" style="font-family: Segoe; font-size: 14px;fill: rgb(8%,18%,21%); stroke:none;" transform="translate(0,170) scale(1,-1)">Gestionar designaciones,</text>
+			<text x="686.466796875" y="67" style="font-family: Segoe; font-size: 14px;fill: rgb(8%,18%,21%); stroke:none;" transform="translate(0,134) scale(1,-1)">funcionarios y reglas</text>
+			<text x="345.103515625" y="0" style="font-family: Segoe; font-size: 12px;fill: rgb(39%,47%,43%); stroke:none;" transform="translate(0,0) scale(1,-1)">Los aprobadores también pueden ser solicitantes; no se permite autoaprobar.</text>
 		</g>
 	</g>
 </svg>

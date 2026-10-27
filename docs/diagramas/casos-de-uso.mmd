@@ -4,6 +4,7 @@ flowchart LR
     S[Subsecretario]
     A[Alcalde]
     TH[Administrador de Talento Humano]
+    N[Nómina]
     subgraph Aplicacion[Gestión del Talento Humano]
         U1([Registrar solicitud y soportes])
         U2([Consultar estado y descargar PDF])
@@ -14,9 +15,12 @@ flowchart LR
         U7([Revisar permiso de alto rango])
         U8([Validar acto administrativo])
         U9([Mantener funcionarios reglas y calendario])
+        U10([Designar jefes por dependencia y subsecretario por vigencia])
+        U11([Consultar saldos en el periodo designado])
     end
     F --- U1 & U2 & U3 & U4
-    J --- U5
+    J --- U5 & U11
     S --- U5 & U6
     A --- U7
-    TH --- U8 & U9
+    N --- U8
+    TH --- U9 & U10

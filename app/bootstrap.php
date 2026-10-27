@@ -18,7 +18,7 @@ function db(): PDO {
     if (!$pdo) {
         $pdo = new PDO('sqlite:' . $GLOBALS['config']['database'], null, null, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION, PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC]);
         $pdo->exec('PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000; PRAGMA journal_mode=WAL;');
-        migrateDatabase($pdo);
+        if (!defined('SKIP_DATABASE_MIGRATIONS') || !SKIP_DATABASE_MIGRATIONS) migrateDatabase($pdo);
     }
     return $pdo;
 }
@@ -58,8 +58,9 @@ function csrf(): string { return '<input type="hidden" name="csrf" value="'.e($_
 function authorizeAdmin(array $u): void { ensure(hasRole($u,'admin'),'Esta acción requiere un administrador de Talento Humano.'); }
 function validDate(string $s): bool { $d=DateTimeImmutable::createFromFormat('!Y-m-d',$s); return $d && $d->format('Y-m-d')===$s; }
 function statusLabel(string $s): string { return ['pending'=>'En aprobación','approved'=>'Aprobada','returned'=>'Devuelta para corregir','rejected'=>'Rechazada','cancel_pending'=>'Cancelación en revisión','cancelled'=>'Cancelada','waiting'=>'Pendiente','skipped'=>'Sin efecto','released'=>'Liberado','reserved'=>'Reservado','consumed'=>'Descontado','sent'=>'Enviado','sending'=>'Enviando','failed'=>'Error de envío'][$s]??$s; }
-function roleLabel(string $role): string { return ['manager'=>'Jefe inmediato','subsecretary'=>'Subsecretario','mayor'=>'Alcalde','admin'=>'Administrador de Talento Humano'][$role]??$role; }
+function roleLabel(string $role): string { return ['manager'=>'Jefe inmediato','subsecretary'=>'Subsecretario','mayor'=>'Alcalde','admin'=>'Administrador de Talento Humano','payroll'=>'Nómina'][$role]??$role; }
 function familyLabel(string $s): string { return ['permiso'=>'Permiso','compensatorio'=>'Compensatorio','remunerada'=>'Licencia remunerada','no_remunerada'=>'Licencia no remunerada'][$s]??$s; }
 require_once __DIR__.'/Calendar.php';
 require_once __DIR__.'/Workflow.php';
 require_once __DIR__.'/Files.php';
+require_once __DIR__.'/Designations.php';

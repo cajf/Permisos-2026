@@ -40,7 +40,7 @@ function saveUploads(array $files,int $owner,?int $request=null,?int $act=null):
     }
 }
 function canReadRequest(array $u,array $r): bool {
-    return (int)$r['user_id']===(int)$u['id'] || hasRole($u,'admin') || (hasRole($u,'subsecretary') && (int)setting('subsecretary_id')===(int)$u['id']) || row('SELECT id FROM approvals WHERE request_id=? AND (assigned_user_id=? OR acted_by=?)',[$r['id'],$u['id'],$u['id']])!==null;
+    return (int)$r['user_id']===(int)$u['id'] || hasRole($u,'admin') || (int)($r['cancellation_assignee_id']??0)===(int)$u['id'] || row('SELECT id FROM approvals WHERE request_id=? AND (assigned_user_id=? OR acted_by=?)',[$r['id'],$u['id'],$u['id']])!==null;
 }
 function requestPdf(array $r): string {
     $c=row('SELECT * FROM categories WHERE id=?',[$r['category_id']]);
@@ -52,7 +52,12 @@ function requestPdf(array $r): string {
     $html='<h1>Alcaldía de Bucaramanga</h1><h2>Solicitud '.sprintf('TH-%06d',$r['id']).'</h2><p>Gestión del Talento Humano · F-GAT-8100-238,37-183</p>';
     $data=['Estado'=>statusLabel($r['status']),'Tipo'=>familyLabel($c['family']).' · '.$c['name'],'Funcionario'=>$snap['name'],'Cédula'=>$snap['identification'],'Cargo'=>$snap['job_title'],'Código / grado'=>$snap['code'].' / '.$snap['grade'],'Dependencia'=>$snap['department'],'Fecha de registro'=>$r['created_at'].' (America/Bogota)','Duración'=>hours((int)$r['total_minutes']),'Justificación'=>$r['justification'],'Excepción de anticipación'=>$r['exception_reason'],'Parentesco'=>$r['relationship']];
     $html.='<table cellpadding="6" border="1">'; foreach ($data as $k=>$v) $html.='<tr><td width="32%"><b>'.e($k).'</b></td><td width="68%">'.nl2br(e($v)).'</td></tr>'; $html.='</table><h3>Fechas y horarios</h3>';
-    foreach (rows('SELECT * FROM request_slots WHERE request_id=? ORDER BY date,start_time',[$r['id']]) as $s) $html.='<p>'.e($s['date'].' · '.$s['start_time'].' a '.$s['end_time'].' · '.hours((int)$s['minutes'])).'</p>';
+    if ($r['birthday_year']) $html.='<p>Beneficio de cumpleaños de la vigencia '.(int)$r['birthday_year'].'.</p>';
+    if ($r['special_note']) $html.='<p><b>Justificación de jornada especial:</b> '.e($r['special_note']).'</p>';
+    foreach (rows('SELECT * FROM request_slots WHERE request_id=? ORDER BY date,start_time',[$r['id']]) as $s) {
+        $html.='<p>'.e(($s['start_at']??($s['date'].' '.$s['start_time'])).' a '.($s['end_at']??($s['date'].' '.$s['end_time'])).' · '.hours((int)$s['minutes'])).'</p>';
+        if ($s['special_periods']) foreach (json_decode($s['special_periods'],true) as $p) $html.='<p>Jornada declarada: '.e($p['start'].' (día +'.$p['start_day'].') a '.$p['end'].' (día +'.$p['end_day'].')').'</p>';
+    }
     $html.='<h3>Constancias e historial</h3><p>Las actuaciones se registran con fecha y hora de Bogotá. Este documento no contiene firma digital.</p>';
     foreach (rows('SELECT e.*,u.name FROM events e JOIN users u ON u.id=e.actor_id WHERE request_id=? ORDER BY e.id',[$r['id']]) as $ev) $html.='<p><b>'.e($ev['created_at'].' · '.$ev['name']).'</b><br>'.e($ev['action'].' · '.$ev['detail']).'</p>';
     $acts=rows('SELECT a.number,l.minutes,l.returned_minutes,l.state FROM allocations l JOIN acts a ON a.id=l.act_id WHERE request_id=?',[$r['id']]);

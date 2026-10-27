@@ -15,6 +15,7 @@ header("Content-Security-Policy: default-src 'self'; style-src 'self'; script-sr
 header('Cache-Control: no-store');
 if(getenv('APP_TESTING')==='1')header('X-TH-Test-Environment: isolated');
 if (!is_file($GLOBALS['config']['database']) || !row("SELECT name FROM sqlite_master WHERE type='table' AND name='users'")) { http_response_code(503); exit('Inicialice la aplicación con scripts/install.php. Consulte README.md.'); }
+initializeBalanceHistory();
 if (isset($_SESSION['last_seen']) && time()-$_SESSION['last_seen']>1800) { $_SESSION=[]; session_regenerate_id(true); }
 $_SESSION['last_seen']=time(); $_SESSION['csrf']??=bin2hex(random_bytes(32));
 $page=(string)($_GET['page']??'dashboard'); $wf=new Workflow(); $error=null;
@@ -61,6 +62,7 @@ try {
             case 'act': $wf->act($u,$_POST,validateUploads($_FILES['supports']??[])); $destination='/?page=acts'; break;
             case 'review_act': $wf->reviewAct($u,(int)$_POST['id'],$_POST['decision']??'',trim($_POST['comment']??'')); $destination='/?page=acts'; break;
             case 'user': saveUser($u,$_POST,empty($_POST['id'])?null:(int)$_POST['id']); $destination='/?page=users'; break;
+            case 'designation': saveDesignation($u,$_POST); $destination='/?page=designations'; break;
             case 'reset_password':
                 authorizeAdmin($u); validatePassword($_POST['initial_password']??'');
                 ensure(row('SELECT id FROM users WHERE id=?',[(int)$_POST['id']])!==null,'Funcionario no encontrado.');
@@ -70,7 +72,7 @@ try {
             case 'settings':
                 authorizeAdmin($u);
                 atomic(function() use($u,$wf) {
-                    foreach (['mayor','subsecretary'] as $role) foreach (['_id','_alternate_id'] as $suffix) {
+                    foreach (['mayor'] as $role) foreach (['_id','_alternate_id'] as $suffix) {
                         $id=(int)($_POST[$role.$suffix]??0);
                         if ($id) { $p=row('SELECT * FROM users WHERE id=? AND active=1',[$id]); ensure($p && hasRole($p,$role),'Seleccione un responsable activo con el rol correspondiente.'); }
                         else ensure($suffix==='_alternate_id','Debe asignar los responsables principales.');
@@ -91,7 +93,7 @@ try {
                 ensure(!$supportsRequired || $supports!=='','Describa los soportes requeridos.');
                 $max=trim($_POST['max_hours']??'')!==''?Workflow::hourInput($_POST['max_hours']):null;
                 $c=row('SELECT * FROM categories WHERE id=?',[(int)$_POST['id']]); ensure($c!==null,'Tipo no válido.');
-                if ($c['slug']==='ordinario') $max=null;
+                if (in_array($c['slug'],['ordinario','cumpleanos'],true)) $max=null;
                 atomic(function() use($supports,$supportsRequired,$max,$c,$u) {
                     run('UPDATE categories SET supports=?,supports_required=?,max_minutes=?,policy_confirmed=?,notes=? WHERE id=?',[$supports,$supportsRequired,$max,isset($_POST['policy_confirmed'])?1:0,trim($_POST['notes']??''),$c['id']]);
                     event((int)$u['id'],'Matriz actualizada',$c['name'].' · Soporte '.($supportsRequired?'obligatorio':'opcional'));
@@ -119,6 +121,13 @@ if ($page!=='login') {
         }
         if ($page==='estimate') {
             header('Content-Type: application/json; charset=utf-8');
+            if (!empty($_GET['slot']['special'])) {
+                try {
+                    $slot=$wf->calendar->specialSlot($_GET['slot'],new DateTimeImmutable('today'));
+                    echo json_encode(['periods'=>[[$slot['start_time'],$slot['end_time']]],'minutes'=>$slot['minutes']],JSON_UNESCAPED_UNICODE);
+                } catch (DomainException $ex) { echo json_encode(['periods'=>[],'minutes'=>0,'error'=>$ex->getMessage()],JSON_UNESCAPED_UNICODE); }
+                exit;
+            }
             $date=$_GET['date']??''; $p=$wf->calendar->periods($date); $a=$_GET['start']??($p[0][0]??''); $b=$_GET['end']??($p[count($p)-1][1]??'');
             echo json_encode(['periods'=>$p,'minutes'=>$p?$wf->calendar->minutes($date,$a,$b):0],JSON_UNESCAPED_UNICODE); exit;
         }
@@ -128,7 +137,7 @@ if ($page!=='login') {
                 $bytes=requestPdf($r); header('Content-Type: application/pdf'); header('Content-Disposition: attachment; filename="TH-'.(int)$r['id'].'.pdf"'); header('Content-Length: '.strlen($bytes)); echo $bytes; exit;
             }
             $a=row('SELECT * FROM attachments WHERE id=?',[(int)($_GET['id']??0)]); ensure($a!==null,'Soporte no encontrado.');
-            $allowed=(int)$a['user_id']===(int)$u['id'] || hasRole($u,'admin');
+            $allowed=(int)$a['user_id']===(int)$u['id'] || hasRole($u,'admin') || ($a['act_id'] && hasRole($u,'payroll'));
             if ($a['request_id']) $allowed=canReadRequest($u,row('SELECT * FROM requests WHERE id=?',[$a['request_id']]));
             if ($a['act_id'] && !$allowed) foreach (rows('SELECT r.* FROM requests r JOIN allocations l ON l.request_id=r.id WHERE l.act_id=?',[$a['act_id']]) as $r) if(canReadRequest($u,$r)) $allowed=true;
             ensure($allowed,'No tiene acceso a este soporte.');
@@ -136,7 +145,7 @@ if ($page!=='login') {
         }
         if ($page==='template') {
             authorizeAdmin($u); header('Content-Type: text/csv; charset=utf-8'); header('Content-Disposition: attachment; filename="plantilla-funcionarios.csv"');
-            echo "\xEF\xBB\xBFcedula;nombre;usuario;correo;cargo;codigo;grado;vinculacion;dependencia;cedula_jefe;alto_rango\r\n"; exit;
+            echo "\xEF\xBB\xBFcedula;nombre;usuario;correo;cargo;codigo;grado;vinculacion;dependencia;cedula_jefe;alto_rango;fecha_nacimiento\r\n"; exit;
         }
         if ($page==='import_passwords') {
             authorizeAdmin($u); header('Content-Type: text/csv; charset=utf-8'); header('Content-Disposition: attachment; filename="accesos-iniciales.csv"'); $out=fopen('php://output','w');

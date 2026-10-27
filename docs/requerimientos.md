@@ -13,10 +13,10 @@ La primera instalación será local. Se prevé una instalación futura en servid
 - Solicitante: registra solicitudes, adjunta soportes y registra actos administrativos que le otorgan horas de compensatorio.
 - Jefe inmediato: realiza la primera aprobación.
 - Subsecretario administrativo del talento humano: realiza la aprobación final del flujo ordinario y autoriza la cancelación de solicitudes ya aprobadas. Es la misma persona que el jefe de Talento Humano.
-- Administrador de Talento Humano: mantiene los responsables de aprobación y valida los actos administrativos registrados por los solicitantes.
+- Administrador de Talento Humano: mantiene funcionarios y designaciones por vigencia.
 - Alcalde: aprueba exclusivamente los permisos de Asesores de Despacho, Secretarios de Despacho y Jefes de Oficina. Para esos cargos, los compensatorios y licencias siguen el flujo general de jefe inmediato y subsecretario.
 
-No se requiere visto bueno de Nómina.
+Nómina aprueba o rechaza exclusivamente el cargue de actos administrativos de compensatorio, dejando responsable, fecha, hora y observación. No se agrega una etapa de Nómina al disfrute de permisos, compensatorios o licencias.
 
 ## Catálogo confirmado
 
@@ -71,7 +71,7 @@ La solicitud debe presentarse con al menos 48 horas calendario dentro de días h
 
 ## Actos administrativos y saldos
 
-Para Disfrute por acto administrativo, el solicitante registra el acto e indica el total de horas de disfrute otorgadas. Un administrador de Talento Humano debe aprobar ese registro.
+Para Disfrute por acto administrativo, el solicitante registra el acto e indica el total de horas de disfrute otorgadas. Únicamente un usuario con rol de Nómina, diferente del titular, puede aprobar o rechazar ese registro.
 
 El tiempo solicitado se reserva mientras se aprueba la solicitud, se descuenta definitivamente cuando se obtiene la aprobación final y se libera si se rechaza o cancela. La cancelación de una solicitud aprobada solo se hace efectiva cuando la autoriza el subsecretario.
 
@@ -92,7 +92,7 @@ El formato institucional aporta los siguientes campos de referencia:
 - Identidad del jefe inmediato, cargo y constancia de aprobación.
 - Constancia de autorización del subsecretario.
 
-Los espacios de firma se adaptarán a constancias de las aprobaciones. Los controles y vistos buenos de Nómina del formato no se trasladan al flujo de aprobación.
+Los espacios de firma se adaptarán a constancias de las aprobaciones. Nómina participa únicamente en la aprobación del registro de actos administrativos, de acuerdo con la modificación confirmada por el usuario.
 
 El formato menciona soportes académicos, acreditación de docencia universitaria, escolaridad de hijos, registro de bicicleta, certificado electoral, certificación de jurado o clavero, identidad, documentos de matrimonio y parentesco, solicitud para actividades deportivas y matrícula y duración de estudios. No se consideran una matriz normativa verificada ni completa.
 
@@ -123,3 +123,22 @@ Formato F-GAT-8100-238,37-183 SOLICITUD DE PERMISO LICENCIA COMPENSATORIO 030320
 ## Entorno observado
 
 Se implementó la aplicación PHP con SQLite. Se localizaron instalaciones antiguas de PHP en XAMPP y se preparó un runtime independiente en .runtime/php con PHP 8.4.27. Las dependencias están fijadas en composer.lock. La instalación local se realiza desde public y las pruebas usan bases aisladas.
+
+
+## Designaciones por dependencia y vigencia
+
+Talento Humano asigna un jefe y suplente a una o varias dependencias, sin editar el jefe de cada funcionario. Registra también al subsecretario y su suplente institucional. Cada nueva designación comienza hoy o en el futuro y cierra la anterior el día calendario previo; se conserva usuario, fecha y hora del registro. No se admite aprobar antes de comenzar la designación.
+
+Los responsables anteriores terminan las etapas de los trámites que recibieron antes del relevo, aunque concluya su designación. La cuenta y el rol se conservan mientras haya trámites pendientes. Los reenvíos de solicitudes devueltas usan la designación vigente al reenviar. Las cancelaciones conservan al subsecretario que las recibió.
+
+La consulta de saldos de un jefe anterior se limita a fechas de su periodo y sus dependencias. Se conservan instantáneas inmutables desde la actualización; no se fabrican saldos de fechas anteriores. La configuración individual anterior sirve solo durante la transición hasta el comienzo de la primera designación de cada dependencia.
+
+## Cumpleaños
+
+Permanece como compensatorio. Se disfruta una única jornada completa por vigencia, en cualquier fecha de ese año. Quienes nacen en diciembre pueden trasladarlo al 1-30 de enero siguiente y cargarlo a la vigencia anterior sin consumir el beneficio del año nuevo. Se registra la fecha de nacimiento por Talento Humano. Las solicitudes pendientes, devueltas, aprobadas o en cancelación reservan o consumen el beneficio; el rechazo o la cancelación previa al disfrute lo libera. Si ya hubo disfrute parcial, no se recupera el beneficio anual.
+
+## Horario especial en solicitudes
+
+El funcionario puede declarar franjas reales por fecha, incluidos descansos entre ellas. Hasta tres franjas ordenadas suman entre 480 y 510 minutos de trabajo efectivo, dentro de un máximo de 24 horas. Se admiten sábados, domingos, festivos y cruces de medianoche. El aprobador valida la jornada al aprobar el trámite. Se conservan franjas, justificación, duración y desplazamientos de día en el detalle y PDF; se controlan solapamientos y cancelaciones parciales con fechas y horas completas.
+
+La anticipación continúa contando 48 horas calendario en días hábiles. El cupo ordinario conserva 1530 minutos semestrales y se distribuye por las fechas efectivas, incluso en cruces de semestre.

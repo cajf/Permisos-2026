@@ -33,6 +33,6 @@ $bulkResult=$_SESSION['bulk_result']??null;unset($_SESSION['bulk_result']);
     <?php else: requestTable($pendingRows); endif; ?>
     <?php if($pageCount>1): ?><nav class="bulk-pagination" aria-label="Páginas de solicitudes pendientes"><?php if($inboxPage>1): ?><a class="button secondary small" href="/?page=inbox&amp;inbox_page=<?=$inboxPage-1?>">Anterior</a><?php endif; ?><span class="fine">Página <?=$inboxPage?> de <?=$pageCount?></span><?php if($inboxPage<$pageCount): ?><a class="button secondary small" href="/?page=inbox&amp;inbox_page=<?=$inboxPage+1?>">Siguiente</a><?php endif; ?></nav><?php endif; ?>
 </section>
-<?php if(hasRole($u,'subsecretary')): $cancels=[]; foreach(rows("SELECT r.*,c.name category,c.family,u.name FROM requests r JOIN categories c ON c.id=r.category_id JOIN users u ON u.id=r.user_id WHERE r.status='cancel_pending'") as $r) { try { if($wf->approver('subsecretary',row('SELECT * FROM users WHERE id=?',[$r['user_id']]))===(int)$u['id']) $cancels[]=$r; } catch(DomainException){} } ?>
+<?php if(hasRole($u,'subsecretary')): $cancels=[]; foreach(rows("SELECT r.*,c.name category,c.family,u.name FROM requests r JOIN categories c ON c.id=r.category_id JOIN users u ON u.id=r.user_id WHERE r.status='cancel_pending'") as $r) { try { if((int)$r['cancellation_assignee_id']===(int)$u['id']) $cancels[]=$r; } catch(DomainException){} } ?>
 <section class="panel"><div class="panel-header"><h2>Cancelaciones por autorizar</h2></div><?php requestTable($cancels); ?></section>
 <?php endif; ?>

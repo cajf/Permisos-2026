@@ -1,48 +1,56 @@
 erDiagram
   acts {
     INTEGER id PK
-    INTEGER user_id
+    INTEGER user_id FK
     TEXT number
     TEXT issued_on
     TEXT expires_on
     INTEGER granted_minutes
     TEXT status
-    INTEGER reviewed_by
+    INTEGER reviewed_by FK
     TEXT reviewed_at
     TEXT comment
     TEXT created_at
   }
   allocations {
     INTEGER id PK
-    INTEGER request_id
-    INTEGER act_id
+    INTEGER request_id FK
+    INTEGER act_id FK
     INTEGER minutes
     TEXT state
     INTEGER returned_minutes
   }
   approvals {
     INTEGER id PK
-    INTEGER request_id
+    INTEGER request_id FK
     INTEGER revision
     INTEGER step
     TEXT role
-    INTEGER assigned_user_id
+    INTEGER assigned_user_id FK
     TEXT status
-    INTEGER acted_by
+    INTEGER acted_by FK
     TEXT acted_at
     TEXT comment
+    INTEGER designation_id FK
   }
   attachments {
     INTEGER id PK
-    INTEGER user_id
-    INTEGER request_id
-    INTEGER act_id
+    INTEGER user_id FK
+    INTEGER request_id FK
+    INTEGER act_id FK
     TEXT original_name
     TEXT stored_name
     TEXT mime
     INTEGER size
     TEXT sha256
     TEXT created_at
+  }
+  balance_snapshots {
+    INTEGER id PK
+    INTEGER user_id FK
+    INTEGER department_id FK
+    TEXT created_at
+    TEXT data
   }
   categories {
     INTEGER id PK
@@ -59,10 +67,21 @@ erDiagram
     INTEGER id PK
     TEXT name
   }
+  designations {
+    INTEGER id PK
+    TEXT role
+    INTEGER department_id FK
+    INTEGER user_id FK
+    INTEGER alternate_id FK
+    TEXT start_date
+    TEXT end_date
+    INTEGER created_by FK
+    TEXT created_at
+  }
   events {
     INTEGER id PK
-    INTEGER actor_id
-    INTEGER request_id
+    INTEGER actor_id FK
+    INTEGER request_id FK
     TEXT action
     TEXT detail
     TEXT created_at
@@ -84,18 +103,22 @@ erDiagram
   }
   request_slots {
     INTEGER id PK
-    INTEGER request_id
+    INTEGER request_id FK
     TEXT date
     TEXT start_time
     TEXT end_time
     INTEGER minutes
     TEXT segments
     TEXT semester
+    TEXT start_at
+    TEXT end_at
+    TEXT special_periods
+    INTEGER is_full_day
   }
   requests {
     INTEGER id PK
-    INTEGER user_id
-    INTEGER category_id
+    INTEGER user_id FK
+    INTEGER category_id FK
     TEXT status
     TEXT justification
     TEXT exception_reason
@@ -108,6 +131,10 @@ erDiagram
     TEXT cancellation_reason
     TEXT cancelled_at
     TEXT route_note
+    INTEGER department_id FK
+    INTEGER birthday_year
+    TEXT special_note
+    INTEGER cancellation_assignee_id FK
   }
   schedules {
     INTEGER id PK
@@ -115,7 +142,7 @@ erDiagram
     TEXT start_date
     TEXT end_date
     TEXT periods
-    INTEGER created_by
+    INTEGER created_by FK
   }
   settings {
     TEXT key PK
@@ -132,32 +159,42 @@ erDiagram
     TEXT code
     TEXT grade
     TEXT appointment_type
-    INTEGER department_id
-    INTEGER manager_id
-    INTEGER deputy_manager_id
+    INTEGER department_id FK
+    INTEGER manager_id FK
+    INTEGER deputy_manager_id FK
     TEXT high_rank
     TEXT roles
     INTEGER active
     INTEGER force_password
     INTEGER failures
     TEXT locked_until
+    TEXT birth_date
   }
-  users ||--o{ acts : reviewed_by
-  users ||--o{ acts : user_id
-  acts ||--o{ allocations : act_id
-  requests ||--o{ allocations : request_id
-  users ||--o{ approvals : acted_by
-  users ||--o{ approvals : assigned_user_id
-  requests ||--o{ approvals : request_id
-  acts ||--o{ attachments : act_id
-  requests ||--o{ attachments : request_id
-  users ||--o{ attachments : user_id
-  requests ||--o{ events : request_id
-  users ||--o{ events : actor_id
-  requests ||--o{ request_slots : request_id
-  categories ||--o{ requests : category_id
-  users ||--o{ requests : user_id
-  users ||--o{ schedules : created_by
-  users ||--o{ users : deputy_manager_id
-  users ||--o{ users : manager_id
-  departments ||--o{ users : department_id
+  users ||--o{ acts : "reviewed_by"
+  users ||--o{ acts : "user_id"
+  acts ||--o{ allocations : "act_id"
+  requests ||--o{ allocations : "request_id"
+  designations ||--o{ approvals : "designation_id"
+  users ||--o{ approvals : "acted_by"
+  users ||--o{ approvals : "assigned_user_id"
+  requests ||--o{ approvals : "request_id"
+  acts ||--o{ attachments : "act_id"
+  requests ||--o{ attachments : "request_id"
+  users ||--o{ attachments : "user_id"
+  departments ||--o{ balance_snapshots : "department_id"
+  users ||--o{ balance_snapshots : "user_id"
+  users ||--o{ designations : "created_by"
+  users ||--o{ designations : "alternate_id"
+  users ||--o{ designations : "user_id"
+  departments ||--o{ designations : "department_id"
+  requests ||--o{ events : "request_id"
+  users ||--o{ events : "actor_id"
+  requests ||--o{ request_slots : "request_id"
+  users ||--o{ requests : "cancellation_assignee_id"
+  departments ||--o{ requests : "department_id"
+  categories ||--o{ requests : "category_id"
+  users ||--o{ requests : "user_id"
+  users ||--o{ schedules : "created_by"
+  users ||--o{ users : "deputy_manager_id"
+  users ||--o{ users : "manager_id"
+  departments ||--o{ users : "department_id"

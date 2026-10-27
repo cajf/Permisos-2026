@@ -4,7 +4,7 @@ putenv('APP_DATABASE='.__DIR__.'/../.work/test-'.bin2hex(random_bytes(5)).'.sqli
 require __DIR__.'/../app/bootstrap.php';require ROOT.'/app/Admin.php';require ROOT.'/database/holidays.php';
 db()->exec(file_get_contents(ROOT.'/database/schema.sql'));
 insert('departments',['name'=>'Dependencia de prueba']);
-foreach ([['Funcionario','[]',''],['Jefe','["manager"]',''],['Subsecretario','["subsecretary","manager"]',''],['Alcalde','["mayor","manager"]',''],['Administrador','["admin"]',''],['Asesor','[]','Asesor de Despacho'],['Otro administrador','["admin","manager"]',''],['Otro funcionario','[]','']] as $i=>$p) insert('users',['name'=>$p[0],'identification'=>'PRUEBA-'.($i+1),'username'=>'qa'.($i+1),'email'=>'qa'.($i+1).'@ejemplo.invalid','password'=>password_hash('PruebaLocal!9876',PASSWORD_DEFAULT),'job_title'=>$p[0],'department_id'=>1,'manager_id'=>null,'roles'=>$p[1],'high_rank'=>$p[2],'force_password'=>0]);
+foreach ([['Funcionario','[]',''],['Jefe','["manager"]',''],['Subsecretario','["subsecretary","manager"]',''],['Alcalde','["mayor","manager"]',''],['Administrador','["admin","payroll"]',''],['Asesor','[]','Asesor de Despacho'],['Otro administrador','["admin","manager"]',''],['Otro funcionario','[]','']] as $i=>$p) insert('users',['name'=>$p[0],'identification'=>'PRUEBA-'.($i+1),'username'=>'qa'.($i+1),'email'=>'qa'.($i+1).'@ejemplo.invalid','password'=>password_hash('PruebaLocal!9876',PASSWORD_DEFAULT),'job_title'=>$p[0],'department_id'=>1,'manager_id'=>null,'roles'=>$p[1],'high_rank'=>$p[2],'force_password'=>0]);
 run('UPDATE users SET manager_id=2');
 setSetting('subsecretary_id','3');setSetting('mayor_id','4');
 foreach(require ROOT.'/database/catalog.php' as $c)insert('categories',array_combine(['family','name','slug','supports','max_minutes','policy_confirmed','notes'],$c));
@@ -70,14 +70,15 @@ check($wf->available(row('SELECT * FROM acts WHERE id=?',[$act]))===450,'El sald
 $expired=insert('acts',['user_id'=>1,'number'=>'VIGENCIA-QA','issued_on'=>'2026-01-01','expires_on'=>'2026-11-10','granted_minutes'=>510,'status'=>'approved','created_at'=>now()]);
 refuses(fn()=>testSubmit(1,'acto',[slot('2026-11-12','07:30','08:30')],[['id'=>$expired,'hours'=>'1']]),'Vencimiento aplica a las fechas de disfrute');
 $rejected=testSubmit(1,'acto',[slot('2026-11-13','07:00','08:00')],[['id'=>$act,'hours'=>'1']]);$wf->review(person(2),$rejected,'rejected','Soporte no válido');check($wf->available(row('SELECT * FROM acts WHERE id=?',[$act]))===450,'Rechazo libera reserva del acto');
-$pending=testSubmit(1,'academico',[slot('2026-11-17','07:30','08:30')]);run('UPDATE users SET manager_id=7 WHERE id=1');atomic(fn()=>$wf->refreshAssignments(5));check((int)row("SELECT assigned_user_id FROM approvals WHERE request_id=? AND step=1",[$pending])['assigned_user_id']===7,'Cambio de jefe reasigna etapas pendientes');
+$pending=testSubmit(1,'academico',[slot('2026-11-17','07:30','08:30')]);run('UPDATE users SET manager_id=7 WHERE id=1');atomic(fn()=>$wf->refreshAssignments(5));check((int)row("SELECT assigned_user_id FROM approvals WHERE request_id=? AND step=1",[$pending])['assigned_user_id']===2,'Cambio de jefe conserva las etapas pendientes con el responsable original');
 check((int)row('SELECT acted_by FROM approvals WHERE request_id=?',[$short])['acted_by']===2,'Cambio de jefe conserva actuaciones históricas');
 $temp=['name'=>'Extensión QA','start_date'=>'2026-12-01','end_date'=>'2026-12-02','periods'=>[]];for($d=1;$d<=5;$d++)$temp['periods'][$d]=[['07:30','12:00'],['13:00','18:00']];saveSchedule(person(5),$temp);check($cal->minutes('2026-12-01','07:30','18:00')===570,'Horario temporal amplía la jornada efectiva');
 check($cal->minutes('2026-12-03','07:30','17:00')===510,'Fuera de vigencia se recupera horario base');
 check(!canReadRequest(person(8),row('SELECT * FROM requests WHERE id=?',[$short])),'Otro funcionario no puede leer una solicitud ajena');
 check(canReadRequest(person(2),row('SELECT * FROM requests WHERE id=?',[$short])),'Aprobador histórico conserva acceso al trámite');
 $legacy=new PDO('sqlite::memory:');
-$legacy->exec("CREATE TABLE categories(id INTEGER PRIMARY KEY,name TEXT); INSERT INTO categories(name) VALUES('Tipo existente');");
+$legacy->exec(file_get_contents(ROOT.'/database/schema.sql'));
+$legacy->exec("ALTER TABLE categories DROP COLUMN supports_required; INSERT INTO categories(family,name,slug,supports) VALUES('permiso','Tipo existente','existente','Soporte');");
 migrateDatabase($legacy);
 $migrated=$legacy->query('SELECT * FROM categories')->fetch(PDO::FETCH_ASSOC);
 check($migrated['name']==='Tipo existente' && (int)$migrated['supports_required']===1,'Migración conserva registros y obligatoriedad existente');
@@ -158,5 +159,7 @@ $noticeInput['slots']=[slot('2026-11-09','07:30','08:30')];unset($noticeInput['e
 refuses(fn()=>$wf->submit(person(8),$noticeInput,[],null,new DateTimeImmutable('2026-11-06 07:30')),'Un fin de semana no completa por sí solo la anticipación requerida');
 run('UPDATE categories SET supports_required=1 WHERE id=?',[$noticeCategory['id']]);
 
+require __DIR__.'/designations.php';
+require __DIR__.'/migrations.php';
 echo "\n$checks comprobaciones correctas.\n";
 file_put_contents(ROOT.'/.work/test-result.json',json_encode(['checks'=>$checks,'database'=>$GLOBALS['config']['database'],'completed'=>now()],JSON_PRETTY_PRINT));
