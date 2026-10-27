@@ -1,0 +1,22 @@
+flowchart LR
+    F[Funcionario]
+    J[Jefe inmediato]
+    S[Subsecretario]
+    A[Alcalde]
+    TH[Administrador de Talento Humano]
+    subgraph Aplicacion[Gestión del Talento Humano]
+        U1([Registrar solicitud y soportes])
+        U2([Consultar estado y descargar PDF])
+        U3([Registrar acto administrativo])
+        U4([Solicitar cancelación])
+        U5([Aprobar devolver o rechazar])
+        U6([Resolver cancelación de aprobada])
+        U7([Revisar permiso de alto rango])
+        U8([Validar acto administrativo])
+        U9([Mantener funcionarios reglas y calendario])
+    end
+    F --- U1 & U2 & U3 & U4
+    J --- U5
+    S --- U5 & U6
+    A --- U7
+    TH --- U8 & U9

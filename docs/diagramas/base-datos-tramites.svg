@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE svg
+  PUBLIC '-//W3C//DTD SVG 1.0//EN'
+  'http://www.w3.org/TR/2001/REC-SVG-20010904/DTD/svg10.dtd'>
+<svg width="1100" height="730" preserveAspectRatio="xMinYMin meet" viewBox="0 0 1100 730" xmlns="http://www.w3.org/2000/svg" version="1.0" fill-rule="evenodd" xmlns:xlink="http://www.w3.org/1999/xlink">
+	<title>...</title>
+	<desc>...</desc>
+	<clipPath id="clip">
+		<rect x="0" y="0" width="1100" height="730"/>
+	</clipPath>
+	<g id="group" transform="scale(1,-1) translate(0,-730)" style="clip-path: url(#clip)">
+		<g transform="">
+			<polyline points="285 560, 400 560, 400 440" style="stroke: rgb(39%,47%,43%); stroke-linecap: butt; stroke-width: 1.4; fill: None; fill-rule: evenodd;"/>
+			<text x="315" y="570" style="font-family: Segoe; font-size: 12px;fill: rgb(9%,41%,32%); stroke:none;" transform="translate(0,1140) scale(1,-1)">1 : N</text>
+			<polyline points="285 290, 285 380, 160 380, 160 440" style="stroke: rgb(39%,47%,43%); stroke-linecap: butt; stroke-width: 1.4; fill: None; fill-rule: evenodd;"/>
+			<text x="168" y="395" style="font-family: Segoe; font-size: 12px;fill: rgb(9%,41%,32%); stroke:none;" transform="translate(0,790) scale(1,-1)">1 : N</text>
+			<polyline points="820 565, 695 565, 695 440" style="stroke: rgb(39%,47%,43%); stroke-linecap: butt; stroke-width: 1.4; fill: None; fill-rule: evenodd;"/>
+			<text x="728" y="575" style="font-family: Segoe; font-size: 12px;fill: rgb(9%,41%,32%); stroke:none;" transform="translate(0,1150) scale(1,-1)">1 : N</text>
+			<polyline points="695 355, 820 355" style="stroke: rgb(39%,47%,43%); stroke-linecap: butt; stroke-width: 1.4; fill: None; fill-rule: evenodd;"/>
+			<text x="745" y="365" style="font-family: Segoe; font-size: 12px;fill: rgb(9%,41%,32%); stroke:none;" transform="translate(0,730) scale(1,-1)">1 : N</text>
+			<polyline points="550 260, 550 200" style="stroke: rgb(39%,47%,43%); stroke-linecap: butt; stroke-width: 1.4; fill: None; fill-rule: evenodd;"/>
+			<text x="562" y="220" style="font-family: Segoe; font-size: 12px;fill: rgb(9%,41%,32%); stroke:none;" transform="translate(0,440) scale(1,-1)">1 : N</text>
+			<polyline points="160 440, 65 440, 65 130, 400 130" style="stroke: rgb(39%,47%,43%); stroke-linecap: butt; stroke-width: 1.4; fill: None; fill-rule: evenodd;"/>
+			<text x="90" y="145" style="font-family: Segoe; font-size: 12px;fill: rgb(9%,41%,32%); stroke:none;" transform="translate(0,290) scale(1,-1)">usuario asignado / actor</text>
+			<rect x="35" y="440" width="250" height="208" rx="6" ry="6" style="stroke: rgb(86%,89%,87%); stroke-linecap: butt; stroke-width: 1.3; fill: rgb(100%,100%,100%); fill-rule: evenodd;"/>
+			<rect x="35" y="615" width="250" height="33" style="stroke: rgb(8%,18%,21%); stroke-linecap: butt; stroke-width: 1; fill: rgb(8%,18%,21%); fill-rule: evenodd;"/>
+			<text x="49" y="625" style="font-family: SegoeBold; font-size: 16px;fill: rgb(100%,100%,100%); stroke:none;" transform="translate(0,1250) scale(1,-1)">users</text>
+			<text x="49" y="590" style="font-family: Segoe; font-size: 13px;fill: rgb(8%,18%,21%); stroke:none;" transform="translate(0,1180) scale(1,-1)">PK id</text>
+			<text x="49" y="567" style="font-family: Segoe; font-size: 13px;fill: rgb(8%,18%,21%); stroke:none;" transform="translate(0,1134) scale(1,-1)">UQ identification, username</text>
+			<text x="49" y="544" style="font-family: Segoe; font-size: 13px;fill: rgb(8%,18%,21%); stroke:none;" transform="translate(0,1088) scale(1,-1)">password (hash), email</text>
+			<text x="49" y="521" style="font-family: Segoe; font-size: 13px;fill: rgb(8%,18%,21%); stroke:none;" transform="translate(0,1042) scale(1,-1)">department_id FK</text>
+			<text x="49" y="498" style="font-family: Segoe; font-size: 13px;fill: rgb(8%,18%,21%); stroke:none;" transform="translate(0,996) scale(1,-1)">manager_id FK users</text>
+			<text x="49" y="475" style="font-family: Segoe; font-size: 13px;fill: rgb(8%,18%,21%); stroke:none;" transform="translate(0,950) scale(1,-1)">deputy_manager_id FK users</text>
+			<text x="49" y="452" style="font-family: Segoe; font-size: 13px;fill: rgb(8%,18%,21%); stroke:none;" transform="translate(0,904) scale(1,-1)">roles JSON, high_rank</text>
+			<rect x="35" y="220" width="250" height="93" rx="6" ry="6" style="stroke: rgb(86%,89%,87%); stroke-linecap: butt; stroke-width: 1.3; fill: rgb(100%,100%,100%); fill-rule: evenodd;"/>
+			<rect x="35" y="280" width="250" height="33" style="stroke: rgb(8%,18%,21%); stroke-linecap: butt; stroke-width: 1; fill: rgb(8%,18%,21%); fill-rule: evenodd;"/>
+			<text x="49" y="290" style="font-family: SegoeBold; font-size: 16px;fill: rgb(100%,100%,100%); stroke:none;" transform="translate(0,580) scale(1,-1)">departments</text>
+			<text x="49" y="255" style="font-family: Segoe; font-size: 13px;fill: rgb(8%,18%,21%); stroke:none;" transform="translate(0,510) scale(1,-1)">PK id</text>
+			<text x="49" y="232" style="font-family: Segoe; font-size: 13px;fill: rgb(8%,18%,21%); stroke:none;" transform="translate(0,464) scale(1,-1)">UQ name</text>
+			<rect x="820" y="495" width="250" height="162" rx="6" ry="6" style="stroke: rgb(86%,89%,87%); stroke-linecap: butt; stroke-width: 1.3; fill: rgb(100%,100%,100%); fill-rule: evenodd;"/>
+			<rect x="820" y="624" width="250" height="33" style="stroke: rgb(8%,18%,21%); stroke-linecap: butt; stroke-width: 1; fill: rgb(8%,18%,21%); fill-rule: evenodd;"/>
+			<text x="834" y="634" style="font-family: SegoeBold; font-size: 16px;fill: rgb(100%,100%,100%); stroke:none;" transform="translate(0,1268) scale(1,-1)">categories</text>
+			<text x="834" y="599" style="font-family: Segoe; font-size: 13px;fill: rgb(8%,18%,21%); stroke:none;" transform="translate(0,1198) scale(1,-1)">PK id, UQ slug</text>
+			<text x="834" y="576" style="font-family: Segoe; font-size: 13px;fill: rgb(8%,18%,21%); stroke:none;" transform="translate(0,1152) scale(1,-1)">family, name, supports</text>
+			<text x="834" y="553" style="font-family: Segoe; font-size: 13px;fill: rgb(8%,18%,21%); stroke:none;" transform="translate(0,1106) scale(1,-1)">supports_required (0/1)</text>
+			<text x="834" y="530" style="font-family: Segoe; font-size: 13px;fill: rgb(8%,18%,21%); stroke:none;" transform="translate(0,1060) scale(1,-1)">max_minutes</text>
+			<text x="834" y="507" style="font-family: Segoe; font-size: 13px;fill: rgb(8%,18%,21%); stroke:none;" transform="translate(0,1014) scale(1,-1)">policy_confirmed, notes</text>
+			<rect x="400" y="260" width="295" height="208" rx="6" ry="6" style="stroke: rgb(86%,89%,87%); stroke-linecap: butt; stroke-width: 1.3; fill: rgb(100%,100%,100%); fill-rule: evenodd;"/>
+			<rect x="400" y="435" width="295" height="33" style="stroke: rgb(8%,18%,21%); stroke-linecap: butt; stroke-width: 1; fill: rgb(8%,18%,21%); fill-rule: evenodd;"/>
+			<text x="414" y="445" style="font-family: SegoeBold; font-size: 16px;fill: rgb(100%,100%,100%); stroke:none;" transform="translate(0,890) scale(1,-1)">requests</text>
+			<text x="414" y="410" style="font-family: Segoe; font-size: 13px;fill: rgb(8%,18%,21%); stroke:none;" transform="translate(0,820) scale(1,-1)">PK id</text>
+			<text x="414" y="387" style="font-family: Segoe; font-size: 13px;fill: rgb(8%,18%,21%); stroke:none;" transform="translate(0,774) scale(1,-1)">user_id FK users</text>
+			<text x="414" y="364" style="font-family: Segoe; font-size: 13px;fill: rgb(8%,18%,21%); stroke:none;" transform="translate(0,728) scale(1,-1)">category_id FK categories</text>
+			<text x="414" y="341" style="font-family: Segoe; font-size: 13px;fill: rgb(8%,18%,21%); stroke:none;" transform="translate(0,682) scale(1,-1)">status, total_minutes</text>
+			<text x="414" y="318" style="font-family: Segoe; font-size: 13px;fill: rgb(8%,18%,21%); stroke:none;" transform="translate(0,636) scale(1,-1)">snapshot JSON, revision</text>
+			<text x="414" y="295" style="font-family: Segoe; font-size: 13px;fill: rgb(8%,18%,21%); stroke:none;" transform="translate(0,590) scale(1,-1)">justification, exception_reason</text>
+			<text x="414" y="272" style="font-family: Segoe; font-size: 13px;fill: rgb(8%,18%,21%); stroke:none;" transform="translate(0,544) scale(1,-1)">cancelled_at, timestamps</text>
+			<rect x="820" y="245" width="250" height="162" rx="6" ry="6" style="stroke: rgb(86%,89%,87%); stroke-linecap: butt; stroke-width: 1.3; fill: rgb(100%,100%,100%); fill-rule: evenodd;"/>
+			<rect x="820" y="374" width="250" height="33" style="stroke: rgb(8%,18%,21%); stroke-linecap: butt; stroke-width: 1; fill: rgb(8%,18%,21%); fill-rule: evenodd;"/>
+			<text x="834" y="384" style="font-family: SegoeBold; font-size: 16px;fill: rgb(100%,100%,100%); stroke:none;" transform="translate(0,768) scale(1,-1)">request_slots</text>
+			<text x="834" y="349" style="font-family: Segoe; font-size: 13px;fill: rgb(8%,18%,21%); stroke:none;" transform="translate(0,698) scale(1,-1)">PK id</text>
+			<text x="834" y="326" style="font-family: Segoe; font-size: 13px;fill: rgb(8%,18%,21%); stroke:none;" transform="translate(0,652) scale(1,-1)">request_id FK requests</text>
+			<text x="834" y="303" style="font-family: Segoe; font-size: 13px;fill: rgb(8%,18%,21%); stroke:none;" transform="translate(0,606) scale(1,-1)">date, start_time, end_time</text>
+			<text x="834" y="280" style="font-family: Segoe; font-size: 13px;fill: rgb(8%,18%,21%); stroke:none;" transform="translate(0,560) scale(1,-1)">minutes, semester</text>
+			<text x="834" y="257" style="font-family: Segoe; font-size: 13px;fill: rgb(8%,18%,21%); stroke:none;" transform="translate(0,514) scale(1,-1)">segments JSON</text>
+			<rect x="400" y="25" width="295" height="162" rx="6" ry="6" style="stroke: rgb(86%,89%,87%); stroke-linecap: butt; stroke-width: 1.3; fill: rgb(100%,100%,100%); fill-rule: evenodd;"/>
+			<rect x="400" y="154" width="295" height="33" style="stroke: rgb(8%,18%,21%); stroke-linecap: butt; stroke-width: 1; fill: rgb(8%,18%,21%); fill-rule: evenodd;"/>
+			<text x="414" y="164" style="font-family: SegoeBold; font-size: 16px;fill: rgb(100%,100%,100%); stroke:none;" transform="translate(0,328) scale(1,-1)">approvals</text>
+			<text x="414" y="129" style="font-family: Segoe; font-size: 13px;fill: rgb(8%,18%,21%); stroke:none;" transform="translate(0,258) scale(1,-1)">PK id, request_id FK</text>
+			<text x="414" y="106" style="font-family: Segoe; font-size: 13px;fill: rgb(8%,18%,21%); stroke:none;" transform="translate(0,212) scale(1,-1)">revision, step, role</text>
+			<text x="414" y="83" style="font-family: Segoe; font-size: 13px;fill: rgb(8%,18%,21%); stroke:none;" transform="translate(0,166) scale(1,-1)">assigned_user_id FK users</text>
+			<text x="414" y="60" style="font-family: Segoe; font-size: 13px;fill: rgb(8%,18%,21%); stroke:none;" transform="translate(0,120) scale(1,-1)">acted_by FK users</text>
+			<text x="414" y="37" style="font-family: Segoe; font-size: 13px;fill: rgb(8%,18%,21%); stroke:none;" transform="translate(0,74) scale(1,-1)">status, acted_at, comment</text>
+			<text x="45" y="705" style="font-family: SegoeBold; font-size: 22px;fill: rgb(8%,18%,21%); stroke:none;" transform="translate(0,1410) scale(1,-1)">Relaciones principales</text>
+			<text x="35" y="5" style="font-family: Segoe; font-size: 12px;fill: rgb(39%,47%,43%); stroke:none;" transform="translate(0,10) scale(1,-1)">PK: clave primaria · FK: clave foránea · UQ: valor único · 1:N: uno a muchos</text>
+		</g>
+	</g>
+</svg>

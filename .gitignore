@@ -1,0 +1,7 @@
+/vendor/
+/.runtime/
+/.tools/
+/.work/
+/storage/*
+!/storage/.gitkeep
+/config/local.php

@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE svg
+  PUBLIC '-//W3C//DTD SVG 1.0//EN'
+  'http://www.w3.org/TR/2001/REC-SVG-20010904/DTD/svg10.dtd'>
+<svg width="1100" height="470" preserveAspectRatio="xMinYMin meet" viewBox="0 0 1100 470" xmlns="http://www.w3.org/2000/svg" version="1.0" fill-rule="evenodd" xmlns:xlink="http://www.w3.org/1999/xlink">
+	<title>...</title>
+	<desc>...</desc>
+	<clipPath id="clip">
+		<rect x="0" y="0" width="1100" height="470"/>
+	</clipPath>
+	<g id="group" transform="scale(1,-1) translate(0,-470)" style="clip-path: url(#clip)">
+		<g transform="">
+			<rect x="40" y="210" width="280" height="116" rx="6" ry="6" style="stroke: rgb(86%,89%,87%); stroke-linecap: butt; stroke-width: 1.3; fill: rgb(100%,100%,100%); fill-rule: evenodd;"/>
+			<rect x="40" y="293" width="280" height="33" style="stroke: rgb(8%,18%,21%); stroke-linecap: butt; stroke-width: 1; fill: rgb(8%,18%,21%); fill-rule: evenodd;"/>
+			<text x="54" y="303" style="font-family: SegoeBold; font-size: 16px;fill: rgb(100%,100%,100%); stroke:none;" transform="translate(0,606) scale(1,-1)">settings</text>
+			<text x="54" y="268" style="font-family: Segoe; font-size: 13px;fill: rgb(8%,18%,21%); stroke:none;" transform="translate(0,536) scale(1,-1)">PK key</text>
+			<text x="54" y="245" style="font-family: Segoe; font-size: 13px;fill: rgb(8%,18%,21%); stroke:none;" transform="translate(0,490) scale(1,-1)">value</text>
+			<text x="54" y="222" style="font-family: Segoe; font-size: 13px;fill: rgb(8%,18%,21%); stroke:none;" transform="translate(0,444) scale(1,-1)">Responsables y suplentes</text>
+			<rect x="410" y="210" width="280" height="116" rx="6" ry="6" style="stroke: rgb(86%,89%,87%); stroke-linecap: butt; stroke-width: 1.3; fill: rgb(100%,100%,100%); fill-rule: evenodd;"/>
+			<rect x="410" y="293" width="280" height="33" style="stroke: rgb(8%,18%,21%); stroke-linecap: butt; stroke-width: 1; fill: rgb(8%,18%,21%); fill-rule: evenodd;"/>
+			<text x="424" y="303" style="font-family: SegoeBold; font-size: 16px;fill: rgb(100%,100%,100%); stroke:none;" transform="translate(0,606) scale(1,-1)">holidays</text>
+			<text x="424" y="268" style="font-family: Segoe; font-size: 13px;fill: rgb(8%,18%,21%); stroke:none;" transform="translate(0,536) scale(1,-1)">PK date</text>
+			<text x="424" y="245" style="font-family: Segoe; font-size: 13px;fill: rgb(8%,18%,21%); stroke:none;" transform="translate(0,490) scale(1,-1)">name</text>
+			<text x="424" y="222" style="font-family: Segoe; font-size: 13px;fill: rgb(8%,18%,21%); stroke:none;" transform="translate(0,444) scale(1,-1)">Días no laborables</text>
+			<rect x="780" y="140" width="280" height="139" rx="6" ry="6" style="stroke: rgb(86%,89%,87%); stroke-linecap: butt; stroke-width: 1.3; fill: rgb(100%,100%,100%); fill-rule: evenodd;"/>
+			<rect x="780" y="246" width="280" height="33" style="stroke: rgb(8%,18%,21%); stroke-linecap: butt; stroke-width: 1; fill: rgb(8%,18%,21%); fill-rule: evenodd;"/>
+			<text x="794" y="256" style="font-family: SegoeBold; font-size: 16px;fill: rgb(100%,100%,100%); stroke:none;" transform="translate(0,512) scale(1,-1)">schedules</text>
+			<text x="794" y="221" style="font-family: Segoe; font-size: 13px;fill: rgb(8%,18%,21%); stroke:none;" transform="translate(0,442) scale(1,-1)">PK id</text>
+			<text x="794" y="198" style="font-family: Segoe; font-size: 13px;fill: rgb(8%,18%,21%); stroke:none;" transform="translate(0,396) scale(1,-1)">name, start_date, end_date</text>
+			<text x="794" y="175" style="font-family: Segoe; font-size: 13px;fill: rgb(8%,18%,21%); stroke:none;" transform="translate(0,350) scale(1,-1)">periods JSON</text>
+			<text x="794" y="152" style="font-family: Segoe; font-size: 13px;fill: rgb(8%,18%,21%); stroke:none;" transform="translate(0,304) scale(1,-1)">created_by FK users</text>
+			<rect x="430" y="15" width="260" height="93" rx="6" ry="6" style="stroke: rgb(86%,89%,87%); stroke-linecap: butt; stroke-width: 1.3; fill: rgb(100%,100%,100%); fill-rule: evenodd;"/>
+			<rect x="430" y="75" width="260" height="33" style="stroke: rgb(8%,18%,21%); stroke-linecap: butt; stroke-width: 1; fill: rgb(8%,18%,21%); fill-rule: evenodd;"/>
+			<text x="444" y="85" style="font-family: SegoeBold; font-size: 16px;fill: rgb(100%,100%,100%); stroke:none;" transform="translate(0,170) scale(1,-1)">users</text>
+			<text x="444" y="50" style="font-family: Segoe; font-size: 13px;fill: rgb(8%,18%,21%); stroke:none;" transform="translate(0,100) scale(1,-1)">PK id</text>
+			<text x="444" y="27" style="font-family: Segoe; font-size: 13px;fill: rgb(8%,18%,21%); stroke:none;" transform="translate(0,54) scale(1,-1)">Responsable del registro</text>
+			<polyline points="780 170, 720 170, 720 80, 690 80" style="stroke: rgb(39%,47%,43%); stroke-linecap: butt; stroke-width: 1.4; fill: None; fill-rule: evenodd;"/>
+			<text x="728" y="100" style="font-family: Segoe; font-size: 12px;fill: rgb(9%,41%,32%); stroke:none;" transform="translate(0,200) scale(1,-1)">N : 1</text>
+			<text x="40" y="435" style="font-family: SegoeBold; font-size: 22px;fill: rgb(8%,18%,21%); stroke:none;" transform="translate(0,870) scale(1,-1)">Configuración y calendario laboral</text>
+			<text x="40" y="165" style="font-family: Segoe; font-size: 14px;fill: rgb(39%,47%,43%); stroke:none;" transform="translate(0,330) scale(1,-1)">settings contiene referencias de responsables validadas por la aplicación.</text>
+			<text x="40" y="140" style="font-family: Segoe; font-size: 14px;fill: rgb(39%,47%,43%); stroke:none;" transform="translate(0,280) scale(1,-1)">El calendario base se define en WorkCalendar; schedules registra excepciones con vigencia.</text>
+		</g>
+	</g>
+</svg>

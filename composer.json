@@ -1,0 +1,17 @@
+{
+  "name": "bucaramanga/gestion-talento-humano",
+  "description": "Gestión local de permisos, compensatorios y licencias",
+  "type": "project",
+  "require": {
+    "php": "^8.2",
+    "ext-pdo": "*",
+    "ext-pdo_sqlite": "*",
+    "ext-fileinfo": "*",
+    "ext-mbstring": "*",
+    "tecnickcom/tcpdf": "^6.10",
+    "setasign/fpdi": "^2.6",
+    "phpmailer/phpmailer": "^6.10",
+    "phpoffice/phpspreadsheet": "^5.0"
+  },
+  "config": {"sort-packages": true, "allow-plugins": false}
+}

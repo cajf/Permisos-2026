@@ -1,0 +1,163 @@
+erDiagram
+  acts {
+    INTEGER id PK
+    INTEGER user_id
+    TEXT number
+    TEXT issued_on
+    TEXT expires_on
+    INTEGER granted_minutes
+    TEXT status
+    INTEGER reviewed_by
+    TEXT reviewed_at
+    TEXT comment
+    TEXT created_at
+  }
+  allocations {
+    INTEGER id PK
+    INTEGER request_id
+    INTEGER act_id
+    INTEGER minutes
+    TEXT state
+    INTEGER returned_minutes
+  }
+  approvals {
+    INTEGER id PK
+    INTEGER request_id
+    INTEGER revision
+    INTEGER step
+    TEXT role
+    INTEGER assigned_user_id
+    TEXT status
+    INTEGER acted_by
+    TEXT acted_at
+    TEXT comment
+  }
+  attachments {
+    INTEGER id PK
+    INTEGER user_id
+    INTEGER request_id
+    INTEGER act_id
+    TEXT original_name
+    TEXT stored_name
+    TEXT mime
+    INTEGER size
+    TEXT sha256
+    TEXT created_at
+  }
+  categories {
+    INTEGER id PK
+    TEXT family
+    TEXT name
+    TEXT slug
+    TEXT supports
+    INTEGER max_minutes
+    INTEGER policy_confirmed
+    TEXT notes
+    INTEGER supports_required
+  }
+  departments {
+    INTEGER id PK
+    TEXT name
+  }
+  events {
+    INTEGER id PK
+    INTEGER actor_id
+    INTEGER request_id
+    TEXT action
+    TEXT detail
+    TEXT created_at
+  }
+  holidays {
+    TEXT date PK
+    TEXT name
+  }
+  outbox {
+    INTEGER id PK
+    TEXT recipient
+    TEXT subject
+    TEXT body
+    TEXT status
+    INTEGER attempts
+    TEXT last_error
+    TEXT created_at
+    TEXT sent_at
+  }
+  request_slots {
+    INTEGER id PK
+    INTEGER request_id
+    TEXT date
+    TEXT start_time
+    TEXT end_time
+    INTEGER minutes
+    TEXT segments
+    TEXT semester
+  }
+  requests {
+    INTEGER id PK
+    INTEGER user_id
+    INTEGER category_id
+    TEXT status
+    TEXT justification
+    TEXT exception_reason
+    TEXT relationship
+    INTEGER total_minutes
+    TEXT snapshot
+    INTEGER revision
+    TEXT created_at
+    TEXT updated_at
+    TEXT cancellation_reason
+    TEXT cancelled_at
+    TEXT route_note
+  }
+  schedules {
+    INTEGER id PK
+    TEXT name
+    TEXT start_date
+    TEXT end_date
+    TEXT periods
+    INTEGER created_by
+  }
+  settings {
+    TEXT key PK
+    TEXT value
+  }
+  users {
+    INTEGER id PK
+    TEXT name
+    TEXT identification
+    TEXT username
+    TEXT email
+    TEXT password
+    TEXT job_title
+    TEXT code
+    TEXT grade
+    TEXT appointment_type
+    INTEGER department_id
+    INTEGER manager_id
+    INTEGER deputy_manager_id
+    TEXT high_rank
+    TEXT roles
+    INTEGER active
+    INTEGER force_password
+    INTEGER failures
+    TEXT locked_until
+  }
+  users ||--o{ acts : reviewed_by
+  users ||--o{ acts : user_id
+  acts ||--o{ allocations : act_id
+  requests ||--o{ allocations : request_id
+  users ||--o{ approvals : acted_by
+  users ||--o{ approvals : assigned_user_id
+  requests ||--o{ approvals : request_id
+  acts ||--o{ attachments : act_id
+  requests ||--o{ attachments : request_id
+  users ||--o{ attachments : user_id
+  requests ||--o{ events : request_id
+  users ||--o{ events : actor_id
+  requests ||--o{ request_slots : request_id
+  categories ||--o{ requests : category_id
+  users ||--o{ requests : user_id
+  users ||--o{ schedules : created_by
+  users ||--o{ users : deputy_manager_id
+  users ||--o{ users : manager_id
+  departments ||--o{ users : department_id
