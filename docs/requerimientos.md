@@ -142,3 +142,10 @@ Permanece como compensatorio. Se disfruta una única jornada completa por vigenc
 Se retiró la declaración de horarios especiales en las solicitudes. Los nuevos trámites y las correcciones usan únicamente la jornada laboral configurada, incluidos los horarios temporales administrados por Talento Humano. No se admiten solicitudes en sábados, domingos o festivos ni intervalos que crucen medianoche. La anticipación conserva la regla de 48 horas calendario dentro de días hábiles.
 
 El retiro conserva las solicitudes y aprobaciones existentes sin recalcular sus fechas ni sus minutos. Antes de eliminar las columnas exclusivas de la función retirada, la migración resguarda sus metadatos en la copia histórica de la solicitud. Las correcciones conservan ese archivo, pero sus nuevas fechas se validan con la jornada configurada.
+
+
+## Motor MySQL confirmado
+
+La aplicación usa MySQL con InnoDB y utf8mb4. Se autorizó instalar una instancia local independiente del MariaDB de XAMPP. La instancia del proyecto es MySQL Community 8.4.13 y escucha únicamente en 127.0.0.1:3310. El portal utiliza una cuenta con permisos de datos limitados y las credenciales permanecen fuera del repositorio.
+
+La migración conserva el SQLite original, trabaja sobre una copia y exige un destino vacío. Compara los registros de cada tabla, verifica referencias y SHA-256 de soportes, conserva identificadores y contraseñas y activa la conexión nueva al finalizar. La aplicación usa transacciones con bloqueo explícito para proteger cupos, saldos, cumpleaños y aprobaciones simultáneas. Se actualizan los procedimientos de respaldo, restauración, instalación y pruebas para MySQL. SQLite queda limitado a la herramienta de migración y sus pruebas de compatibilidad.

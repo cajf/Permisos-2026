@@ -6,9 +6,9 @@ $testIni = Join-Path $testRoot '.runtime\php\php.ini'
 & $testPhp -c $testIni -d display_errors=1 tests/core.php
 if ($LASTEXITCODE -ne 0) { throw 'Fallaron las comprobaciones funcionales.' }
 $testResult = Get-Content -LiteralPath '.work\test-result.json' -Raw | ConvertFrom-Json
-$previousTestDatabase = $env:APP_DATABASE
+$previousTestDatabase = $env:APP_DATABASE_CONFIG
 $previousTestMode = $env:APP_TESTING
-$env:APP_DATABASE = $testResult.database
+$env:APP_DATABASE_CONFIG = $testResult.database_config
 $env:APP_TESTING = '1'
 $testProcess = $null
 try {
@@ -19,6 +19,6 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'Fallaron las comprobaciones HTTP.' }
 } finally {
     if ($testProcess -and !$testProcess.HasExited) { Stop-Process -Id $testProcess.Id }
-    $env:APP_DATABASE = $previousTestDatabase
+    $env:APP_DATABASE_CONFIG = $previousTestDatabase
     $env:APP_TESTING = $previousTestMode
 }

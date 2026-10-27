@@ -1,112 +1,123 @@
 # Gestión del Talento Humano de Bucaramanga
 
-Aplicación web local en PHP para permisos, compensatorios y licencias de empleados de planta. Incluye aprobación por etapas, excepción de dos horas, aprobación exclusiva del alcalde para permisos de alto rango, saldos por acto, corrección, cancelación autorizada, PDF con anexos, importación de XLSX/CSV, calendario y cola de correo.
+Aplicación PHP para permisos, compensatorios y licencias de empleados de planta. Usa **MySQL 8.4 LTS**, InnoDB y utf8mb4. Incluye aprobación por etapas y masiva, designaciones por dependencia y vigencia, cupos y saldos, Nómina, Cumpleaños, correcciones, cancelaciones, PDF con anexos, importación XLSX/CSV y cola de correo.
 
 ## Iniciar en este equipo
 
-1. Abra PowerShell en esta carpeta y ejecute `./iniciar.ps1`.
+1. Ejecute `iniciar.cmd` o `./iniciar.ps1` desde el proyecto.
 2. Abra <http://127.0.0.1:8088>.
-3. Consulte `storage/acceso-local.txt` para las cuentas de demostración y la contraseña inicial generada.
-4. Cambie la contraseña al ingresar. Los funcionarios, dependencias y correos precargados son ficticios.
+3. Ingrese con sus mismos usuarios y contraseñas. La migración conserva sus identificadores, claves, solicitudes y soportes. El cambio de motor requiere iniciar sesión nuevamente.
 
-La ejecución usa PHP aislado en `.runtime/php`. No modifica las instalaciones existentes de XAMPP. Si la política de PowerShell impide ejecutar scripts, use `iniciar.cmd` o los comandos PHP que aparecen abajo.
+El arranque comprueba el MySQL independiente del proyecto y lo inicia si está detenido. MySQL escucha únicamente en `127.0.0.1:3310`; el portal PHP usa el puerto 8088. XAMPP y su MariaDB no se modifican. Los binarios están en `.runtime/php` y `.runtime/mysql-8.4.13-winx64`; los datos y la configuración privada del servidor están en `storage/mysql`.
+
+Para detener únicamente este MySQL, cierre primero el portal y ejecute:
+
+```powershell
+./.runtime/php/php.exe -c .runtime/php/php.ini scripts/stop-mysql.php
+```
+
+## Configuración y credenciales
+
+`config/example.php` describe host, puerto, base, usuario, contraseña, directorio privado de soportes y SMTP. La configuración efectiva está en `config/local.php`, excluido de Git. El usuario web tiene solo SELECT, INSERT, UPDATE y DELETE en la base del proyecto. Las operaciones de administración usan una conexión separada conservada en `storage/mysql/admin.php` para esta instalación local.
+
+No publique `config/local.php`, `storage/`, `.work/`, `.runtime/`, respaldos o archivos de acceso. El repositorio contiene solo código, pruebas con datos ficticios y documentación. Las credenciales reales no están en comandos de inicio ni en GitHub.
 
 ## Instalar en otro equipo
 
-Se requiere PHP 8.4 o superior compatible con las versiones de `composer.lock` y las extensiones PDO SQLite, fileinfo, mbstring, GD, zip, intl, DOM, XML, curl y OpenSSL. No hace falta Node para ejecutar la aplicación. La base de datos inicial es SQLite y está fuera de la carpeta pública.
+Se requieren PHP 8.4 con PDO MySQL, fileinfo, mbstring, GD, zip, intl, DOM, XML, curl y OpenSSL, y MySQL 8.4 o superior. PDO SQLite se utiliza únicamente para migrar versiones antiguas y ejecutar sus pruebas de compatibilidad. Node no es necesario para ejecutar la aplicación.
 
 ```powershell
 composer install --no-dev --prefer-dist
-php scripts/install.php
-php -S 127.0.0.1:8088 -t public public/router.php
 ```
 
-Si no dispone de Composer global, puede ejecutar el PHAR con PHP. El instalador es idempotente: no reemplaza una base inicializada. Configure `config/local.php` a partir de `config/example.php` para cambiar la ubicación de la base, la URL y SMTP. No incluya el archivo de configuración local ni las credenciales en control de versiones.
-
-El servidor incorporado de PHP se utiliza para la revisión local. La instalación futura en Internet debe usar un servidor web con la raíz documental en `public/`, HTTPS, credenciales institucionales y configuración de sesiones, respaldos y correo acorde con ese entorno. No se ha realizado ese despliegue. La integración con el directorio de Windows permanece fuera de esta primera versión.
-
-## Documentación
-
-- `docs/manual.pdf`: manual de usuario, administración e instalación, con diagramas.
-- `docs/manual.html`: versión navegable sin conexión.
-- `docs/diagramas/`: diagramas SVG y fuentes Mermaid editables.
-- `docs/requerimientos.md`: decisiones funcionales y puntos por completar.
-- `database/schema.sql`: esquema y restricciones de integridad.
-
-## Configuración inicial por Talento Humano
-
-1. Cree dependencias y funcionarios o importe el Excel adaptándolo a la plantilla descargable.
-2. Registre fecha de nacimiento, clasificación de alto rango y roles. En **Designaciones**, asigne jefes por dependencia y subsecretario con suplentes y fecha de inicio. Asigne el rol **Nómina** a quienes revisarán los actos administrativos. Los suplentes solo deben registrarse cuando exista designación competente.
-3. En **Tipos y soportes**, marque o desmarque **Exigir al menos un soporte** en cada tipo de permiso, compensatorio o licencia y pulse **Guardar regla**. Al desmarcarlo se permite enviar sin adjuntos. La opción es independiente de **Regla revisada por Talento Humano**. Los archivos que se carguen se siguen validando. El documento al registrar un acto administrativo para otorgar saldo continúa siendo obligatorio. Revise también los límites adicionales pendientes de validar; el texto de frecuencia es informativo.
-4. Revise el calendario precargado y registre horarios temporales.
-5. Configure SMTP y programe el trabajador de correo usando el programador de tareas del servidor:
+Para una instancia independiente en Windows, coloque PHP en `.runtime/php` o indique su ejecutable a `configurar-mysql.ps1`. El script descarga el ZIP oficial fijado de MySQL, comprueba su checksum, inicializa datos privados y configura credenciales aleatorias:
 
 ```powershell
-php scripts/mail-worker.php
+./configurar-mysql.ps1
 ```
 
-Sin SMTP, las novedades quedan pendientes y no se envían. El trabajador procesa hasta 50 mensajes por ejecución y reintenta los fallidos hasta cinco veces. Un envío que quede en estado `sending` por una interrupción requiere revisar la entrega antes de reponerlo en la cola, para evitar duplicados.
-
-## Plazo de anticipación
-
-Las solicitudes requieren **48 horas calendario dentro de días hábiles**. Cada día hábil aporta hasta 24 horas, incluyendo almuerzos y noches; sábados, domingos y festivos no aportan tiempo. Se considera la zona horaria de Bogotá. Por ejemplo, del lunes a las 08:00 al miércoles a las 08:00 se cumplen 48 horas cuando no hay festivos.
-
-Si no se cumple el plazo, se conserva el envío con excepción justificada. La duración de permisos y los saldos siguen calculándose con las franjas de la jornada laboral.
-
-## Aprobación masiva
-
-En **Por aprobar**, el jefe inmediato y el subsecretario pueden marcar solicitudes o usar **Seleccionar todas de esta página**, ingresar una observación común opcional y pulsar **Aprobar seleccionadas**. Se procesan hasta 100 por acción, con paginación de la bandeja.
-
-Cada solicitud se valida y guarda por separado. Las que no puedan procesarse no detienen las demás y aparecen con su motivo en el resultado. La constancia, las notificaciones y el descuento del saldo siguen las mismas reglas de la aprobación individual. Los reenvíos se vinculan a la etapa seleccionada para evitar aprobar accidentalmente una etapa posterior. El lote admite como máximo una etapa por solicitud.
-
-## Verificación
-
-Ejecute `./tests/run.ps1` para crear una base aislada, verificar las reglas, iniciar un servidor de pruebas en el puerto 8089, ejecutar las pruebas HTTP y detener ese servidor al terminar. Mantenga libre el puerto 8089. La base operativa no se modifica.
-
-También puede ejecutar las comprobaciones por separado. `tests/http.php` requiere un servidor de pruebas con la variable `APP_TESTING=1` y la base indicada en `.work/test-result.json`.
+Si conserva una base SQLite anterior, siga el procedimiento de migración de la sección siguiente. Para una instalación nueva sin datos previos:
 
 ```powershell
-./.runtime/php/php.exe -c .runtime/php/php.ini tests/core.php
+Copy-Item storage/mysql/connection.php config/local.php
+./.runtime/php/php.exe -c .runtime/php/php.ini scripts/install.php
+./iniciar.ps1
 ```
 
-El resultado de esa ejecución queda en `.work/test-result.json`. Use su campo `database` como variable de entorno `APP_DATABASE` antes de iniciar otro servidor PHP en 8089. Ejecute después:
+El instalador no reemplaza una base que ya contiene funcionarios. Las contraseñas temporales de una instalación nueva se guardan en `storage/acceso-local.txt` y se deben cambiar al ingresar.
+
+Para un servidor MySQL existente, el administrador crea una base utf8mb4, carga `database/schema.sql` y asigna una cuenta limitada a esa base. Configure `config/local.php` con sus datos y ejecute el instalador solo si es una base nueva. La raíz pública del servidor web es `public/`. La publicación en Internet requerirá HTTPS y configuración institucional; no se ha realizado ese despliegue ni la integración con el directorio de Windows.
+
+## Migrar desde SQLite
+
+La base SQLite original permanece en `storage/app.sqlite` como archivo histórico; la aplicación ya no se conecta a ella. La migración exige un destino MySQL vacío y no sobrescribe datos existentes.
 
 ```powershell
-./.runtime/php/php.exe -c .runtime/php/php.ini tests/http.php
+./.runtime/php/php.exe -c .runtime/php/php.ini scripts/migrate-sqlite-to-mysql.php --activate
 ```
 
-Los resultados de la última ejecución se registran en `.work/test-result.json` y `.work/http-result.json`. Incluyen los flujos originales y las nuevas designaciones, Nómina, cumpleaños, saldos por periodo y la jornada laboral configurada. Las fechas de referencia son de 2026 y deben actualizarse al cambiar esa ventana. No se verificó entrega de correo contra SMTP institucional.
+También admite `--source=RUTA_SQLITE`, `--source-uploads=CARPETA` y `--config=ARCHIVO_PHP_CONEXION`. Conserva una copia consistente del origen, aplica a esa copia las actualizaciones de versiones antiguas y transfiere las 16 tablas de datos. Verifica conteos y huellas por tabla, referencias y SHA-256 de todos los soportes antes de activar la conexión. Los informes y copias quedan en `storage/mysql`. Si el origen o sus archivos no superan la verificación, revierte la carga y mantiene la configuración previa.
 
-Las bases existentes reciben automáticamente las migraciones al abrir una conexión: campos de nacimiento y vigencia de cumpleaños, tablas de designaciones y saldos históricos, y compatibilidad con soportes configurables. Se conservan solicitudes, aprobadores y la obligatoriedad ya configurada. Cumpleaños aplica la nueva regla confirmada de una jornada completa anual. También puede ejecutarse explícitamente con `php scripts/migrate.php`.
+La herramienta no debe ejecutarse con usuarios registrando nuevos datos en el origen. Cierre el servidor web durante el cambio de motor. Una vez activado MySQL, sus nuevas operaciones quedan exclusivamente en MySQL; volver a SQLite requiere un procedimiento explícito de recuperación y no consiste en cambiar una ruta.
 
-## Respaldos y estructura
+## Respaldar y restaurar
 
-`php scripts/backup.php` genera una copia consistente de SQLite y de los soportes dentro de `storage/backups/`. Resguarde también `config/local.php` por un canal protegido. La recuperación debe hacerse con el servicio detenido y con base y archivos del mismo respaldo.
+```powershell
+./.runtime/php/php.exe -c .runtime/php/php.ini scripts/backup.php
+```
 
-La aplicación utiliza PDO con consultas parametrizadas, transacciones `BEGIN IMMEDIATE` para las reservas, contraseñas con `password_hash`, protección CSRF, sesiones HttpOnly/SameSite y comprobación de acceso para cada solicitud, soporte y PDF. No elimina solicitudes ni decisiones históricas desde la interfaz. Los archivos admitidos son PDF, JPG y PNG; los PDF se validan antes de aceptarse y deben ser compatibles con FPDI y estar sin contraseña.
+Cada respaldo contiene `database.sql`, `manifest.json` y `uploads/`. Usa una transacción consistente, verifica los soportes y registra conteos y huellas SHA-256. Resguarde también `config/local.php` por un canal protegido. Evite cambios de esquema mientras se genera un respaldo.
 
-## Referencias técnicas y de calendario
+Restaure en una base MySQL vacía, con credenciales que permitan crear tablas y un archivo PHP de conexión separado. No use las credenciales de datos limitadas del portal para administrar el esquema:
 
-- [PHP para Windows](https://www.php.net/downloads.php?os=windows&version=8.4).
-- [FPDI con TCPDF](https://manuals.setasign.com/fpdi-manual/v2/installation/).
-- [Calendario nacional y traslados de festivos - Ley 51 de 1983](https://www.cancilleria.gov.co/sites/default/files/Normograma/docs/ley_0051_1983.htm).
-- [Circular MTIC 23 de 2026 sobre el festivo nacional del 9 de julio](https://normograma.mintic.gov.co/mintic/compilacion/docs/circular_mintic_0023_2026.htm).
+```powershell
+php scripts/restore-mysql.php --backup=CARPETA_RESPALDO --config=ARCHIVO_PHP_CONEXION --uploads=CARPETA_SOPORTES
+```
 
-Los soportes y duraciones del catálogo se basan en el formato aportado y en las decisiones del usuario; no representan una validación normativa adicional.
+La herramienta comprueba el SQL, las referencias, conteos y huellas de tablas y archivos. Rechaza bases que ya contengan tablas y soportes incompatibles. Como MySQL confirma operaciones DDL por separado, si una restauración falla debe diagnosticarse y repetirse en otra base vacía; no se elimina ni se reemplaza automáticamente un destino parcial.
 
+## Integridad y transacciones
 
-## Designaciones, Nómina y Cumpleaños
+Las reservas, decisiones y cambios administrativos usan transacciones InnoDB. Un bloqueo `SELECT ... FOR UPDATE` sobre la fila única de `app_locks` conserva la serialización de operaciones de saldo que tenía la versión anterior. Evita carreras entre comprobación y reserva de cupos, actos y beneficios anuales. Las claves foráneas y CHECK se aplican en MySQL, y las contraseñas siguen almacenadas con `password_hash`.
 
-- **Designaciones:** un jefe y suplente por una o varias dependencias; subsecretario y suplente institucional con vigencia. Un relevo cierra el periodo anterior el día calendario previo y guarda actor, fecha y hora. Los trámites pendientes permanecen con su responsable original; el nuevo recibe envíos y reenvíos desde su inicio. No desactive a quienes aún tengan trámites o designaciones pendientes.
-- **Consulta de saldos:** fecha de corte limitada a las dependencias y periodos designados. Las instantáneas históricas comienzan con esta actualización; no se reconstruyen saldos anteriores sin evidencia. Cada solicitante también puede consultar sus propios saldos.
-- **Nómina:** único rol autorizado para aprobar o rechazar el registro de actos administrativos. Conserva observación, responsable y fecha/hora; no admite autoaprobación. El rol de Talento Humano por sí solo no permite validarlos.
-- **Cumpleaños:** una jornada completa por año del beneficio; diciembre permite disfrute hasta el 30 de enero siguiente sin consumir la nueva vigencia. Fecha de nacimiento administrada por Talento Humano y columna opcional `fecha_nacimiento` (texto `AAAA-MM-DD`) en Excel/CSV. Rechazo o cancelación sin disfrute libera el beneficio; disfrute parcial lo conserva consumido.
+Las pruebas incluyen procesos independientes que intentan simultáneamente consumir el cupo semestral, reservar un mismo saldo, solicitar Cumpleaños y aprobar una misma etapa. La captura de horarios especiales continúa retirada; se usa la jornada laboral configurada y los horarios temporales de Talento Humano.
 
-Antes de actualizar una base existente ejecute `php scripts/backup.php` y luego `php scripts/migrate.php`. La migración agrega campos y tablas sin reemplazar registros ni reasignar aprobaciones anteriores. Hasta la fecha de inicio de la primera designación de cada dependencia se conserva la relación individual anterior; no se inventan periodos históricos. Las cuentas nuevas requieren que Talento Humano configure la designación vigente.
+## Configuración funcional
 
+- En **Funcionarios**, mantenga datos, fecha de nacimiento, roles y clasificación de alto rango.
+- En **Designaciones**, asigne jefes y suplentes a una o varias dependencias y al subsecretario institucional por vigencia. Los responsables anteriores conservan sus etapas pendientes; no desactive sus cuentas o roles mientras las tengan.
+- En **Consulta de saldos**, los jefes consultan únicamente sus dependencias y periodos designados. El historial por instantáneas comienza con la versión que lo introdujo.
+- **Nómina** aprueba o rechaza el registro de actos administrativos y conserva observación, responsable, fecha y hora. No agrega una etapa al disfrute del compensatorio.
+- **Cumpleaños** permite una jornada completa por vigencia. Quienes nacen en diciembre pueden disfrutarlo hasta el 30 de enero siguiente con cargo al año anterior. Una cancelación sin disfrute libera el beneficio; el disfrute parcial lo conserva consumido.
+- En **Tipos y soportes**, seleccione si cada tipo exige un adjunto. El documento del acto administrativo para otorgar saldo continúa siendo obligatorio.
+- En **Por aprobar**, jefes y subsecretario pueden aprobar hasta 100 etapas seleccionadas por acción, con resultados parciales y sin saltarse etapas.
 
-## Jornada laboral de las solicitudes
+## Plazo, calendario y correo
 
-La captura de horarios especiales fue retirada. Los nuevos trámites y las correcciones usan la jornada laboral configurada: lunes a jueves de 07:30 a 12:00 y de 13:00 a 17:00, y viernes de 07:00 a 12:00 y de 12:30 a 16:00, salvo los horarios temporales registrados por Talento Humano. Se excluyen descansos, sábados, domingos y festivos. La anticipación sigue siendo de 48 horas calendario dentro de días hábiles.
+El plazo es de **48 horas calendario dentro de días hábiles**: cuenta noches y almuerzos de lunes a viernes, y excluye completos sábados, domingos y festivos. Se conserva la excepción con justificación. La duración usa la jornada laboral y el cupo ordinario sigue siendo de 25 h 30 min por semestre, incluidas solicitudes de hasta dos horas.
 
-La migración elimina `requests.special_note` y `request_slots.special_periods` después de guardar sus datos en `requests.snapshot.archived_data`. Conserva las solicitudes existentes, sus fechas completas, segmentos y minutos, aprobadores y saldos; no recalcula registros históricos. Los campos generales de fechas completas y modalidad de día se mantienen para conservar el historial y validar Cumpleaños. Ejecute un respaldo antes de migrar. La corrección de un registro anterior conserva su archivo histórico y valida las nuevas fechas con la jornada configurada.
+La jornada base es de lunes a jueves 07:30–12:00 y 13:00–17:00, y viernes 07:00–12:00 y 12:30–16:00. Talento Humano administra festivos y horarios temporales. El calendario nacional se precarga para el año de instalación y los dos siguientes.
+
+Configure SMTP en `config/local.php` y programe `php scripts/mail-worker.php`. Sin SMTP los mensajes permanecen pendientes. Cada ejecución procesa hasta 50 mensajes y reintenta los fallidos hasta cinco veces. No se ha verificado entrega institucional. Un mensaje que quede en `sending` requiere revisar la entrega antes de reponerlo.
+
+## Pruebas y documentación
+
+`./tests/run.ps1` crea una base y un usuario MySQL aislados, ejecuta las reglas y pruebas de concurrencia, inicia un servidor HTTP temporal en 8089 y lo detiene al terminar. La base operativa no se modifica. Para crear esas bases se necesita la configuración administrativa local de `storage/mysql/admin.php`. Los resultados están en `.work/test-result.json` y `.work/http-result.json`; la configuración privada de la prueba queda en `.work`.
+
+Las fechas de prueba de referencia son de 2026 y deben actualizarse al cambiar esa ventana. Las pruebas de migraciones antiguas usan SQLite únicamente como origen. También se verifica una transferencia a MySQL y una restauración real a otra base vacía.
+
+- `docs/manual.pdf` y `docs/manual.html`: guía de uso, administración e instalación.
+- `docs/diagramas/`: SVG y fuentes Mermaid.
+- `docs/requerimientos.md`: decisiones funcionales confirmadas.
+- `database/schema.sql`: esquema operativo MySQL.
+- `database/legacy/sqlite-schema.sql`: compatibilidad exclusiva con la migración anterior.
+- `php scripts/export-schema.php`: exporta solo metadatos MySQL para el diccionario y diagramas.
+
+## Referencias
+
+- [MySQL Community 8.4 para Windows](https://dev.mysql.com/downloads/mysql/8.4.html?os=3).
+- [Bloqueos de lectura InnoDB](https://dev.mysql.com/doc/refman/8.4/en/innodb-locking-reads.html).
+- [Modelo de transacciones InnoDB](https://dev.mysql.com/doc/refman/8.4/en/innodb-transaction-model.html).
+- [Métodos de respaldo MySQL](https://dev.mysql.com/doc/refman/8.4/en/backup-methods.html).
+
+Los soportes y duraciones del catálogo proceden del formato suministrado y las decisiones del usuario; no representan una validación normativa adicional.

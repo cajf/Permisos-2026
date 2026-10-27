@@ -4,21 +4,24 @@ declare(strict_types=1);
 const ROOT = __DIR__ . '/..';
 date_default_timezone_set('America/Bogota');
 require_once ROOT . '/vendor/autoload.php';
+require_once __DIR__ . '/Database.php';
 require_once __DIR__ . '/Migrations.php';
 $config = require ROOT . '/config/example.php';
 if (is_file(ROOT . '/config/local.php')) $config = array_replace_recursive($config, require ROOT . '/config/local.php');
-if (getenv('APP_DATABASE')) $config['database'] = getenv('APP_DATABASE');
+if (getenv('APP_TESTING')==='1' && getenv('APP_DATABASE_CONFIG')) {
+    $testConfig=realpath(getenv('APP_DATABASE_CONFIG'));$testRoot=realpath(ROOT.'/.work');
+    if (!$testConfig || !$testRoot || !str_starts_with(str_replace('\\','/',$testConfig),str_replace('\\','/',$testRoot).'/')) throw new RuntimeException('Configuración de pruebas fuera del directorio aislado.');
+    $config=array_replace_recursive($config,require $testConfig);
+}
 $GLOBALS['config'] = $config;
 foreach (['storage', 'storage/uploads', 'storage/cache'] as $dir) if (!is_dir(ROOT . '/' . $dir)) mkdir(ROOT . '/' . $dir, 0700, true);
-function uploadDir(): string { return dirname($GLOBALS['config']['database']).'/uploads'; }
+function uploadDir(): string { return $GLOBALS['config']['uploads']; }
 if(!is_dir(uploadDir()))mkdir(uploadDir(),0700,true);
 
 function db(): PDO {
     static $pdo;
     if (!$pdo) {
-        $pdo = new PDO('sqlite:' . $GLOBALS['config']['database'], null, null, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION, PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC]);
-        $pdo->exec('PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000; PRAGMA journal_mode=WAL;');
-        if (!defined('SKIP_DATABASE_MIGRATIONS') || !SKIP_DATABASE_MIGRATIONS) migrateDatabase($pdo);
+        $pdo=mysqlConnection($GLOBALS['config']['mysql']);
     }
     return $pdo;
 }
@@ -26,17 +29,21 @@ function rows(string $sql, array $params = []): array { $s=db()->prepare($sql); 
 function row(string $sql, array $params = []): ?array { return rows($sql,$params)[0] ?? null; }
 function run(string $sql, array $params = []): int { $s=db()->prepare($sql); $s->execute($params); return $s->rowCount(); }
 function insert(string $table, array $data): int {
-    $columns = implode(',',array_keys($data));
-    run('INSERT INTO '.$table.' ('.$columns.') VALUES ('.implode(',',array_fill(0,count($data),'?')).')', array_values($data));
+    $columns = implode(',',array_map('mysqlIdentifier',array_keys($data)));
+    run('INSERT INTO '.mysqlIdentifier($table).' ('.$columns.') VALUES ('.implode(',',array_fill(0,count($data),'?')).')', array_values($data));
     return (int)db()->lastInsertId();
 }
 function atomic(callable $callback): mixed {
-    db()->exec('BEGIN IMMEDIATE');
-    try { $result=$callback(); db()->exec('COMMIT'); return $result; }
-    catch (Throwable $e) { db()->exec('ROLLBACK'); throw $e; }
+    $pdo=db();$pdo->beginTransaction();
+    try {
+        // Conserva la serialización de operaciones de saldo de la versión anterior.
+        $guard=$pdo->query('SELECT id FROM app_locks WHERE id=1 FOR UPDATE')->fetchColumn();
+        if (!$guard) throw new RuntimeException('Falta inicializar el control transaccional de la base.');
+        $result=$callback();$pdo->commit();return $result;
+    } catch (Throwable $e) { if ($pdo->inTransaction()) $pdo->rollBack();throw $e; }
 }
-function setting(string $key, string $default = ''): string { return row('SELECT value FROM settings WHERE key=?',[$key])['value'] ?? $default; }
-function setSetting(string $key, string $value): void { run('INSERT INTO settings(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value',[$key,$value]); }
+function setting(string $key, string $default = ''): string { return row('SELECT `value` FROM settings WHERE `key`=?',[$key])['value'] ?? $default; }
+function setSetting(string $key, string $value): void { run('INSERT INTO settings(`key`,`value`) VALUES(?,?) ON DUPLICATE KEY UPDATE `value`=?',[$key,$value,$value]); }
 function now(): string { return date('Y-m-d H:i:s'); }
 function e(mixed $s): string { return htmlspecialchars((string)$s,ENT_QUOTES|ENT_SUBSTITUTE,'UTF-8'); }
 function hours(int $minutes): string { return intdiv($minutes,60).' h '.str_pad((string)($minutes%60),2,'0',STR_PAD_LEFT).' min'; }

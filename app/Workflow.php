@@ -71,7 +71,7 @@ final class Workflow {
             $semesters=[];
             foreach ($slots as $s) {
                 foreach ($this->slotSemesters($s) as $semester=>$minutes) $semesters[$semester]=($semesters[$semester]??0)+$minutes;
-                $overlap=row("SELECT r.id FROM request_slots s JOIN requests r ON r.id=s.request_id WHERE r.user_id=? AND r.id!=? AND r.status NOT IN ('rejected','cancelled') AND COALESCE(s.start_at,s.date||' '||s.start_time||':00')<? AND COALESCE(s.end_at,s.date||' '||s.end_time||':00')>? LIMIT 1",[$owner['id'],$id??0,$s['end_at'],$s['start_at']]);
+                $overlap=row("SELECT r.id FROM request_slots s JOIN requests r ON r.id=s.request_id WHERE r.user_id=? AND r.id!=? AND r.status NOT IN ('rejected','cancelled') AND COALESCE(s.start_at,CONCAT(s.date,' ',s.start_time,':00'))<? AND COALESCE(s.end_at,CONCAT(s.date,' ',s.end_time,':00'))>? LIMIT 1",[$owner['id'],$id??0,$s['end_at'],$s['start_at']]);
                 ensure(!$overlap,'El horario se cruza con otra solicitud activa.');
             }
             if ($category['slug']==='ordinario') foreach ($semesters as $semester=>$minutes) {
@@ -88,7 +88,7 @@ final class Workflow {
                 $date=$slots[0]['date'];$normal=substr($date,0,4)===(string)$birthdayYear;
                 $carry=substr($birth,5,2)==='12' && $date>=($birthdayYear+1).'-01-01' && $date<=($birthdayYear+1).'-01-30';
                 ensure($normal || $carry,'El día de Cumpleaños debe estar en su vigencia; únicamente los nacidos en diciembre pueden disfrutarlo hasta el 30 de enero siguiente.');
-                foreach (rows("SELECT r.*,s.* FROM requests r JOIN request_slots s ON s.request_id=r.id JOIN categories c ON c.id=r.category_id WHERE r.user_id=? AND c.slug='cumpleanos' AND COALESCE(r.birthday_year,CAST(substr(s.date,1,4) AS INTEGER))=CAST(? AS INTEGER) AND r.id!=? AND r.status!='rejected'",[$owner['id'],$birthdayYear,$id??0]) as $existing) ensure($existing['status']==='cancelled' && $this->consumedSlot($existing,$existing['cancelled_at'])===0,'El beneficio de cumpleaños de esa vigencia ya está solicitado o disfrutado.');
+                foreach (rows("SELECT r.*,s.* FROM requests r JOIN request_slots s ON s.request_id=r.id JOIN categories c ON c.id=r.category_id WHERE r.user_id=? AND c.slug='cumpleanos' AND COALESCE(r.birthday_year,CAST(substr(s.date,1,4) AS SIGNED))=CAST(? AS SIGNED) AND r.id!=? AND r.status!='rejected'",[$owner['id'],$birthdayYear,$id??0]) as $existing) ensure($existing['status']==='cancelled' && $this->consumedSlot($existing,$existing['cancelled_at'])===0,'El beneficio de cumpleaños de esa vigencia ya está solicitado o disfrutado.');
             }
             $route=$this->route($owner,$category,$total,$clock->format('Y-m-d'));
             $revision=$old?(int)$old['revision']+1:1;

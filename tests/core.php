@@ -1,14 +1,15 @@
 <?php
 declare(strict_types=1);
-putenv('APP_DATABASE='.__DIR__.'/../.work/test-'.bin2hex(random_bytes(5)).'.sqlite');
+require __DIR__.'/mysql-environment.php';
 require __DIR__.'/../app/bootstrap.php';require ROOT.'/app/Admin.php';require ROOT.'/database/holidays.php';
-db()->exec(file_get_contents(ROOT.'/database/schema.sql'));
+installMysqlSchema(db());
+require_once ROOT.'/app/LegacySqlite.php';
 insert('departments',['name'=>'Dependencia de prueba']);
 foreach ([['Funcionario','[]',''],['Jefe','["manager"]',''],['Subsecretario','["subsecretary","manager"]',''],['Alcalde','["mayor","manager"]',''],['Administrador','["admin","payroll"]',''],['Asesor','[]','Asesor de Despacho'],['Otro administrador','["admin","manager"]',''],['Otro funcionario','[]','']] as $i=>$p) insert('users',['name'=>$p[0],'identification'=>'PRUEBA-'.($i+1),'username'=>'qa'.($i+1),'email'=>'qa'.($i+1).'@ejemplo.invalid','password'=>password_hash('PruebaLocal!9876',PASSWORD_DEFAULT),'job_title'=>$p[0],'department_id'=>1,'manager_id'=>null,'roles'=>$p[1],'high_rank'=>$p[2],'force_password'=>0]);
 run('UPDATE users SET manager_id=2');
 setSetting('subsecretary_id','3');setSetting('mayor_id','4');
 foreach(require ROOT.'/database/catalog.php' as $c)insert('categories',array_combine(['family','name','slug','supports','max_minutes','policy_confirmed','notes'],$c));
-for($y=2026;$y<=2028;$y++)foreach(nationalHolidays($y)as $date=>$name)run('INSERT OR IGNORE INTO holidays(date,name)VALUES(?,?)',[$date,$name]);
+for($y=2026;$y<=2028;$y++)foreach(nationalHolidays($y)as $date=>$name)run('INSERT INTO holidays(date,name)VALUES(?,?) ON DUPLICATE KEY UPDATE name=name',[$date,$name]);
 $wf=new Workflow();$checks=0;
 function check(bool $condition,string $label):void{global $checks;ensure($condition,'FALLO: '.$label);$checks++;echo 'OK '.$label."\n";}
 function refuses(callable $fn,string $label):void{try{$fn();}catch(DomainException){check(true,$label);return;}throw new RuntimeException('FALLO: '.$label);}
@@ -77,12 +78,12 @@ check($cal->minutes('2026-12-03','07:30','17:00')===510,'Fuera de vigencia se re
 check(!canReadRequest(person(8),row('SELECT * FROM requests WHERE id=?',[$short])),'Otro funcionario no puede leer una solicitud ajena');
 check(canReadRequest(person(2),row('SELECT * FROM requests WHERE id=?',[$short])),'Aprobador histórico conserva acceso al trámite');
 $legacy=new PDO('sqlite::memory:');
-$legacy->exec(file_get_contents(ROOT.'/database/schema.sql'));
+$legacy->exec(file_get_contents(ROOT.'/database/legacy/sqlite-schema.sql'));
 $legacy->exec("ALTER TABLE categories DROP COLUMN supports_required; INSERT INTO categories(family,name,slug,supports) VALUES('permiso','Tipo existente','existente','Soporte');");
-migrateDatabase($legacy);
+migrateLegacySqlite($legacy);
 $migrated=$legacy->query('SELECT * FROM categories')->fetch(PDO::FETCH_ASSOC);
 check($migrated['name']==='Tipo existente' && (int)$migrated['supports_required']===1,'Migración conserva registros y obligatoriedad existente');
-$legacy->exec('UPDATE categories SET supports_required=0');migrateDatabase($legacy);
+$legacy->exec('UPDATE categories SET supports_required=0');migrateLegacySqlite($legacy);
 check((int)$legacy->query('SELECT supports_required FROM categories')->fetchColumn()===0,'Migración repetida conserva el soporte opcional');
 foreach(['ordinario','bici','matrimonio','estudios'] as $i=>$slug) {
     $category=cat($slug);
@@ -161,5 +162,6 @@ run('UPDATE categories SET supports_required=1 WHERE id=?',[$noticeCategory['id'
 
 require __DIR__.'/designations.php';
 require __DIR__.'/migrations.php';
+require __DIR__.'/mysql.php';
 echo "\n$checks comprobaciones correctas.\n";
-file_put_contents(ROOT.'/.work/test-result.json',json_encode(['checks'=>$checks,'database'=>$GLOBALS['config']['database'],'completed'=>now()],JSON_PRETTY_PRINT));
+file_put_contents(ROOT.'/.work/test-result.json',json_encode(['checks'=>$checks,'database'=>$GLOBALS['config']['mysql']['database'],'database_config'=>$GLOBALS['test_configuration_file'],'engine'=>db()->query('SELECT VERSION()')->fetchColumn(),'completed'=>now()],JSON_PRETTY_PRINT));

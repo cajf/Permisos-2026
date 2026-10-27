@@ -3,7 +3,9 @@ declare(strict_types=1);
 if (PHP_SAPI!=='cli') exit;
 require __DIR__.'/../app/bootstrap.php';
 require ROOT.'/database/holidays.php';
-db()->exec(file_get_contents(ROOT.'/database/schema.sql'));
+if (!tableExists('users')) {
+    installMysqlSchema(administrativeMysqlConnection());
+}
 if (row('SELECT id FROM users LIMIT 1')) { echo "La base de datos ya está inicializada. No se modificaron datos.\n"; exit; }
 atomic(function() {
     foreach (['Secretaría Administrativa','Secretaría de Planeación','Despacho del Alcalde'] as $name) insert('departments',['name'=>$name]);
@@ -26,8 +28,8 @@ atomic(function() {
     foreach ([1=>4,2=>4,3=>3] as $department=>$manager) insert('designations',['role'=>'manager','department_id'=>$department,'user_id'=>$manager,'alternate_id'=>2,'start_date'=>date('Y-m-d'),'created_by'=>1,'created_at'=>now()]);
     insert('designations',['role'=>'subsecretary','user_id'=>2,'start_date'=>date('Y-m-d'),'created_by'=>1,'created_at'=>now()]);
     foreach (require ROOT.'/database/catalog.php' as $c) insert('categories',array_combine(['family','name','slug','supports','max_minutes','policy_confirmed','notes'],$c));
-    for($y=(int)date('Y');$y<=(int)date('Y')+2;$y++)foreach(nationalHolidays($y)as $date=>$name)run('INSERT OR IGNORE INTO holidays(date,name)VALUES(?,?)',[$date,$name]);
+    for($y=(int)date('Y');$y<=(int)date('Y')+2;$y++)foreach(nationalHolidays($y)as $date=>$name)run('INSERT INTO holidays(date,name)VALUES(?,?) ON DUPLICATE KEY UPDATE name=name',[$date,$name]);
     $text="ACCESO LOCAL DE DEMOSTRACIÓN\n\nURL: http://127.0.0.1:8088\nUsuarios: admin, funcionario, jefe, subsecretario, alcalde, asesor, nomina\nContraseña inicial: $password\n\nTodos los datos son ficticios. Cada cuenta debe cambiar la contraseña al ingresar.\nNo publique estos datos ni esta base de demostración en Internet.\n";
-    file_put_contents(ROOT.'/storage/acceso-local.txt',$text);
+    file_put_contents($GLOBALS['config']['access_file']??ROOT.'/storage/acceso-local.txt',$text);
 });
 echo "Base creada. Credenciales en storage/acceso-local.txt.\n";

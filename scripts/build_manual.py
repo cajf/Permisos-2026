@@ -2,7 +2,7 @@
 Ejecutar con el Python del runtime de documentos de Codex.
 """
 from pathlib import Path
-import html, json, sqlite3
+import html, json
 from reportlab.pdfgen import canvas
 from reportlab.platypus import BaseDocTemplate, PageTemplate, Frame, Paragraph, Spacer, Table, TableStyle, PageBreak, NextPageTemplate, Flowable, Image, KeepTogether
 from reportlab.lib import colors
@@ -100,6 +100,7 @@ def config_er():
     box(d,410,210,280,'holidays',['PK date','name','Días no laborables'])
     box(d,780,140,280,'schedules',['PK id','name, start_date, end_date','periods JSON','created_by FK users'])
     box(d,430,15,260,'users',['PK id','Responsable del registro'])
+    box(d,40,15,280,'app_locks',['PK id = 1','Bloqueo SELECT FOR UPDATE'])
     line(d,[780,170,720,170,720,80,690,80],'N : 1',728,100)
     text(d,40,435,'Configuración y calendario laboral',22,True)
     text(d,40,165,'settings contiene referencias de responsables validadas por la aplicación.',14,color=MUTED)
@@ -224,15 +225,17 @@ sub('Notificaciones')
 p('Copie config/example.php a config/local.php y configure host, puerto, usuario, contraseña, cifrado, remitente y URL. Ejecute php scripts/mail-worker.php regularmente con el programador de tareas del servidor. Cada ejecución procesa hasta cincuenta correos y reintenta fallos hasta cinco veces.')
 p('Sin SMTP los correos permanecen pendientes. No se ha verificado entrega contra un servidor institucional. Si el trabajador se interrumpe durante un envío, revise los mensajes con estado sending antes de reponerlos en cola para evitar duplicados.')
 page();h('Instalación y operación local')
-p('Requisitos: PHP 8.4 o superior compatible con composer.lock; extensiones PDO SQLite, fileinfo, mbstring, GD, zip, intl, DOM, XML, curl y OpenSSL; Composer para instalar dependencias. En este equipo se incluyó un runtime aislado en .runtime/php. No hace falta Node para ejecutar el portal.')
-for s in ['En otro equipo, instale dependencias con composer install --no-dev --prefer-dist.','Inicialice con php scripts/install.php. Las cuentas iniciales se registran en storage/acceso-local.txt y deben cambiar la contraseña al ingresar.','Inicie con php -S 127.0.0.1:8088 -t public public/router.php. En este equipo puede usar iniciar.cmd.','Para cambiar parámetros, cree config/local.php a partir del ejemplo. La base de datos y los soportes deben conservar permisos de lectura y escritura para el proceso PHP.']:bullet(s)
+p('Requisitos: PHP 8.4 o superior compatible con composer.lock; extensiones PDO MySQL, fileinfo, mbstring, GD, zip, intl, DOM, XML, curl y OpenSSL; Composer para instalar dependencias. En este equipo PHP está en .runtime/php y MySQL 8.4.13 en .runtime/mysql-8.4.13-winx64. MySQL escucha solo en 127.0.0.1:3310 y no modifica XAMPP. No hace falta Node para ejecutar el portal.')
+for s in ['En otro equipo instale PHP 8.4, PDO MySQL y dependencias con composer install --no-dev --prefer-dist. Instale MySQL 8.4 LTS o use configurar-mysql.ps1 para una instancia independiente local.','Configure host, puerto, nombre de base y credenciales en config/local.php. Cree la base y el esquema con una cuenta de administración; para una instalación nueva ejecute php scripts/install.php. Las cuentas iniciales deben cambiar la contraseña al ingresar.','Inicie con php -S 127.0.0.1:8088 -t public public/router.php. En este equipo puede usar iniciar.cmd.','Para cambiar parámetros, cree config/local.php a partir del ejemplo. La base de datos y los soportes deben conservar permisos de lectura y escritura para el proceso PHP.']:bullet(s)
 sub('Respaldo y recuperación')
-p('Ejecute php scripts/backup.php para crear una copia consistente de SQLite y de los soportes referenciados. Resguarde también config/local.php por un canal protegido. Para recuperar, detenga el servicio, conserve una copia del estado actual y restaure base y archivos del mismo respaldo antes de iniciar de nuevo.')
+p('Ejecute php scripts/backup.php para crear un respaldo SQL consistente de MySQL con los soportes y un manifiesto de conteos y SHA-256. La herramienta usa una transacción de lectura y verifica los archivos antes de completar el respaldo. Resguarde también config/local.php por un canal protegido. Para recuperar, use php scripts/restore-mysql.php --backup=CARPETA --config=ARCHIVO_PHP --uploads=DESTINO sobre una base vacía y con credenciales de administración. Se comprueban el SQL, los conteos, las claves foráneas y los archivos. No se reemplazan bases que ya contengan tablas.')
 sub('Arquitectura y comprobaciones')
-p('La aplicación usa PHP, PDO y SQLite; TCPDF/FPDI para PDF con anexos; PhpSpreadsheet para XLSX y PHPMailer para SMTP. La carpeta pública es public; app contiene las reglas; views, las pantallas; database, el esquema y catálogo; storage, los archivos privados; y scripts, las herramientas de operación.')
+p('La aplicación usa PHP, PDO y MySQL 8.4 LTS con tablas InnoDB y utf8mb4; TCPDF/FPDI para PDF con anexos; PhpSpreadsheet para XLSX y PHPMailer para SMTP. La carpeta pública es public; app contiene las reglas; views, las pantallas; database, el esquema y catálogo; storage, los archivos privados; y scripts, las herramientas de operación.')
 functional=json.loads((ROOT/'.work/test-result.json').read_text())['checks']; http_checks=json.loads((ROOT/'.work/http-result.json').read_text())['checks']
-p(f'La revisión actualizada ejecutó {functional} comprobaciones funcionales y {http_checks} por HTTP. Incluye designaciones, autorización por vigencia, Nómina, cumpleaños, saldos históricos, retiro de la jornada personalizada y los flujos anteriores. Las bases de pruebas son independientes de la base local.')
+p(f'La revisión actualizada ejecutó {functional} comprobaciones funcionales y {http_checks} por HTTP. Incluye designaciones, autorización por vigencia, Nómina, cumpleaños, saldos históricos, retiro de la jornada personalizada y los flujos anteriores. Las pruebas usan bases MySQL y usuarios aislados, e incluyen concurrencia de cupos, actos, cumpleaños y decisiones, migración verificada y restauración de respaldos.')
 p('La publicación en Internet y la integración con el directorio de Windows no se han realizado. La instalación futura requerirá servidor web con raíz en public, HTTPS y configuración institucional de sesiones, correo, acceso y respaldos.','SmallApp')
+page();h('Migración y operación con MySQL')
+for text_item in ['La instancia local del proyecto usa MySQL Community 8.4.13 en 127.0.0.1:3310. iniciar.cmd inicia MySQL si está detenido y abre el servidor PHP en el puerto 8088. El servidor de base de datos permanece independiente del proceso web.','Las credenciales de la aplicación están en config/local.php. Las de administración y los datos del servidor están en storage/mysql y no se publican en GitHub. El usuario web tiene permisos SELECT, INSERT, UPDATE y DELETE, sin privilegios globales ni de creación o eliminación de tablas.','Para migrar una base anterior ejecute php scripts/migrate-sqlite-to-mysql.php --activate después de configurar el destino vacío. La herramienta conserva el SQLite original, migra una copia, compara cada tabla y valida los archivos. Solo cambia la conexión después de terminar satisfactoriamente. Las contraseñas y los identificadores de los funcionarios se mantienen.','Cada transacción que modifica trámites o saldos toma un bloqueo SELECT FOR UPDATE sobre app_locks antes de validar y guardar. Esto conserva la serialización que impedía reservar dos veces un saldo o duplicar el beneficio de cumpleaños.','Para detener únicamente este MySQL ejecute php scripts/stop-mysql.php con el servidor web cerrado. iniciar.cmd vuelve a iniciarlo. No se cambian servicios ni bases de XAMPP.','SQLite se requiere exclusivamente para leer y actualizar las copias de migración de versiones anteriores. La aplicación y sus pruebas funcionales y HTTP usan MySQL.']:bullet(text_item)
 page();h('Matriz inicial de duraciones y soportes')
 p('Esta matriz distingue las reglas confirmadas de las propuestas pendientes. Los valores de días presentes en el formato se conservan como referencia y no se aplican como límites automáticos adicionales sin validación de Talento Humano.')
 catalog=json.loads((ROOT/'.work/catalog.json').read_text(encoding='utf-8'))
@@ -256,13 +259,9 @@ p('Las solicitudes se registran para fechas y horas futuras. La aprobación fina
 for title,name,d in [('Casos de uso','casos-de-uso',diagrams[0]),('Base de datos de trámites','base-datos-tramites',diagrams[1]),('Base de datos de saldos y soportes','base-datos-saldos',diagrams[2]),('Base de datos de configuración','base-datos-configuracion',diagrams[3]),('Base de datos de designaciones','base-datos-designaciones',diagrams[4])]:
     story.extend([NextPageTemplate('landscape'),PageBreak()]);h(title);story.append(Diagram(d));web.append('<img class="diagram" src="diagramas/'+name+'.svg" alt="'+title+'">')
 story.extend([NextPageTemplate('portrait'),PageBreak()]);h('Diccionario de tablas')
-connection=sqlite3.connect(ROOT/'storage/app.sqlite')
-table_names=[r[0] for r in connection.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")]
-dictionary=[]
-for name in table_names:
-    fields=connection.execute('PRAGMA table_info('+name+')').fetchall()
-    dictionary.append([name,', '.join(f[1] for f in fields)])
-table(['Tabla','Campos'],dictionary,[120,390]);connection.close()
+schema=json.loads((ROOT/'.work/schema.json').read_text(encoding='utf-8'))
+dictionary=[[table['name'],', '.join(column['COLUMN_NAME'] for column in table['columns'])] for table in schema['tables']]
+table(['Tabla','Campos'],dictionary,[120,390])
 p('El esquema SQL completo y sus restricciones se encuentran en database/schema.sql. Los tiempos se guardan en minutos, los roles y copias de datos del funcionario como JSON y las constancias como eventos y aprobaciones. Las contraseñas se guardan como hash; los soportes quedan fuera de la raíz pública.','SmallApp')
 
 def footer(c,doc):

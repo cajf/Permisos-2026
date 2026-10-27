@@ -3,7 +3,7 @@ declare(strict_types=1);
 require __DIR__.'/../app/bootstrap.php';
 require ROOT.'/app/Admin.php';
 ini_set('session.use_strict_mode','1');
-$sessionScope=substr(hash('sha256',realpath($GLOBALS['config']['database'])?:$GLOBALS['config']['database']),0,16);
+$sessionScope=substr(hash('sha256',databaseIdentity()),0,16);
 $sessionDir=ROOT.'/storage/sessions/'.$sessionScope;
 if(!is_dir($sessionDir))mkdir($sessionDir,0700,true);
 session_save_path($sessionDir);
@@ -14,7 +14,7 @@ header('X-Content-Type-Options: nosniff'); header('X-Frame-Options: DENY'); head
 header("Content-Security-Policy: default-src 'self'; style-src 'self'; script-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'");
 header('Cache-Control: no-store');
 if(getenv('APP_TESTING')==='1')header('X-TH-Test-Environment: isolated');
-if (!is_file($GLOBALS['config']['database']) || !row("SELECT name FROM sqlite_master WHERE type='table' AND name='users'")) { http_response_code(503); exit('Inicialice la aplicación con scripts/install.php. Consulte README.md.'); }
+if (!tableExists('users')) { http_response_code(503); exit('Inicialice la aplicación con scripts/install.php. Consulte README.md.'); }
 initializeBalanceHistory();
 if (isset($_SESSION['last_seen']) && time()-$_SESSION['last_seen']>1800) { $_SESSION=[]; session_regenerate_id(true); }
 $_SESSION['last_seen']=time(); $_SESSION['csrf']??=bin2hex(random_bytes(32));
@@ -25,7 +25,7 @@ try {
         $action=(string)($_POST['action']??'');
         if ($action==='login') {
             ensure((int)($_SESSION['login_lock']??0)<time(),'Espere unos minutos antes de intentar ingresar nuevamente.');
-            $candidate=row('SELECT * FROM users WHERE username=? COLLATE NOCASE',[trim($_POST['username']??'')]);
+            $candidate=row('SELECT * FROM users WHERE username=?',[trim($_POST['username']??'')]);
             $valid=password_verify($_POST['password']??'',$candidate['password']??'$2y$10$hX00fAKXNV5VvepSg4J1Pev92FyeTwPa1bUKSfNWpOqAelgeT/JES');
             if (!$candidate || !$valid || !(int)$candidate['active'] || ($candidate['locked_until'] && $candidate['locked_until']>now())) {
                 if ($candidate) run('UPDATE users SET failures=failures+1,locked_until=CASE WHEN failures>=7 THEN ? ELSE locked_until END WHERE id=?',[date('Y-m-d H:i:s',time()+900),$candidate['id']]);
@@ -84,7 +84,7 @@ try {
             case 'holiday':
                 authorizeAdmin($u); ensure(validDate($_POST['date']??'') && trim($_POST['name']??'')!=='','Indique fecha y nombre del día no laborable.');
                 ensure($_POST['date']>=date('Y-m-d'),'No se modifican festivos pasados.');
-                run('INSERT INTO holidays(date,name) VALUES(?,?) ON CONFLICT(date) DO UPDATE SET name=excluded.name',[$_POST['date'],trim($_POST['name'])]); event((int)$u['id'],'Calendario actualizado',$_POST['date'].' · '.$_POST['name']); $destination='/?page=calendar'; break;
+                run('INSERT INTO holidays(date,name) VALUES(?,?) ON DUPLICATE KEY UPDATE name=?',[$_POST['date'],trim($_POST['name']),trim($_POST['name'])]); event((int)$u['id'],'Calendario actualizado',$_POST['date'].' · '.$_POST['name']); $destination='/?page=calendar'; break;
             case 'delete_holiday': authorizeAdmin($u); ensure(($_POST['date']??'')>=date('Y-m-d'),'No se modifican festivos pasados.'); run('DELETE FROM holidays WHERE date=?',[$_POST['date']]); event((int)$u['id'],'Festivo retirado',$_POST['date']); $destination='/?page=calendar'; break;
             case 'policy':
                 authorizeAdmin($u);
@@ -110,7 +110,7 @@ try {
         $_SESSION['flash']='La operación se guardó correctamente.'; redirect($destination);
     }
 } catch (DomainException $ex) { $error=$ex->getMessage(); }
-catch (Throwable $ex) { error_log((string)$ex); $error=$ex instanceof PDOException && str_contains($ex->getMessage(),'UNIQUE')?'Ya existe un registro con esa cédula, usuario o número.':'No se pudo completar la operación. Revise los datos e inténtelo nuevamente.'; }
+catch (Throwable $ex) { error_log((string)$ex); $error=$ex instanceof PDOException && (($ex->errorInfo[1]??0)===1062)?'Ya existe un registro con esa cédula, usuario o número.':'No se pudo completar la operación. Revise los datos e inténtelo nuevamente.'; }
 
 if ($page!=='login') {
     $u=user(); if ((int)$u['force_password'] && $page!=='password') redirect('/?page=password');

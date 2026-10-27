@@ -72,7 +72,7 @@ function commitImport(array $actor,array $data): array {
             ensure(filter_var($r['correo'],FILTER_VALIDATE_EMAIL)!==false,'Correo no válido en la fila '.($i+2).'.');
             ensure(preg_match('/^[a-zA-Z0-9._@-]{3,80}$/D',$r['usuario'])===1,'Usuario no válido en la fila '.($i+2).'.');
             $rank=$r['alto_rango']??''; ensure(in_array($rank,['','Asesor de Despacho','Secretario de Despacho','Jefe de Oficina'],true),'Alto rango no válido en la fila '.($i+2).'.');
-            run('INSERT OR IGNORE INTO departments(name) VALUES(?)',[$r['dependencia']]); $dep=row('SELECT id FROM departments WHERE name=?',[$r['dependencia']]);
+            run('INSERT INTO departments(name) VALUES(?) ON DUPLICATE KEY UPDATE name=name',[$r['dependencia']]); $dep=row('SELECT id FROM departments WHERE name=?',[$r['dependencia']]);
             $old=row('SELECT * FROM users WHERE identification=?',[$r['cedula']]);
             $fields=['name'=>$r['nombre'],'username'=>$r['usuario'],'email'=>$r['correo'],'job_title'=>$r['cargo'],'code'=>$r['codigo']??'','grade'=>$r['grado']??'','department_id'=>$dep['id'],'appointment_type'=>$r['vinculacion']??'Carrera administrativa','high_rank'=>$rank];
             if ($old) { run('UPDATE users SET name=?,username=?,email=?,job_title=?,code=?,grade=?,department_id=?,appointment_type=?,high_rank=? WHERE id=?',[...array_values($fields),$old['id']]); $ids[$r['cedula']]=$old['id']; }

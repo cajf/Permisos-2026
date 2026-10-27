@@ -5,13 +5,19 @@
   "require": {
     "php": "^8.2",
     "ext-pdo": "*",
-    "ext-pdo_sqlite": "*",
     "ext-fileinfo": "*",
     "ext-mbstring": "*",
     "tecnickcom/tcpdf": "^6.10",
     "setasign/fpdi": "^2.6",
     "phpmailer/phpmailer": "^6.10",
-    "phpoffice/phpspreadsheet": "^5.0"
+    "phpoffice/phpspreadsheet": "^5.0",
+    "ext-pdo_mysql": "*"
   },
-  "config": {"sort-packages": true, "allow-plugins": false}
+  "config": {
+    "sort-packages": true,
+    "allow-plugins": false
+  },
+  "suggest": {
+    "ext-pdo_sqlite": "Necesaria únicamente para migrar datos de las versiones SQLite anteriores y ejecutar sus pruebas de compatibilidad."
+  }
 }

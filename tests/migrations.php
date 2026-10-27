@@ -11,7 +11,7 @@ INSERT INTO requests(id,user_id,category_id,justification,total_minutes,snapshot
 INSERT INTO request_slots(request_id,date,start_time,end_time,minutes,segments,semester) VALUES(1,'2026-11-20','07:00','08:00',60,'[[\"07:00\",\"08:00\"]]','2026-2');
 INSERT INTO approvals(request_id,revision,step,role,assigned_user_id) VALUES(1,1,1,'manager',2);
 INSERT INTO approvals(request_id,revision,step,role,assigned_user_id) VALUES(1,1,2,'subsecretary',3);");
-migrateDatabase($oldDatabase);migrateDatabase($oldDatabase);
+migrateLegacySqlite($oldDatabase);migrateLegacySqlite($oldDatabase);
 check((int)$oldDatabase->query('SELECT assigned_user_id FROM approvals WHERE step=1')->fetchColumn()===2,'La migración real conserva al jefe de la etapa pendiente anterior');
 check($oldDatabase->query('SELECT start_at FROM request_slots')->fetchColumn()==='2026-11-20 07:00:00','La migración incorpora fechas y horas completas sin alterar los minutos existentes');
 check((int)$oldDatabase->query('SELECT supports_required FROM categories')->fetchColumn()===0,'La migración completa conserva los soportes opcionales configurados');
@@ -31,7 +31,7 @@ $query=$retiredDatabase->prepare("UPDATE requests SET special_note=?,total_minut
 $query->execute(['Nota de jornada registrada antes del retiro',json_encode(['name'=>'Titular anterior','custom'=>'Se conserva','archived_data'=>['previous'=>'Registro anterior']])]);
 $query=$retiredDatabase->prepare("UPDATE request_slots SET start_time='22:00',end_time='06:30',start_at='2026-11-20 22:00:00',end_at='2026-11-21 06:30:00',minutes=480,segments=?,special_periods=?");$query->execute([$legacySegments,$legacyPeriods]);
 $retiredDatabase->exec("UPDATE categories SET notes='Nota administrativa personalizada' WHERE slug='academico'");
-migrateDatabase($retiredDatabase);migrateDatabase($retiredDatabase);
+migrateLegacySqlite($retiredDatabase);migrateLegacySqlite($retiredDatabase);
 check(!in_array('special_note',array_column($retiredDatabase->query('PRAGMA table_info(requests)')->fetchAll(PDO::FETCH_ASSOC),'name'),true) && !in_array('special_periods',array_column($retiredDatabase->query('PRAGMA table_info(request_slots)')->fetchAll(PDO::FETCH_ASSOC),'name'),true),'La migración elimina las columnas exclusivas del horario retirado');
 $archivedRequest=$retiredDatabase->query('SELECT * FROM requests WHERE id=1')->fetch(PDO::FETCH_ASSOC);$archivedSnapshot=json_decode($archivedRequest['snapshot'],true);
 check($archivedSnapshot['archived_data']['schedule_before_removal']['note']==='Nota de jornada registrada antes del retiro' && $archivedSnapshot['archived_data']['schedule_before_removal']['slots'][0]['special_periods']===$legacyPeriods,'Los datos retirados quedan resguardados en la copia histórica');

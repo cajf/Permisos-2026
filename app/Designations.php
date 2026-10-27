@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 function designation(string $role,?int $department=null,?string $date=null): ?array {
     $date??=date('Y-m-d');
-    return row('SELECT * FROM designations WHERE role=? AND COALESCE(department_id,0)=CAST(? AS INTEGER) AND start_date<=? AND (end_date IS NULL OR end_date>=?) ORDER BY start_date DESC LIMIT 1',[$role,$department??0,$date,$date]);
+    return row('SELECT * FROM designations WHERE role=? AND COALESCE(department_id,0)=CAST(? AS SIGNED) AND start_date<=? AND (end_date IS NULL OR end_date>=?) ORDER BY start_date DESC LIMIT 1',[$role,$department??0,$date,$date]);
 }
 function saveDesignation(array $actor,array $data): void {
     authorizeAdmin($actor);
@@ -23,7 +23,7 @@ function saveDesignation(array $actor,array $data): void {
         foreach (array_unique($departments,SORT_REGULAR) as $department) {
             $department=$role==='manager'?(int)$department:null;
             if ($role==='manager') ensure(row('SELECT id FROM departments WHERE id=?',[$department])!==null,'Dependencia no válida.');
-            $last=row('SELECT * FROM designations WHERE role=? AND COALESCE(department_id,0)=CAST(? AS INTEGER) ORDER BY start_date DESC LIMIT 1',[$role,$department??0]);
+            $last=row('SELECT * FROM designations WHERE role=? AND COALESCE(department_id,0)=CAST(? AS SIGNED) ORDER BY start_date DESC LIMIT 1',[$role,$department??0]);
             ensure(!$last || $start>$last['start_date'],'La fecha debe ser posterior al inicio de la última designación registrada.');
             if ($last) run('UPDATE designations SET end_date=? WHERE id=?',[(new DateTimeImmutable($start))->modify('-1 day')->format('Y-m-d'),$last['id']]);
             $id=insert('designations',['role'=>$role,'department_id'=>$department,'user_id'=>$principal,'alternate_id'=>$alternate?:null,'start_date'=>$start,'created_by'=>$actor['id'],'created_at'=>now()]);
@@ -60,7 +60,7 @@ function balanceScope(array $viewer,string $date): array {
     return ['all'=>false,'departments'=>$departments];
 }
 function initializeBalanceHistory(): void {
-    if (!row("SELECT name FROM sqlite_master WHERE type='table' AND name='balance_snapshots'") || setting('balance_history_started')!=='') return;
+    if (!tableExists('balance_snapshots') || setting('balance_history_started')!=='') return;
     atomic(function() {
         foreach (rows('SELECT id FROM users') as $person) captureBalances((int)$person['id']);
         setSetting('balance_history_started',now());
