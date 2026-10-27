@@ -57,6 +57,8 @@ La excepción confirmada es el permiso Ordinario-Remunerado de duración total m
 
 Se puede devolver una solicitud para corrección, aprobarla o rechazarla definitivamente. Se puede solicitar la cancelación de una solicitud ya aprobada; la cancelación requiere autorización del subsecretario. Las condiciones de modificación, reenvío y cancelación antes de la aprobación final están pendientes de precisar.
 
+El jefe inmediato y el subsecretario pueden aprobar solicitudes de manera masiva desde su bandeja, con selección individual o de todas las filas de la página. Cada acción admite hasta 100 etapas asignadas, una por solicitud. Cada aprobación conserva su validación, constancia y notificación. Las solicitudes que no puedan aprobarse se informan por separado y no impiden procesar las demás. Las cancelaciones mantienen su decisión individual.
+
 Las aprobaciones deben dejar constancia del usuario, fecha y hora. No se requiere firma digital. Las novedades se comunicarán por correo electrónico.
 
 ## Fechas y tiempos

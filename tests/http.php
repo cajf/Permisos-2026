@@ -46,4 +46,32 @@ ok($policy['code']===302,'Administrador puede volver a exigir soporte');
 $csrf=login('qa8');$withoutFiles['csrf']=$csrf;$withoutFiles['slots[0][start]']='10:00';$withoutFiles['slots[0][end]']='11:00';
 $required=http('page=new',$withoutFiles,true);
 ok($required['code']===200 && str_contains($required['body'],'Adjunte al menos un soporte.'),'Servidor rechaza solicitud sin adjuntos cuando el tipo los exige');
+
+function inboxApproval(string $body,int $request):int{
+    $dom=new DOMDocument();$dom->loadHTML($body);$xp=new DOMXPath($dom);
+    $nodes=$xp->query("//tr[.//a[@href='/?page=request&id=".$request."']]//input[@name='approval_ids[]']/@value");
+    if($nodes->length!==1)throw new RuntimeException('La etapa seleccionable no aparece en la bandeja.');
+    return (int)$nodes->item(0)->nodeValue;
+}
+$bulkRequests=[];
+foreach(['2026-12-17','2026-12-18'] as $date){
+    $newBulk=http('page=new',['action'=>'submit','csrf'=>$csrf,'category_id'=>'2','justification'=>'Solicitud para validar aprobación masiva por HTTP','slots[0][date]'=>$date,'slots[0][start]'=>'10:00','slots[0][end]'=>'11:00','slots[0][mode]'=>'hours','supports[0]'=>new CURLFile($root.'/.work/soporte.pdf','application/pdf','soporte.pdf')],true);
+    ok($newBulk['code']===302 && preg_match('/Location: \/\?page=request&id=(\d+)/i',$newBulk['headers'],$m)===1,'Registro de solicitud para lote HTTP');$bulkRequests[]=(int)$m[1];
+}
+$csrf=login('qa2');$managerInbox=http('page=inbox');
+ok(str_contains($managerInbox['body'],'Aprobar seleccionadas') && str_contains($managerInbox['body'],'Seleccionar todas de esta página'),'Bandeja del jefe muestra selección múltiple');
+$managerStages=array_map(fn($request)=>inboxApproval($managerInbox['body'],$request),$bulkRequests);
+$batchPost=['action'=>'approve_bulk','csrf'=>$csrf,'approval_ids[0]'=>$managerStages[0],'approval_ids[1]'=>$managerStages[1],'approval_ids[2]'=>'999999','comment'=>'Observación común por HTTP'];
+$badCsrf=$batchPost;$badCsrf['csrf']='incorrecto';ok(str_contains(http('page=inbox',$badCsrf,true)['body'],'expiró'),'Protección CSRF para aprobación masiva');
+$batchResponse=http('page=inbox',$batchPost,true);ok($batchResponse['code']===302,'Aprobación múltiple enviada desde el formulario');
+$feedback=http('page=inbox')['body'];ok(str_contains($feedback,'2 aprobaciones registradas.') && str_contains($feedback,'1 solicitud sin aprobar.'),'Bandeja informa resultados parciales del lote');
+foreach($bulkRequests as $request){$detail=http('page=request&id='.$request)['body'];ok(str_contains($detail,'En aprobación') && str_contains($detail,'Aprobación masiva') && str_contains($detail,'Observación común por HTTP'),'Etapa del jefe conserva ruta e historial por solicitud');}
+$csrf=login('qa3');$subInbox=http('page=inbox');$subStages=array_map(fn($request)=>inboxApproval($subInbox['body'],$request),$bulkRequests);
+$subPost=['action'=>'approve_bulk','csrf'=>$csrf,'approval_ids[0]'=>$subStages[0],'approval_ids[1]'=>$subStages[1],'comment'=>'Aprobación final del lote'];
+ok(http('page=inbox',$subPost,true)['code']===302,'Subsecretario puede aprobar varias etapas finales por HTTP');
+ok(str_contains(http('page=inbox')['body'],'2 aprobaciones registradas.'),'Resultado final del lote disponible en bandeja');
+foreach($bulkRequests as $request)ok(str_contains(http('page=request&id='.$request)['body'],'badge badge-approved">Aprobada'),'Solicitud del lote concluye aprobada');
+http('page=inbox',$subPost,true);$repeated=http('page=inbox')['body'];ok(str_contains($repeated,'0 aprobaciones registradas.') && str_contains($repeated,'2 solicitudes sin aprobar.'),'Repetir un lote no vuelve a aprobarlo');
+$csrf=login('qa8');$subPost['csrf']=$csrf;ok(str_contains(http('page=inbox',$subPost,true)['body'],'requiere rol de jefe inmediato o subsecretario'),'Solicitante no puede invocar aprobación masiva por HTTP');
+
 file_put_contents($root.'/.work/http-result.json',json_encode(['checks'=>$checks,'request_id'=>$id,'completed'=>date(DATE_ATOM)],JSON_PRETTY_PRINT));echo "\n$checks comprobaciones HTTP correctas.\n";

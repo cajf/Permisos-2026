@@ -47,6 +47,12 @@ php scripts/mail-worker.php
 
 Sin SMTP, las novedades quedan pendientes y no se envían. El trabajador procesa hasta 50 mensajes por ejecución y reintenta los fallidos hasta cinco veces. Un envío que quede en estado `sending` por una interrupción requiere revisar la entrega antes de reponerlo en la cola, para evitar duplicados.
 
+## Aprobación masiva
+
+En **Por aprobar**, el jefe inmediato y el subsecretario pueden marcar solicitudes o usar **Seleccionar todas de esta página**, ingresar una observación común opcional y pulsar **Aprobar seleccionadas**. Se procesan hasta 100 por acción, con paginación de la bandeja.
+
+Cada solicitud se valida y guarda por separado. Las que no puedan procesarse no detienen las demás y aparecen con su motivo en el resultado. La constancia, las notificaciones y el descuento del saldo siguen las mismas reglas de la aprobación individual. Los reenvíos se vinculan a la etapa seleccionada para evitar aprobar accidentalmente una etapa posterior. El lote admite como máximo una etapa por solicitud.
+
 ## Verificación
 
 Ejecute `./tests/run.ps1` para crear una base aislada, verificar las reglas, iniciar un servidor de pruebas en el puerto 8089, ejecutar las pruebas HTTP y detener ese servidor al terminar. Mantenga libre el puerto 8089. La base operativa no se modifica.
@@ -63,7 +69,7 @@ El resultado de esa ejecución queda en `.work/test-result.json`. Use su campo `
 ./.runtime/php/php.exe -c .runtime/php/php.ini tests/http.php
 ```
 
-Resultado actualizado: 55 verificaciones funcionales y 41 verificaciones HTTP, incluyendo soporte obligatorio y opcional en las cuatro familias, migración de bases existentes, autorización del administrador, PDF con y sin anexos e importación real de XLSX. Las pruebas usan fechas de referencia de 2026 y deben actualizarse al cambiar esa ventana de prueba. No se verificó entrega de correo contra un SMTP institucional.
+Resultado actualizado: 73 verificaciones funcionales y 58 verificaciones HTTP, incluyendo soporte obligatorio y opcional en las cuatro familias, migración de bases existentes, autorización del administrador, PDF con y sin anexos e importación real de XLSX. Las pruebas usan fechas de referencia de 2026 y deben actualizarse al cambiar esa ventana de prueba. No se verificó entrega de correo contra un SMTP institucional.
 
 Las bases existentes reciben automáticamente la columna `supports_required` al abrir una conexión. La actualización es aditiva y conserva todos los tipos como obligatorios hasta que el administrador cambie su configuración. También puede ejecutarse explícitamente con `php scripts/migrate.php`.
 

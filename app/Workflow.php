@@ -128,11 +128,20 @@ final class Workflow {
         });
     }
     public function review(array $actor,int $id,string $decision,string $comment): void {
-        atomic(function() use($actor,$id,$decision,$comment) {
+        $this->reviewStep($actor,$id,$decision,$comment);
+    }
+    private function reviewStep(array $actor,int $id,string $decision,string $comment,?int $bulkApprovalId=null): void {
+        atomic(function() use($actor,$id,$decision,$comment,$bulkApprovalId) {
             $r=row('SELECT * FROM requests WHERE id=?',[$id]);
             ensure($r && $r['status']==='pending','La solicitud no está pendiente de aprobación.');
             $step=row("SELECT * FROM approvals WHERE request_id=? AND revision=? AND status='waiting' ORDER BY step LIMIT 1",[$id,$r['revision']]);
             ensure($step && (int)$step['assigned_user_id']===(int)$actor['id'] && hasRole($actor,$step['role']) && (int)$r['user_id']!==(int)$actor['id'],'No le corresponde revisar esta etapa.');
+            if ($bulkApprovalId!==null) {
+                ensure((int)$step['id']===$bulkApprovalId,'La etapa cambió o ya fue revisada. Actualice la bandeja.');
+                ensure(in_array($step['role'],['manager','subsecretary'],true),'La aprobación masiva solo está disponible para jefe inmediato y subsecretario.');
+                $currentActor=row('SELECT * FROM users WHERE id=? AND active=1',[$actor['id']]);
+                ensure($currentActor!==null && hasRole($currentActor,$step['role']),'Su rol de aprobación cambió. Actualice la sesión.');
+            }
             ensure(in_array($decision,['approved','returned','rejected'],true),'Decisión no válida.');
             if ($decision!=='approved') ensure(mb_strlen(trim($comment))>=5,'Explique el motivo de la devolución o rechazo.');
             run('UPDATE approvals SET status=?,acted_by=?,acted_at=?,comment=? WHERE id=?',[$decision,$actor['id'],now(),$comment,$step['id']]);
@@ -147,10 +156,39 @@ final class Workflow {
             if ($status==='rejected') run("UPDATE allocations SET state='released',returned_minutes=minutes WHERE request_id=?",[$id]);
             if (in_array($status,['rejected','returned'],true)) run("UPDATE approvals SET status='skipped' WHERE request_id=? AND revision=? AND status='waiting'",[$id,$r['revision']]);
             run('UPDATE requests SET status=?,updated_at=? WHERE id=?',[$status,now(),$id]);
-            event((int)$actor['id'],'Revisión: '.statusLabel($decision),roleLabel($step['role']).' · '.$comment,$id);
+            event((int)$actor['id'],'Revisión: '.statusLabel($decision),roleLabel($step['role']).($bulkApprovalId!==null?' · Aprobación masiva':'').' · '.$comment,$id);
             notify((int)$r['user_id'],'Novedad de solicitud TH-'.$id,statusLabel($status).' · '.$comment);
             if ($decision==='approved' && $next) notify((int)$next['assigned_user_id'],'Solicitud pendiente TH-'.$id,'La etapa anterior fue aprobada. Puede revisar la solicitud.');
         });
+    }
+    public function approveMany(array $actor,array $approvalIds,string $comment=''): array {
+        ensure(hasRole($actor,'manager') || hasRole($actor,'subsecretary'),'La aprobación masiva requiere rol de jefe inmediato o subsecretario.');
+        ensure(count($approvalIds)>0 && count($approvalIds)<=100,'Seleccione entre una y 100 solicitudes.');
+        $ids=[];
+        foreach ($approvalIds as $value) {
+            ensure((is_int($value)||is_string($value)) && filter_var($value,FILTER_VALIDATE_INT,['options'=>['min_range'=>1]])!==false,'La selección contiene una etapa no válida.');
+            $ids[]=(int)$value;
+        }
+        $comment=trim($comment);ensure(mb_strlen($comment)<=3000,'La observación no puede superar 3.000 caracteres.');
+        $result=['approved'=>[],'failed'=>[]];$seenRequests=[];
+        foreach (array_unique($ids) as $approvalId) {
+            $requestId=null;
+            try {
+                $selected=row('SELECT request_id FROM approvals WHERE id=? AND assigned_user_id=?',[$approvalId,$actor['id']]);
+                ensure($selected!==null,'La etapa no existe o ya no está asignada a su usuario.');
+                $requestId=(int)$selected['request_id'];
+                ensure(!isset($seenRequests[$requestId]),'Solo puede aprobar una etapa por solicitud en cada lote.');
+                $seenRequests[$requestId]=true;
+                $this->reviewStep($actor,$requestId,'approved',$comment,$approvalId);
+                $result['approved'][]=$requestId;
+            } catch (DomainException $e) {
+                $result['failed'][]=['approval_id'=>$approvalId,'request_id'=>$requestId,'message'=>$e->getMessage()];
+            } catch (Throwable $e) {
+                error_log((string)$e);
+                $result['failed'][]=['approval_id'=>$approvalId,'request_id'=>$requestId,'message'=>'No se pudo guardar la aprobación. Intente nuevamente.'];
+            }
+        }
+        return $result;
     }
     public function cancel(array $actor,int $id,string $reason): void {
         atomic(function() use($actor,$id,$reason) {

@@ -6,10 +6,14 @@ function icon(string $name): string {
 }
 function navLink(string $target,string $label,string $ic): void { global $page; echo '<a class="nav-item '.($page===$target?'active':'').'" href="/?page='.$target.'">'.icon($ic).'<span>'.e($label).'</span></a>'; }
 function badge(string $s): string { return '<span class="badge badge-'.e($s).'">'.e(statusLabel($s)).'</span>'; }
-function requestTable(array $list): void {
+function requestTable(array $list,bool $selectable=false): void {
  if (!$list) { echo '<div class="empty">'.icon('file').'<h3>Aquí aparecerán las solicitudes</h3><p>Cuando se registre una solicitud, podrá consultar sus fechas y estado.</p></div>'; return; }
- echo '<div class="table-wrap"><table><thead><tr><th>Radicado / funcionario</th><th>Solicitud</th><th>Fecha de registro</th><th>Tiempo</th><th>Estado</th><th><span class="sr-only">Abrir</span></th></tr></thead><tbody>';
- foreach ($list as $r) echo '<tr><td><a class="strong-link" href="/?page=request&id='.(int)$r['id'].'">TH-'.str_pad((string)$r['id'],6,'0',STR_PAD_LEFT).'</a><small>'.e($r['name']??'').'</small></td><td>'.e($r['category']).'<small>'.e(familyLabel($r['family'])).'</small></td><td>'.e(substr($r['created_at'],0,10)).'</td><td>'.e(hours((int)$r['total_minutes'])).'</td><td>'.badge($r['status']).'</td><td><a class="icon-button" aria-label="Abrir solicitud '.(int)$r['id'].'" href="/?page=request&id='.(int)$r['id'].'">'.icon('arrow').'</a></td></tr>';
+ echo '<div class="table-wrap"><table><thead><tr>'.($selectable?'<th><span class="sr-only">Seleccionar</span></th>':'').'<th>Radicado / funcionario</th><th>Solicitud</th><th>Fecha de registro</th><th>Tiempo</th><th>Estado</th><th><span class="sr-only">Abrir</span></th></tr></thead><tbody>';
+ foreach ($list as $r) {
+  $selection='';
+  if ($selectable) $selection='<td>'.(in_array($r['pending_role']??'',['manager','subsecretary'],true)?'<input type="checkbox" name="approval_ids[]" value="'.(int)$r['pending_approval_id'].'" aria-label="Seleccionar solicitud TH-'.str_pad((string)$r['id'],6,'0',STR_PAD_LEFT).'">':'').'</td>';
+  echo '<tr>'.$selection.'<td><a class="strong-link" href="/?page=request&id='.(int)$r['id'].'">TH-'.str_pad((string)$r['id'],6,'0',STR_PAD_LEFT).'</a><small>'.e($r['name']??'').'</small></td><td>'.e($r['category']).'<small>'.e(familyLabel($r['family'])).'</small></td><td>'.e(substr($r['created_at'],0,10)).'</td><td>'.e(hours((int)$r['total_minutes'])).'</td><td>'.badge($r['status']).'</td><td><a class="icon-button" aria-label="Abrir solicitud '.(int)$r['id'].'" href="/?page=request&id='.(int)$r['id'].'">'.icon('arrow').'</a></td></tr>';
+ }
  echo '</tbody></table></div>';
 }
 ?>

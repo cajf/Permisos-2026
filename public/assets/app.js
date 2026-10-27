@@ -36,3 +36,12 @@ if(form){
  slots.addEventListener('click',e=>{const btn=e.target.closest('.remove-slot');if(btn&&slots.children.length>1){btn.closest('.slot-row').remove();refresh();}});
  document.querySelector('#add-slot').addEventListener('click',()=>{const copy=slots.firstElementChild.cloneNode(true);copy.querySelectorAll('[name]').forEach(input=>{input.name=input.name.replace(/slots\[\d+\]/,`slots[${next}]`);if(input.type==='date')input.value='';if(input.type==='time')input.disabled=false;});copy.querySelector('select').value='hours';copy.querySelector('.slot-result').textContent='';copy.dataset.minutes='0';next++;slots.append(copy);copy.querySelector('input').focus();});refresh();
 }
+
+const bulkForm=document.querySelector('#bulk-approval-form');
+if(bulkForm){
+ const choices=[...bulkForm.querySelectorAll('input[name="approval_ids[]"]')],all=bulkForm.querySelector('#bulk-select-all'),count=bulkForm.querySelector('#bulk-selected-count'),button=bulkForm.querySelector('#bulk-approve-button');
+ const update=()=>{const selected=choices.filter(input=>input.checked).length;count.textContent=`${selected} seleccionada(s)`;button.disabled=selected===0;all.checked=selected>0&&selected===choices.length;all.indeterminate=selected>0&&selected<choices.length;};
+ bulkForm.querySelector('#bulk-select-all-label').hidden=false;count.hidden=false;
+ all.addEventListener('change',()=>{choices.forEach(input=>input.checked=all.checked);update();});choices.forEach(input=>input.addEventListener('change',update));
+ bulkForm.addEventListener('submit',event=>{if(!choices.some(input=>input.checked)){event.preventDefault();return;}button.disabled=true;button.textContent='Procesando aprobaciones…';});update();
+}

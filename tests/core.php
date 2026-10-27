@@ -93,5 +93,44 @@ foreach(['ordinario','bici','matrimonio','estudios'] as $i=>$slug) {
     $input['slots']=[slot('2026-12-'.(21+$i),'09:30','10:30')];
     refuses(fn()=>$wf->submit(person(8),$input,[],null,new DateTimeImmutable('2026-10-26 06:00')),'Exige adjunto al reactivar la obligatoriedad: '.$slug);
 }
+
+function approvalId(int $request,int $step=1):int{return (int)row('SELECT id FROM approvals WHERE request_id=? AND step=? ORDER BY revision DESC LIMIT 1',[$request,$step])['id'];}
+$bulkA=testSubmit(8,'academico',[slot('2026-12-28','07:30','08:30')]);
+$bulkB=testSubmit(8,'academico',[slot('2026-12-29','07:30','08:30')]);
+$foreign=testSubmit(1,'academico',[slot('2026-12-31','07:30','08:30')]);
+$batch=$wf->approveMany(person(2),[approvalId($bulkA),approvalId($bulkB),999999,approvalId($foreign)],'Observación común del lote');
+check(count($batch['approved'])===2 && count($batch['failed'])===2,'Lote parcial: aprueba las válidas y reporta las ajenas o inexistentes');
+check(row('SELECT status FROM requests WHERE id=?',[$bulkA])['status']==='pending','Lote del jefe conserva pendiente la aprobación del subsecretario');
+check(str_contains(row("SELECT detail FROM events WHERE request_id=? AND action='Revisión: Aprobada'",[$bulkA])['detail'],'Aprobación masiva') && str_contains(row("SELECT detail FROM events WHERE request_id=? AND action='Revisión: Aprobada'",[$bulkA])['detail'],'Observación común del lote'),'Cada aprobación masiva conserva su constancia y observación');
+$batch=$wf->approveMany(person(3),[approvalId($bulkA,2),approvalId($bulkB,2)]);
+check(count($batch['approved'])===2 && row('SELECT status FROM requests WHERE id=?',[$bulkB])['status']==='approved','Subsecretario concluye varias solicitudes en su etapa');
+$repeat=$wf->approveMany(person(3),[approvalId($bulkA,2)]);
+check(count($repeat['failed'])===1 && (int)row("SELECT COUNT(*) n FROM events WHERE request_id=? AND action='Revisión: Aprobada'",[$bulkA])['n']===2,'Reenvío del lote no duplica decisiones ni constancias');
+$early=testSubmit(8,'academico',[slot('2026-12-28','09:00','10:00')]);
+check(count($wf->approveMany(person(3),[approvalId($early,2)])['failed'])===1,'Lote del subsecretario no puede saltar la etapa del jefe');
+$shortBulk=testSubmit(8,'ordinario',[slot('2026-12-30','07:30','08:30')]);
+$duplicate=$wf->approveMany(person(2),[approvalId($shortBulk),approvalId($shortBulk)]);
+check(count($duplicate['approved'])===1 && row('SELECT status FROM requests WHERE id=?',[$shortBulk])['status']==='approved','Lote deduplica selecciones y concluye el permiso corto');
+$mayoral=testSubmit(6,'academico',[slot('2026-12-28','07:30','08:30')]);
+check(count($wf->approveMany(person(4),[approvalId($mayoral)])['failed'])===1 && row('SELECT status FROM requests WHERE id=?',[$mayoral])['status']==='pending','Un usuario con rol de alcalde y jefe no aprueba etapas del alcalde masivamente');
+refuses(fn()=>$wf->approveMany(person(8),[approvalId($early)]),'Solicitante no puede aprobar masivamente');
+refuses(fn()=>$wf->approveMany(person(5),[approvalId($early)]),'Administrador sin rol aprobador no puede aprobar masivamente');
+refuses(fn()=>$wf->approveMany(person(2),[]),'Lote vacío se rechaza');
+refuses(fn()=>$wf->approveMany(person(2),range(1,101)),'Lote mayor de cien se rechaza');
+refuses(fn()=>$wf->approveMany(person(2),[approvalId($early),'etapa-inválida']),'Selección malformada se rechaza antes de aprobar cualquier solicitud');
+check(row('SELECT status FROM approvals WHERE id=?',[approvalId($early)])['status']==='waiting','Lote malformado no altera solicitudes válidas incluidas');
+$bulkComp=testSubmit(1,'acto',[slot('2026-12-28','13:00','14:00')],[['id'=>$act,'hours'=>'1']]);
+$wf->approveMany(person(7),[approvalId($bulkComp)]);
+check(row('SELECT state FROM allocations WHERE request_id=?',[$bulkComp])['state']==='reserved','Primera etapa masiva conserva la reserva del acto');
+$wf->approveMany(person(3),[approvalId($bulkComp,2)]);
+check(row('SELECT state FROM allocations WHERE request_id=?',[$bulkComp])['state']==='consumed','Aprobación final masiva descuenta definitivamente el acto');
+run('UPDATE users SET manager_id=3 WHERE id=1');
+$dual=testSubmit(1,'academico',[slot('2026-12-30','10:00','11:00')]);
+$firstDual=approvalId($dual);$wf->approveMany(person(3),[$firstDual]);$stale=$wf->approveMany(person(3),[$firstDual]);
+check(count($stale['failed'])===1 && row('SELECT status FROM requests WHERE id=?',[$dual])['status']==='pending','Un doble envío no aprueba la etapa siguiente aunque el usuario tenga ambos roles');
+$dual2=testSubmit(1,'academico',[slot('2026-12-31','10:00','11:00')]);
+$dualBatch=$wf->approveMany(person(3),[approvalId($dual2),approvalId($dual2,2)]);
+check(count($dualBatch['approved'])===1 && count($dualBatch['failed'])===1 && row('SELECT status FROM requests WHERE id=?',[$dual2])['status']==='pending','Un lote permite como máximo una etapa por solicitud');
+
 echo "\n$checks comprobaciones correctas.\n";
 file_put_contents(ROOT.'/.work/test-result.json',json_encode(['checks'=>$checks,'database'=>$GLOBALS['config']['database'],'completed'=>now()],JSON_PRETTY_PRINT));
