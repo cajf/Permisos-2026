@@ -137,8 +137,8 @@ La consulta de saldos de un jefe anterior se limita a fechas de su periodo y sus
 
 Permanece como compensatorio. Se disfruta una única jornada completa por vigencia, en cualquier fecha de ese año. Quienes nacen en diciembre pueden trasladarlo al 1-30 de enero siguiente y cargarlo a la vigencia anterior sin consumir el beneficio del año nuevo. Se registra la fecha de nacimiento por Talento Humano. Las solicitudes pendientes, devueltas, aprobadas o en cancelación reservan o consumen el beneficio; el rechazo o la cancelación previa al disfrute lo libera. Si ya hubo disfrute parcial, no se recupera el beneficio anual.
 
-## Horario especial en solicitudes
+## Jornada laboral aplicable
 
-El funcionario puede declarar franjas reales por fecha, incluidos descansos entre ellas. Hasta tres franjas ordenadas suman entre 480 y 510 minutos de trabajo efectivo, dentro de un máximo de 24 horas. Se admiten sábados, domingos, festivos y cruces de medianoche. El aprobador valida la jornada al aprobar el trámite. Se conservan franjas, justificación, duración y desplazamientos de día en el detalle y PDF; se controlan solapamientos y cancelaciones parciales con fechas y horas completas.
+Se retiró la declaración de horarios especiales en las solicitudes. Los nuevos trámites y las correcciones usan únicamente la jornada laboral configurada, incluidos los horarios temporales administrados por Talento Humano. No se admiten solicitudes en sábados, domingos o festivos ni intervalos que crucen medianoche. La anticipación conserva la regla de 48 horas calendario dentro de días hábiles.
 
-La anticipación continúa contando 48 horas calendario en días hábiles. El cupo ordinario conserva 1530 minutos semestrales y se distribuye por las fechas efectivas, incluso en cruces de semestre.
+El retiro conserva las solicitudes y aprobaciones existentes sin recalcular sus fechas ni sus minutos. Antes de eliminar las columnas exclusivas de la función retirada, la migración resguarda sus metadatos en la copia histórica de la solicitud. Las correcciones conservan ese archivo, pero sus nuevas fechas se validan con la jornada configurada.

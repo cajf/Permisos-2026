@@ -121,13 +121,7 @@ if ($page!=='login') {
         }
         if ($page==='estimate') {
             header('Content-Type: application/json; charset=utf-8');
-            if (!empty($_GET['slot']['special'])) {
-                try {
-                    $slot=$wf->calendar->specialSlot($_GET['slot'],new DateTimeImmutable('today'));
-                    echo json_encode(['periods'=>[[$slot['start_time'],$slot['end_time']]],'minutes'=>$slot['minutes']],JSON_UNESCAPED_UNICODE);
-                } catch (DomainException $ex) { echo json_encode(['periods'=>[],'minutes'=>0,'error'=>$ex->getMessage()],JSON_UNESCAPED_UNICODE); }
-                exit;
-            }
+            ensure(empty($_GET['slot']),'Actualice el formulario: use la jornada laboral configurada.');
             $date=$_GET['date']??''; $p=$wf->calendar->periods($date); $a=$_GET['start']??($p[0][0]??''); $b=$_GET['end']??($p[count($p)-1][1]??'');
             echo json_encode(['periods'=>$p,'minutes'=>$p?$wf->calendar->minutes($date,$a,$b):0],JSON_UNESCAPED_UNICODE); exit;
         }

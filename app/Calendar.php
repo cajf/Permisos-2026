@@ -57,13 +57,10 @@ final class WorkCalendar {
         ensure(count($input)>0 && count($input)<=90,'Registre entre una y 90 fechas.');
         $slots=[];
         foreach ($input as $item) {
+            ensure(empty($item['special']) && empty($item['periods']) && empty($item['start_day']) && empty($item['end_day']),'Actualice el formulario: solo se admite la jornada laboral configurada.');
             $date=trim($item['date']??'');
             ensure(validDate($date),'Seleccione una fecha válida.');
             ensure($date>=$clock->format('Y-m-d') && $date<=$clock->modify('+2 years')->format('Y-m-d'),'Las fechas deben estar entre hoy y los próximos dos años.');
-            if (!empty($item['special'])) {
-                $slots[]=$this->specialSlot($item,$clock);
-                continue;
-            }
             $periods=$this->periods($date);
             ensure(count($periods)>0,"El $date no es un día laborable.");
             $full=($item['mode']??'hours')==='full';
@@ -75,41 +72,9 @@ final class WorkCalendar {
             ensure($a>=$periods[0][0] && $b<=$periods[count($periods)-1][1],'El horario solicitado está fuera de la jornada.');
             foreach ($slots as $old) ensure(!($old['date']===$date && $a<$old['end_time'] && $b>$old['start_time']),'Las franjas de una solicitud no pueden superponerse.');
             $segments=[]; foreach ($periods as [$x,$y]) if (max($a,$x)<min($b,$y)) $segments[]=[max($a,$x),min($b,$y)];
-            $slots[]=['date'=>$date,'start_time'=>$a,'end_time'=>$b,'minutes'=>$minutes,'segments'=>json_encode($segments),'semester'=>substr($date,0,4).'-'.((int)substr($date,5,2)<=6?'1':'2'),'start_at'=>$date.' '.$a.':00','end_at'=>$date.' '.$b.':00','special_periods'=>'','is_full_day'=>$full?1:0];
+            $slots[]=['date'=>$date,'start_time'=>$a,'end_time'=>$b,'minutes'=>$minutes,'segments'=>json_encode($segments),'semester'=>substr($date,0,4).'-'.((int)substr($date,5,2)<=6?'1':'2'),'start_at'=>$date.' '.$a.':00','end_at'=>$date.' '.$b.':00','is_full_day'=>$full?1:0];
         }
-        usort($slots,fn($a,$b)=>strcmp($a['start_at'],$b['start_at']));
-        foreach ($slots as $i=>$s) foreach (array_slice($slots,0,$i) as $old) ensure(!($s['start_at']<$old['end_at'] && $s['end_at']>$old['start_at']),'Las franjas de una solicitud no pueden superponerse, incluso entre días.');
+        usort($slots,fn($a,$b)=>strcmp($a['date'].$a['start_time'],$b['date'].$b['start_time']));
         return $slots;
-    }
-    public function specialSlot(array $item,DateTimeImmutable $clock): array {
-        $date=$item['date']??'';ensure(validDate($date),'Seleccione una fecha válida.');
-        $base=new DateTimeImmutable($date);
-        ensure($date>=$clock->format('Y-m-d') && $date<=$clock->modify('+2 years')->format('Y-m-d'),'Revise la fecha de la jornada especial.');
-        $stamp=static function(string $time,mixed $day) use($base): string {
-            ensure(preg_match('/^(?:[01]\d|2[0-3]):[0-5]\d$/D',$time)===1,'Use una hora válida HH:MM para la jornada especial.');
-            ensure(in_array((string)$day,['0','1'],true),'El desplazamiento de día no es válido.');
-            return $base->modify('+'.(int)$day.' day')->format('Y-m-d').' '.$time.':00';
-        };
-        $input=$item['periods']??[];ensure(is_array($input) && count($input)<=3,'La jornada especial admite hasta tres franjas de trabajo.');
-        $periods=[];$duration=0;$raw=[];
-        foreach ($input as $p) {
-            if (($p['start']??'')==='' && ($p['end']??'')==='') continue;
-            $a=$stamp($p['start']??'',$p['start_day']??0);$b=$stamp($p['end']??'',$p['end_day']??0);
-            ensure($a<$b,'La franja especial debe terminar después de su inicio; indique si termina al día siguiente.');
-            if ($periods) ensure($a>=$periods[count($periods)-1][1],'Ordene las franjas especiales sin superponerlas.');
-            else ensure(($p['start_day']??0)==0,'La primera franja debe comenzar en la fecha seleccionada.');
-            $periods[]=[$a,$b];$duration+=(strtotime($b)-strtotime($a))/60;$raw[]=$p;
-        }
-        ensure($duration>=480 && $duration<=510,'La jornada especial debe sumar entre 8 y 8,5 horas de trabajo, sin incluir descansos.');
-        ensure(strtotime($periods[count($periods)-1][1])-strtotime($periods[0][0])<=86400,'La jornada especial debe estar contenida en un periodo máximo de 24 horas.');
-        $full=($item['mode']??'hours')==='full';
-        $a=$full?$periods[0][0]:$stamp($item['start']??'',$item['start_day']??0);
-        $b=$full?$periods[count($periods)-1][1]:$stamp($item['end']??'',$item['end_day']??0);
-        ensure($a<$b && $a>=$periods[0][0] && $b<=$periods[count($periods)-1][1],'El tiempo solicitado debe estar dentro de la jornada especial.');
-        ensure(new DateTimeImmutable($a)>$clock,'La hora solicitada ya pasó.');
-        $segments=[];$minutes=0;
-        foreach ($periods as [$x,$y]) if (max($a,$x)<min($b,$y)) { $segments[]=[max($a,$x),min($b,$y)];$minutes+=(strtotime(min($b,$y))-strtotime(max($a,$x)))/60; }
-        ensure($minutes>0,'El intervalo solicitado debe incluir trabajo efectivo.');
-        return ['date'=>$date,'start_time'=>substr($a,11,5),'end_time'=>substr($b,11,5),'minutes'=>(int)$minutes,'segments'=>json_encode($segments),'semester'=>substr($date,0,4).'-'.((int)substr($date,5,2)<=6?'1':'2'),'start_at'=>$a,'end_at'=>$b,'special_periods'=>json_encode($raw),'is_full_day'=>$full?1:0];
     }
 }

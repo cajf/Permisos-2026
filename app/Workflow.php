@@ -62,8 +62,6 @@ final class Workflow {
             ensure(mb_strlen($exception)<=3000,'La justificación de excepción es demasiado extensa.');
             $first=$slots[0];
             if ($this->calendar->noticeMinutes($clock,new DateTimeImmutable($first['start_at']))<2880) ensure(mb_strlen($exception)>=10,'No se completan 48 horas calendario dentro de días hábiles. Debe justificar la excepción.');
-            $specialNote=trim($input['special_note']??'');
-            if (count(array_filter($slots,fn($s)=>$s['special_periods']!==''))) ensure(mb_strlen($specialNote)>=10 && mb_strlen($specialNote)<=3000,'Explique la jornada especial (entre 10 y 3.000 caracteres) para validación de los aprobadores.');
             if ($category['slug']!=='cumpleanos' && $category['max_minutes']!==null && (int)$category['policy_confirmed']===1) ensure($total<=(int)$category['max_minutes'],'La duración supera el límite configurado para este tipo.');
             $relationship=trim($input['relationship']??'');
             if ($category['slug']==='luto') ensure($relationship!=='','Indique el parentesco para la licencia por luto.');
@@ -94,12 +92,17 @@ final class Workflow {
             }
             $route=$this->route($owner,$category,$total,$clock->format('Y-m-d'));
             $revision=$old?(int)$old['revision']+1:1;
-            $snapshot=json_encode(array_intersect_key($owner,array_flip(['name','identification','job_title','code','grade','department','appointment_type','high_rank'])),JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR);
-            $data=['user_id'=>$owner['id'],'category_id'=>$category['id'],'status'=>'pending','justification'=>$reason,'exception_reason'=>$exception,'relationship'=>$relationship,'total_minutes'=>$total,'snapshot'=>$snapshot,'revision'=>$revision,'updated_at'=>now(),'route_note'=>implode(' → ',array_column($route,'role')),'department_id'=>$owner['department_id'],'birthday_year'=>$birthdayYear,'special_note'=>$specialNote];
+            $snapshotData=array_intersect_key($owner,array_flip(['name','identification','job_title','code','grade','department','appointment_type','high_rank']));
+            if ($old) {
+                $previousSnapshot=json_decode($old['snapshot'],true,512,JSON_THROW_ON_ERROR);
+                if (isset($previousSnapshot['archived_data'])) $snapshotData['archived_data']=$previousSnapshot['archived_data'];
+            }
+            $snapshot=json_encode($snapshotData,JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR);
+            $data=['user_id'=>$owner['id'],'category_id'=>$category['id'],'status'=>'pending','justification'=>$reason,'exception_reason'=>$exception,'relationship'=>$relationship,'total_minutes'=>$total,'snapshot'=>$snapshot,'revision'=>$revision,'updated_at'=>now(),'route_note'=>implode(' → ',array_column($route,'role')),'department_id'=>$owner['department_id'],'birthday_year'=>$birthdayYear];
             if (!$old) $id=insert('requests',$data+['created_at'=>now()]);
             else {
                 run('UPDATE requests SET category_id=?,status=?,justification=?,exception_reason=?,relationship=?,total_minutes=?,snapshot=?,revision=?,updated_at=?,route_note=? WHERE id=?',[$data['category_id'],'pending',$reason,$exception,$relationship,$total,$snapshot,$revision,now(),$data['route_note'],$id]);
-                run('UPDATE requests SET department_id=?,birthday_year=?,special_note=? WHERE id=?',[$owner['department_id'],$birthdayYear,$specialNote,$id]);
+                run('UPDATE requests SET department_id=?,birthday_year=? WHERE id=?',[$owner['department_id'],$birthdayYear,$id]);
                 run('DELETE FROM request_slots WHERE request_id=?',[$id]);
                 run("UPDATE approvals SET status='skipped' WHERE request_id=? AND status='waiting'",[$id]);
                 run('DELETE FROM allocations WHERE request_id=?',[$id]);

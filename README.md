@@ -75,9 +75,9 @@ El resultado de esa ejecución queda en `.work/test-result.json`. Use su campo `
 ./.runtime/php/php.exe -c .runtime/php/php.ini tests/http.php
 ```
 
-Los resultados de la última ejecución se registran en `.work/test-result.json` y `.work/http-result.json`. Incluyen los flujos originales y las nuevas designaciones, Nómina, cumpleaños, saldos por periodo y turnos nocturnos. Las fechas de referencia son de 2026 y deben actualizarse al cambiar esa ventana. No se verificó entrega de correo contra SMTP institucional.
+Los resultados de la última ejecución se registran en `.work/test-result.json` y `.work/http-result.json`. Incluyen los flujos originales y las nuevas designaciones, Nómina, cumpleaños, saldos por periodo y la jornada laboral configurada. Las fechas de referencia son de 2026 y deben actualizarse al cambiar esa ventana. No se verificó entrega de correo contra SMTP institucional.
 
-Las bases existentes reciben automáticamente las migraciones al abrir una conexión: campos de nacimiento, vigencia de cumpleaños y horarios, tablas de designaciones y saldos históricos, y compatibilidad con soportes configurables. Se conservan solicitudes, aprobadores y la obligatoriedad ya configurada. Cumpleaños aplica la nueva regla confirmada de una jornada completa anual. También puede ejecutarse explícitamente con `php scripts/migrate.php`.
+Las bases existentes reciben automáticamente las migraciones al abrir una conexión: campos de nacimiento y vigencia de cumpleaños, tablas de designaciones y saldos históricos, y compatibilidad con soportes configurables. Se conservan solicitudes, aprobadores y la obligatoriedad ya configurada. Cumpleaños aplica la nueva regla confirmada de una jornada completa anual. También puede ejecutarse explícitamente con `php scripts/migrate.php`.
 
 ## Respaldos y estructura
 
@@ -95,12 +95,18 @@ La aplicación utiliza PDO con consultas parametrizadas, transacciones `BEGIN IM
 Los soportes y duraciones del catálogo se basan en el formato aportado y en las decisiones del usuario; no representan una validación normativa adicional.
 
 
-## Designaciones, Nómina y horarios especiales
+## Designaciones, Nómina y Cumpleaños
 
 - **Designaciones:** un jefe y suplente por una o varias dependencias; subsecretario y suplente institucional con vigencia. Un relevo cierra el periodo anterior el día calendario previo y guarda actor, fecha y hora. Los trámites pendientes permanecen con su responsable original; el nuevo recibe envíos y reenvíos desde su inicio. No desactive a quienes aún tengan trámites o designaciones pendientes.
 - **Consulta de saldos:** fecha de corte limitada a las dependencias y periodos designados. Las instantáneas históricas comienzan con esta actualización; no se reconstruyen saldos anteriores sin evidencia. Cada solicitante también puede consultar sus propios saldos.
 - **Nómina:** único rol autorizado para aprobar o rechazar el registro de actos administrativos. Conserva observación, responsable y fecha/hora; no admite autoaprobación. El rol de Talento Humano por sí solo no permite validarlos.
 - **Cumpleaños:** una jornada completa por año del beneficio; diciembre permite disfrute hasta el 30 de enero siguiente sin consumir la nueva vigencia. Fecha de nacimiento administrada por Talento Humano y columna opcional `fecha_nacimiento` (texto `AAAA-MM-DD`) en Excel/CSV. Rechazo o cancelación sin disfrute libera el beneficio; disfrute parcial lo conserva consumido.
-- **Horario especial:** el solicitante declara por fecha hasta tres franjas que sumen entre 8 y 8,5 horas efectivas, con descansos excluidos. Admite fines de semana, festivos y cruces de medianoche dentro de un turno máximo de 24 horas; el aprobador valida el horario. La anticipación conserva su regla de 48 horas calendario en días hábiles.
 
 Antes de actualizar una base existente ejecute `php scripts/backup.php` y luego `php scripts/migrate.php`. La migración agrega campos y tablas sin reemplazar registros ni reasignar aprobaciones anteriores. Hasta la fecha de inicio de la primera designación de cada dependencia se conserva la relación individual anterior; no se inventan periodos históricos. Las cuentas nuevas requieren que Talento Humano configure la designación vigente.
+
+
+## Jornada laboral de las solicitudes
+
+La captura de horarios especiales fue retirada. Los nuevos trámites y las correcciones usan la jornada laboral configurada: lunes a jueves de 07:30 a 12:00 y de 13:00 a 17:00, y viernes de 07:00 a 12:00 y de 12:30 a 16:00, salvo los horarios temporales registrados por Talento Humano. Se excluyen descansos, sábados, domingos y festivos. La anticipación sigue siendo de 48 horas calendario dentro de días hábiles.
+
+La migración elimina `requests.special_note` y `request_slots.special_periods` después de guardar sus datos en `requests.snapshot.archived_data`. Conserva las solicitudes existentes, sus fechas completas, segmentos y minutos, aprobadores y saldos; no recalcula registros históricos. Los campos generales de fechas completas y modalidad de día se mantienen para conservar el historial y validar Cumpleaños. Ejecute un respaldo antes de migrar. La corrección de un registro anterior conserva su archivo histórico y valida las nuevas fechas con la jornada configurada.

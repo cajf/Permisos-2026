@@ -61,8 +61,8 @@
 			<polyline points="980 285, 870 230" style="stroke: rgb(39%,47%,43%); stroke-linecap: butt; stroke-width: 1.4; fill: None; fill-rule: evenodd;"/>
 			<polyline points="980 100, 870 80" style="stroke: rgb(39%,47%,43%); stroke-linecap: butt; stroke-width: 1.4; fill: None; fill-rule: evenodd;"/>
 			<ellipse cx="350.0" cy="675.0" rx="118.0" ry="31.0" style="stroke: rgb(86%,89%,87%); stroke-linecap: butt; stroke-width: 1.3; fill: rgb(93%,95%,94%); fill-rule: evenodd;"/>
-			<text x="293.2822265625" y="680" style="font-family: Segoe; font-size: 14px;fill: rgb(8%,18%,21%); stroke:none;" transform="translate(0,1360) scale(1,-1)">Registrar solicitud,</text>
-			<text x="292.61572265625" y="662" style="font-family: Segoe; font-size: 14px;fill: rgb(8%,18%,21%); stroke:none;" transform="translate(0,1324) scale(1,-1)">soportes y jornada</text>
+			<text x="294.7998046875" y="680" style="font-family: Segoe; font-size: 14px;fill: rgb(8%,18%,21%); stroke:none;" transform="translate(0,1360) scale(1,-1)">Registrar solicitud</text>
+			<text x="290.3837890625" y="662" style="font-family: Segoe; font-size: 14px;fill: rgb(8%,18%,21%); stroke:none;" transform="translate(0,1324) scale(1,-1)">y adjuntar soportes</text>
 			<ellipse cx="350.0" cy="525.0" rx="118.0" ry="31.0" style="stroke: rgb(86%,89%,87%); stroke-linecap: butt; stroke-width: 1.3; fill: rgb(93%,95%,94%); fill-rule: evenodd;"/>
 			<text x="297.9033203125" y="530" style="font-family: Segoe; font-size: 14px;fill: rgb(8%,18%,21%); stroke:none;" transform="translate(0,1060) scale(1,-1)">Consultar estado</text>
 			<text x="300.4326171875" y="512" style="font-family: Segoe; font-size: 14px;fill: rgb(8%,18%,21%); stroke:none;" transform="translate(0,1024) scale(1,-1)">y descargar PDF</text>

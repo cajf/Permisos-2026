@@ -35,12 +35,12 @@ CREATE TABLE IF NOT EXISTS requests (
  snapshot TEXT NOT NULL, revision INTEGER NOT NULL DEFAULT 1, created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
  cancellation_reason TEXT, cancelled_at TEXT, route_note TEXT NOT NULL DEFAULT '',
  department_id INTEGER REFERENCES departments(id), birthday_year INTEGER,
- special_note TEXT NOT NULL DEFAULT '', cancellation_assignee_id INTEGER REFERENCES users(id)
+ cancellation_assignee_id INTEGER REFERENCES users(id)
 );
 CREATE TABLE IF NOT EXISTS request_slots (
  id INTEGER PRIMARY KEY, request_id INTEGER NOT NULL REFERENCES requests(id), date TEXT NOT NULL,
  start_time TEXT NOT NULL, end_time TEXT NOT NULL, minutes INTEGER NOT NULL CHECK(minutes>0), segments TEXT NOT NULL,
- semester TEXT NOT NULL, start_at TEXT, end_at TEXT, special_periods TEXT NOT NULL DEFAULT '', is_full_day INTEGER NOT NULL DEFAULT 0
+ semester TEXT NOT NULL, start_at TEXT, end_at TEXT, is_full_day INTEGER NOT NULL DEFAULT 0
 );
 CREATE TABLE IF NOT EXISTS approvals (
  id INTEGER PRIMARY KEY, request_id INTEGER NOT NULL REFERENCES requests(id), revision INTEGER NOT NULL,

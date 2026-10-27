@@ -46,35 +46,19 @@ refuses(fn()=>$wf->reviewAct(person(12),$payrollAct,'approved','Repetido'),'Un a
 $ownPayrollAct=insert('acts',['user_id'=>12,'number'=>'PROPIO-NOMINA','issued_on'=>$today,'expires_on'=>'2027-12-31','granted_minutes'=>510,'created_at'=>now()]);
 refuses(fn()=>$wf->reviewAct(person(12),$ownPayrollAct,'approved','Propio'),'Nómina no puede aprobar su propio acto');
 
-function specialInput(string $date,string $mode='full'):array {
-    return ['date'=>$date,'mode'=>$mode,'special'=>1,'start'=>'22:00','end'=>'06:30','start_day'=>0,'end_day'=>1,'periods'=>[['start'=>'22:00','start_day'=>0,'end'=>'02:00','end_day'=>1],['start'=>'02:30','start_day'=>1,'end'=>'06:30','end_day'=>1]]];
-}
-$night=$cal->slots([specialInput('2026-12-05')],new DateTimeImmutable($today))[0];
-check($night['minutes']===480 && $night['end_at']==='2026-12-06 06:30:00','Jornada especial en sábado cruza medianoche y excluye descanso');
-check($wf->consumedSlot($night,'2026-12-06 03:00:00')===270,'Cancelación nocturna calcula el tiempo real disfrutado antes y después de medianoche');
-$semesterNight=$cal->slots([specialInput('2027-06-30')],new DateTimeImmutable('2027-01-01'))[0];
-check($wf->slotSemesters($semesterNight)===['2027-1'=>120,'2027-2'=>360],'Un turno nocturno distribuye el cupo por las fechas efectivas al cruzar de semestre');
-check($wf->slotSemesters($semesterNight,'2027-07-01 03:00:00')===['2027-1'=>120,'2027-2'=>150],'La cancelación parcial de un turno conserva el semestre real de los minutos disfrutados');
-$holidayNight=$cal->slots([specialInput('2026-12-08')],new DateTimeImmutable($today));
-check($holidayNight[0]['minutes']===480,'Un horario especial permite laborar y solicitar en festivo');
-$longNight=specialInput('2026-12-05');$longNight['periods'][1]['end']='07:00';
-check($cal->slots([$longNight],new DateTimeImmutable($today))[0]['minutes']===510,'Jornada especial admite exactamente 8,5 horas');
-$tooLong=$longNight;$tooLong['periods'][1]['end']='07:01';
-refuses(fn()=>$cal->slots([$tooLong],new DateTimeImmutable($today)),'Jornada especial rechaza más de 8,5 horas');
-$tooShort=specialInput('2026-12-05');$tooShort['periods'][1]['end']='06:29';
-refuses(fn()=>$cal->slots([$tooShort],new DateTimeImmutable($today)),'Jornada especial rechaza menos de 8 horas');
-$badNight=specialInput('2026-12-05');$badNight['periods'][1]['start']='01:30';
-refuses(fn()=>$cal->slots([$badNight],new DateTimeImmutable($today)),'Rechaza franjas nocturnas superpuestas');
-refuses(fn()=>$cal->slots([specialInput('2026-12-05'),['date'=>'2026-12-06','special'=>1,'mode'=>'hours','start'=>'05:00','end'=>'06:00','periods'=>[['start'=>'00:00','end'=>'08:00','start_day'=>0,'end_day'=>0]]]],new DateTimeImmutable($today)),'Detecta cruces de solicitudes entre fechas por turnos nocturnos');
+check(!method_exists($cal,'specialSlot'),'El calendario ya no ofrece cálculo de horarios especiales');
+refuses(fn()=>$cal->slots([['date'=>'2026-12-05','mode'=>'full']],new DateTimeImmutable($today)),'La jornada configurada excluye sábados');
+refuses(fn()=>$cal->slots([['date'=>'2026-12-06','mode'=>'full']],new DateTimeImmutable($today)),'La jornada configurada excluye domingos');
+refuses(fn()=>$cal->slots([['date'=>'2026-12-08','mode'=>'full']],new DateTimeImmutable($today)),'La jornada configurada excluye festivos');
+refuses(fn()=>$cal->slots([['date'=>'2026-12-07','start'=>'22:00','end'=>'06:30','mode'=>'hours']],new DateTimeImmutable($today)),'No se registran turnos que cruzan medianoche');
+refuses(fn()=>$cal->slots([['date'=>'2026-12-07','start'=>'07:30','end'=>'08:30','special'=>1,'periods'=>[['start'=>'00:00','end'=>'08:00']]]],new DateTimeImmutable($today)),'Un formulario anterior no reactiva horarios personalizados');
 
 run("UPDATE categories SET supports_required=0 WHERE slug IN ('cumpleanos','academico')");
-$birthday=['category_id'=>cat('cumpleanos')['id'],'birthday_year'=>'2026','justification'=>'Disfrute del beneficio anual de cumpleaños','special_note'=>'Mi jornada habitual es nocturna con un descanso de treinta minutos','slots'=>[specialInput('2026-12-05')]];
+$birthday=['category_id'=>cat('cumpleanos')['id'],'birthday_year'=>'2026','justification'=>'Disfrute del beneficio anual de cumpleaños','slots'=>[['date'=>'2026-12-09','mode'=>'full']]];
 $birthdayId=$wf->submit(person(9),$birthday,[],null,new DateTimeImmutable($today.' 06:00'));
-check((int)row('SELECT birthday_year FROM requests WHERE id=?',[$birthdayId])['birthday_year']===2026,'Cumpleaños registra la vigencia y admite una jornada especial completa');
+check((int)row('SELECT birthday_year FROM requests WHERE id=?',[$birthdayId])['birthday_year']===2026,'Cumpleaños registra la vigencia y exige una jornada completa');
 $duplicateBirthday=$birthday;$duplicateBirthday['slots']=[['date'=>'2026-12-07','mode'=>'full']];
 refuses(fn()=>$wf->submit(person(9),$duplicateBirthday,[],null,new DateTimeImmutable($today.' 06:00')),'Una solicitud pendiente reserva el único cumpleaños de la vigencia');
-$overlap=['category_id'=>cat('academico')['id'],'justification'=>'Solicitud cruzada con turno nocturno','special_note'=>'Jornada de ocho horas en domingo','slots'=>[['date'=>'2026-12-06','special'=>1,'mode'=>'hours','start'=>'05:00','end'=>'06:00','periods'=>[['start'=>'00:00','end'=>'08:00','start_day'=>0,'end_day'=>0]]]]];
-refuses(fn()=>$wf->submit(person(9),$overlap,[],null,new DateTimeImmutable($today.' 06:00')),'Detecta cruces con otra solicitud activa que comenzó el día anterior');
 $wf->cancel(person(9),$birthdayId,'Cancela antes de disfrutar el beneficio');
 $birthdayId=$wf->submit(person(9),$duplicateBirthday,[],null,new DateTimeImmutable($today.' 06:00'));
 check(row('SELECT status FROM requests WHERE id=?',[$birthdayId])['status']==='pending','Cancelar antes de aprobación libera el beneficio anual');
@@ -88,8 +72,8 @@ check((int)row('SELECT birthday_year FROM requests WHERE id=?',[$carryId])['birt
 $year2027=$duplicateBirthday;$year2027['birthday_year']='2027';$year2027['slots']=[['date'=>'2027-01-28','mode'=>'full']];
 $year2027Id=$wf->submit(person(9),$year2027,[],null,new DateTimeImmutable('2027-01-04 06:00'));
 check((int)row('SELECT birthday_year FROM requests WHERE id=?',[$year2027Id])['birthday_year']===2027,'El traslado de diciembre no consume el beneficio de la nueva vigencia');
-$late=$birthday;$late['slots']=[specialInput('2027-01-31')];
-refuses(fn()=>$wf->submit(person(9),$late,[],null,new DateTimeImmutable($today.' 06:00')),'El traslado de cumpleaños no admite el 31 de enero');
+$late=$birthday;$late['slots']=[['date'=>'2027-02-01','mode'=>'full']];
+refuses(fn()=>$wf->submit(person(9),$late,[],null,new DateTimeImmutable($today.' 06:00')),'El traslado de cumpleaños no admite fechas posteriores al 30 de enero');
 refuses(fn()=>$wf->submit(person(14),$carry,[],null,new DateTimeImmutable($today.' 06:00')),'Un nacimiento distinto de diciembre no traslada el beneficio al siguiente año');
 $partial=$duplicateBirthday;$partial['slots']=[slot('2026-12-09','07:30','08:30')];
 refuses(fn()=>$wf->submit(person(14),$partial,[],null,new DateTimeImmutable($today.' 06:00')),'Cumpleaños no se solicita por horas');

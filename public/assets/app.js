@@ -20,15 +20,10 @@ if(form){
   updateSupports();
   const seq=++sequence;let total=0;
   await Promise.all([...slots.children].map(async row=>{
-   const date=row.querySelector('[type=date]'),times=row.querySelectorAll('[data-request-time]'),full=row.querySelector('[data-mode]').value==='full',special=row.querySelector('[data-special]').checked;
-   row.querySelector('.special-fields').hidden=!special;
-   row.querySelectorAll('.special-fields input,.special-fields select').forEach(input=>input.disabled=!special);
-   row.querySelectorAll('[data-request-day]').forEach(input=>input.disabled=!special||full);
-   times.forEach(t=>t.disabled=full);
+   const date=row.querySelector('[type=date]'),times=row.querySelectorAll('[type=time]'),full=row.querySelector('select').value==='full';times.forEach(t=>t.disabled=full);
    if(!date.value){row.dataset.minutes='0';row.querySelector('.slot-result').textContent='';return;}
    const p=new URLSearchParams({page:'estimate',date:date.value});if(!full){p.set('start',times[0].value);p.set('end',times[1].value);}
-   if(special)row.querySelectorAll('[name]').forEach(input=>{if(!input.disabled&&(!(input.type==='checkbox')||input.checked))p.set(input.name.replace(/^slots\[\d+\]/,'slot'),input.value);});
-   try{const response=await fetch('/?'+p);if(!response.ok)throw new Error();const data=await response.json();if(seq!==sequence)return;if(full&&data.periods.length){times[0].value=data.periods[0][0];times[1].value=data.periods[data.periods.length-1][1];}row.dataset.minutes=String(data.minutes);row.querySelector('.slot-result').textContent=data.error|| (data.periods.length?fmt(data.minutes):'Día no laborable');}
+   try{const response=await fetch('/?'+p);if(!response.ok)throw new Error();const data=await response.json();if(seq!==sequence)return;if(full&&data.periods.length){times[0].value=data.periods[0][0];times[1].value=data.periods[data.periods.length-1][1];}row.dataset.minutes=String(data.minutes);row.querySelector('.slot-result').textContent=data.periods.length?fmt(data.minutes):'Día no laborable';}
    catch{if(seq===sequence){row.dataset.minutes='0';row.querySelector('.slot-result').textContent='Revisa las fechas y el horario.';}}
   }));
   if(seq!==sequence)return;
@@ -36,12 +31,11 @@ if(form){
   const selected=category.selectedOptions[0],slug=selected?.dataset.slug,high=document.querySelector('#route-guide').dataset.highRank;
   document.querySelector('#allocation-panel').hidden=slug!=='acto';document.querySelector('#relationship-field').hidden=slug!=='luto';document.querySelector('[name=relationship]').required=slug==='luto';
   document.querySelector('#birthday-year-field').hidden=slug!=='cumpleanos';
-  const special=[...slots.querySelectorAll('[data-special]')].some(input=>input.checked);document.querySelector('#special-note-field').hidden=!special;document.querySelector('[name=special_note]').required=special;
   const guide=document.querySelector('#route-guide');guide.textContent=!slug?'Selecciona el tipo y las fechas.':high&&selected.dataset.family==='permiso'?'Alcalde · aprobación exclusiva':slug==='ordinario'&&total>0&&total<=120?'Jefe inmediato · aprobación única':'Jefe inmediato → Subsecretario de Talento Humano';
  }
  slots.addEventListener('change',refresh);category.addEventListener('change',refresh);
  slots.addEventListener('click',e=>{const btn=e.target.closest('.remove-slot');if(btn&&slots.children.length>1){btn.closest('.slot-row').remove();refresh();}});
- document.querySelector('#add-slot').addEventListener('click',()=>{const copy=slots.firstElementChild.cloneNode(true);copy.querySelectorAll('[name]').forEach(input=>{input.name=input.name.replace(/slots\[\d+\]/,`slots[${next}]`);if(input.type==='date')input.value='';if(input.type==='time')input.disabled=false;});copy.querySelector('[data-mode]').value='hours';copy.querySelector('.slot-result').textContent='';copy.dataset.minutes='0';next++;slots.append(copy);copy.querySelector('input').focus();});refresh();
+ document.querySelector('#add-slot').addEventListener('click',()=>{const copy=slots.firstElementChild.cloneNode(true);copy.querySelectorAll('[name]').forEach(input=>{input.name=input.name.replace(/slots\[\d+\]/,`slots[${next}]`);if(input.type==='date')input.value='';if(input.type==='time')input.disabled=false;});copy.querySelector('select').value='hours';copy.querySelector('.slot-result').textContent='';copy.dataset.minutes='0';next++;slots.append(copy);copy.querySelector('input').focus();});refresh();
 }
 
 const bulkForm=document.querySelector('#bulk-approval-form');
