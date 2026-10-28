@@ -14,8 +14,14 @@ header('X-Content-Type-Options: nosniff'); header('X-Frame-Options: DENY'); head
 header("Content-Security-Policy: default-src 'self'; style-src 'self'; script-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'");
 header('Cache-Control: no-store');
 if(getenv('APP_TESTING')==='1')header('X-TH-Test-Environment: isolated');
-if (!tableExists('users')) { http_response_code(503); exit('Inicialice la aplicación con scripts/install.php. Consulte README.md.'); }
-initializeBalanceHistory();
+try {
+    if (!tableExists('users')) { http_response_code(503); exit('Inicialice la aplicación con scripts/install.php. Consulte README.md.'); }
+    initializeBalanceHistory();
+} catch (PDOException $exception) {
+    error_log('MySQL no disponible al iniciar el portal: '.$exception->getCode());
+    http_response_code(503);header('Content-Type: text/plain; charset=utf-8');
+    exit('No se pudo conectar con MySQL. Inicie la aplicación con iniciar.cmd y espere la comprobación de conexión. Si el problema continúa, revise storage/mysql/server-error.log.');
+}
 if (isset($_SESSION['last_seen']) && time()-$_SESSION['last_seen']>1800) { $_SESSION=[]; session_regenerate_id(true); }
 $_SESSION['last_seen']=time(); $_SESSION['csrf']??=bin2hex(random_bytes(32));
 $page=(string)($_GET['page']??'dashboard'); $wf=new Workflow(); $error=null;

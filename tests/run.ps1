@@ -17,6 +17,8 @@ try {
     if ($testProcess.HasExited) { throw 'No se pudo iniciar el servidor de prueba. Revise el puerto 8089.' }
     & $testPhp -c $testIni -d display_errors=1 tests/http.php
     if ($LASTEXITCODE -ne 0) { throw 'Fallaron las comprobaciones HTTP.' }
+    & $testPhp -c $testIni -d display_errors=1 tests/startup.php
+    if ($LASTEXITCODE -ne 0) { throw 'Fallaron las comprobaciones de arranque.' }
 } finally {
     if ($testProcess -and !$testProcess.HasExited) { Stop-Process -Id $testProcess.Id }
     $env:APP_DATABASE_CONFIG = $previousTestDatabase

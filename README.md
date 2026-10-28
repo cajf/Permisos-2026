@@ -8,7 +8,7 @@ Aplicación PHP para permisos, compensatorios y licencias de empleados de planta
 2. Abra <http://127.0.0.1:8088>.
 3. Ingrese con sus mismos usuarios y contraseñas. La migración conserva sus identificadores, claves, solicitudes y soportes. El cambio de motor requiere iniciar sesión nuevamente.
 
-El arranque comprueba el MySQL independiente del proyecto y lo inicia si está detenido. MySQL escucha únicamente en `127.0.0.1:3310`; el portal PHP usa el puerto 8088. XAMPP y su MariaDB no se modifican. Los binarios están en `.runtime/php` y `.runtime/mysql-8.4.13-winx64`; los datos y la configuración privada del servidor están en `storage/mysql`.
+`iniciar.cmd` ejecuta `iniciar.ps1`: inicia el MySQL independiente si está detenido, espera su disponibilidad y comprueba la conexión y el esquema con PHP antes de iniciar el portal. Si esa comprobación falla, detiene el arranque y muestra el motivo. MySQL escucha únicamente en `127.0.0.1:3310`; el portal PHP usa el puerto 8088. XAMPP y su MariaDB no se modifican. Los binarios están en `.runtime/php` y `.runtime/mysql-8.4.13-winx64`; los datos y la configuración privada del servidor están en `storage/mysql`.
 
 Para detener únicamente este MySQL, cierre primero el portal y ejecute:
 
@@ -105,6 +105,8 @@ Configure SMTP en `config/local.php` y programe `php scripts/mail-worker.php`. S
 `./tests/run.ps1` crea una base y un usuario MySQL aislados, ejecuta las reglas y pruebas de concurrencia, inicia un servidor HTTP temporal en 8089 y lo detiene al terminar. La base operativa no se modifica. Para crear esas bases se necesita la configuración administrativa local de `storage/mysql/admin.php`. Los resultados están en `.work/test-result.json` y `.work/http-result.json`; la configuración privada de la prueba queda en `.work`.
 
 Las fechas de prueba de referencia son de 2026 y deben actualizarse al cambiar esa ventana. Las pruebas de migraciones antiguas usan SQLite únicamente como origen. También se verifica una transferencia a MySQL y una restauración real a otra base vacía.
+
+`php tests/startup.php` comprueba el acceso MySQL disponible, el bloqueo del arranque ante una conexión rechazada y la respuesta HTTP 503 sin errores internos expuestos. Se incluye también en `tests/run.ps1`. Si inicia PHP directamente sin pasar por `iniciar.cmd` o `iniciar.ps1`, debe iniciar MySQL antes.
 
 - `docs/manual.pdf` y `docs/manual.html`: guía de uso, administración e instalación.
 - `docs/diagramas/`: SVG y fuentes Mermaid.
