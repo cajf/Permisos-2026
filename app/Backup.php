@@ -11,6 +11,7 @@ function createMysqlBackup(PDO $pdo,string $uploads,string $destination): array 
         $pdo->query('SELECT id FROM app_locks WHERE id=1 FOR UPDATE')->fetchColumn();
         fwrite($handle,"SET NAMES utf8mb4;\nSET FOREIGN_KEY_CHECKS=0;\nSET SQL_MODE=".$pdo->quote($pdo->query('SELECT @@SESSION.sql_mode')->fetchColumn()).";\n");
         foreach (array_merge(applicationTables(),['app_locks']) as $table) {
+            if ($table==='attachment_contents' && !tableExists($table,$pdo)) continue;
             $quoted=mysqlIdentifier($table);$create=$pdo->query('SHOW CREATE TABLE '.$quoted)->fetch(PDO::FETCH_NUM)[1];
             fwrite($handle,$create.";\n");
             $keys=array_column($pdo->query("SHOW KEYS FROM ".$quoted." WHERE Key_name='PRIMARY'")->fetchAll(),'Column_name');
@@ -22,9 +23,9 @@ function createMysqlBackup(PDO $pdo,string $uploads,string $destination): array 
                 fwrite($handle,'INSERT INTO '.$quoted.' ('.$columns.') VALUES('.$values.");\n");
             }
         }
-        foreach ($pdo->query('SELECT stored_name,sha256 FROM attachments')->fetchAll() as $file) {
+        foreach ($pdo->query('SELECT id,stored_name,sha256,size FROM attachments')->fetchAll() as $file) {
             $name=$file['stored_name'];if (!preg_match('/^[A-Za-z0-9_-]{1,120}$/D',$name)) throw new RuntimeException('Nombre interno de soporte inválido.');
-            $source=$uploads.'/'.$name;
+            $source=attachmentPath($file,$pdo,$uploads);
             if (!is_file($source) || hash_file('sha256',$source)!==$file['sha256']) throw new RuntimeException('Falta un soporte o no coincide su integridad.');
             if (!copy($source,$destination.'/uploads/'.$name)) throw new RuntimeException('No se pudo copiar un soporte.');
             $manifest['files'][$name]=$file['sha256'];

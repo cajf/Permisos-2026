@@ -123,7 +123,18 @@ def designation_er():
     text(d,35,30,'La radicación fija al aprobador. El relevo cierra el periodo anterior y conserva los trámites pendientes.',14,color=MUTED)
     return export(d,'base-datos-designaciones')
 
-diagrams=[usecases(),core_er(),support_er(),config_er(),designation_er()]
+def cloud_storage_er():
+    d=Drawing(1100,440)
+    text(d,45,405,'Soportes persistentes en Internet',23,True)
+    box(d,60,170,340,'attachments',['PK id','user_id FK users','request_id o act_id FK','original_name, stored_name','mime, size, sha256'])
+    box(d,680,210,350,'attachment_contents',['PK y FK attachment_id','content_base64 LONGTEXT','ON DELETE CASCADE'])
+    line(d,[400,285,680,285],'1 : 0..1',490,300)
+    text(d,60,105,'En la nube el original se conserva en MySQL; el archivo local es una caché reconstruible.',16,color=MUTED)
+    text(d,60,73,'La recuperación verifica el tamaño y el SHA-256 antes de descargar o generar el PDF.',16,color=MUTED)
+    text(d,60,41,'La instalación local mantiene sus soportes en disco y no necesita contenido duplicado.',16,color=MUTED)
+    return export(d,'base-datos-soportes-nube')
+
+diagrams=[usecases(),core_er(),support_er(),config_er(),designation_er(),cloud_storage_er()]
 styles=getSampleStyleSheet()
 styles.add(ParagraphStyle(name='BodyApp',fontName='Segoe',fontSize=10,leading=15,spaceAfter=9,textColor=NAVY))
 styles.add(ParagraphStyle(name='TitleApp',fontName='SegoeBold',fontSize=27,leading=33,spaceAfter=18,textColor=colors.black))
@@ -233,7 +244,16 @@ sub('Arquitectura y comprobaciones')
 p('La aplicación usa PHP, PDO y MySQL 8.4 LTS con tablas InnoDB y utf8mb4; TCPDF/FPDI para PDF con anexos; PhpSpreadsheet para XLSX y PHPMailer para SMTP. La carpeta pública es public; app contiene las reglas; views, las pantallas; database, el esquema y catálogo; storage, los archivos privados; y scripts, las herramientas de operación.')
 functional=json.loads((ROOT/'.work/test-result.json').read_text())['checks']; http_checks=json.loads((ROOT/'.work/http-result.json').read_text())['checks']
 p(f'La revisión actualizada ejecutó {functional} comprobaciones funcionales y {http_checks} por HTTP. Incluye designaciones, autorización por vigencia, Nómina, cumpleaños, saldos históricos, retiro de la jornada personalizada y los flujos anteriores. Las pruebas usan bases MySQL y usuarios aislados, e incluyen concurrencia de cupos, actos, cumpleaños y decisiones, migración verificada y restauración de respaldos.')
-p('La publicación en Internet y la integración con el directorio de Windows no se han realizado. La instalación futura requerirá servidor web con raíz en public, HTTPS y configuración institucional de sesiones, correo, acceso y respaldos.','SmallApp')
+p('El contenedor para Internet conserva PHP 8.4 y MySQL 8.4. La integración con el directorio de Windows continúa pendiente. La operación institucional requiere configurar correo, responsables, acceso y respaldos.','SmallApp')
+page();h('Publicación de la demostración en Internet')
+p('El despliegue utiliza Render para PHP y Apache, y Aiven para MySQL 8.4, en sus planes Free. Las credenciales y el certificado CA se configuran como variables privadas del servicio web. La conexión con MySQL usa TLS con verificación del certificado. La raíz web es public y excluye fuentes, configuración, respaldos y archivos privados.')
+sub('Conservación de los soportes')
+p('En modo nube, el original de cada soporte se guarda en attachment_contents, relacionado por attachment_id con attachments. El archivo local es una caché: si el contenedor se reinicia, se recupera desde MySQL y se comprueba su tamaño y SHA-256 antes de descargarlo o incorporarlo al PDF. La instalación local mantiene sus archivos en disco.')
+sub('Límites de los planes gratuitos')
+p('Render suspende la aplicación después de 15 minutos sin visitas y puede tardar aproximadamente un minuto en reactivarla. Las sesiones se reinician al sustituir el contenedor. Aiven Free dispone de 1 GB de disco para datos y soportes; la codificación de archivos aumenta su tamaño aproximadamente un tercio. Aiven puede apagar servicios inactivos. Estos límites deben revisarse en los paneles de los proveedores.')
+p('Los avisos permanecen en la cola si no hay un proveedor de correo configurado. Consulte docs/publicacion.md para las variables de despliegue, las restricciones y la recuperación. No publique las credenciales ni los respaldos en GitHub.')
+sub('Restaurar los datos ficticios originales')
+p('El comando php scripts/restore-original-demo.php --confirm=RESTORE_ORIGINAL_DEMO crea un respaldo privado antes de retirar registros y soportes, incluidos los archivos sin registro. Restaura seis usuarios ficticios, tres dependencias y 17 tipos, sin trámites. Genera contraseñas nuevas, exige cambiarlas al ingresar e invalida las sesiones anteriores. Los accesos privados quedan en storage/acceso-demo-restaurado.txt.')
 page();h('Migración y operación con MySQL')
 for text_item in ['La instancia local del proyecto usa MySQL Community 8.4.13 en 127.0.0.1:3310. iniciar.cmd inicia MySQL si está detenido y abre el servidor PHP en el puerto 8088. El servidor de base de datos permanece independiente del proceso web.','Las credenciales de la aplicación están en config/local.php. Las de administración y los datos del servidor están en storage/mysql y no se publican en GitHub. El usuario web tiene permisos SELECT, INSERT, UPDATE y DELETE, sin privilegios globales ni de creación o eliminación de tablas.','Para migrar una base anterior ejecute php scripts/migrate-sqlite-to-mysql.php --activate después de configurar el destino vacío. La herramienta conserva el SQLite original, migra una copia, compara cada tabla y valida los archivos. Solo cambia la conexión después de terminar satisfactoriamente. Las contraseñas y los identificadores de los funcionarios se mantienen.','Cada transacción que modifica trámites o saldos toma un bloqueo SELECT FOR UPDATE sobre app_locks antes de validar y guardar. Esto conserva la serialización que impedía reservar dos veces un saldo o duplicar el beneficio de cumpleaños.','Para detener únicamente este MySQL ejecute php scripts/stop-mysql.php con el servidor web cerrado. iniciar.cmd vuelve a iniciarlo. No se cambian servicios ni bases de XAMPP.','SQLite se requiere exclusivamente para leer y actualizar las copias de migración de versiones anteriores. La aplicación y sus pruebas funcionales y HTTP usan MySQL.']:bullet(text_item)
 page();h('Matriz inicial de duraciones y soportes')
@@ -256,7 +276,7 @@ bullet('Definir responsables competentes para las solicitudes propias de aprobad
 sub('Decisiones técnicas visibles en el funcionamiento')
 p('Las solicitudes se registran para fechas y horas futuras. La aprobación final se detiene si su fecha inicial ya pasó, en cuyo caso se debe devolver para corregir. La cancelación reintegra tiempo según la hora de autorización, no según la hora de petición. Las solicitudes devueltas retienen sus reservas y un cambio de calendario no recalcula trámites existentes.')
 
-for title,name,d in [('Casos de uso','casos-de-uso',diagrams[0]),('Base de datos de trámites','base-datos-tramites',diagrams[1]),('Base de datos de saldos y soportes','base-datos-saldos',diagrams[2]),('Base de datos de configuración','base-datos-configuracion',diagrams[3]),('Base de datos de designaciones','base-datos-designaciones',diagrams[4])]:
+for title,name,d in [('Casos de uso','casos-de-uso',diagrams[0]),('Base de datos de trámites','base-datos-tramites',diagrams[1]),('Base de datos de saldos y soportes','base-datos-saldos',diagrams[2]),('Base de datos de configuración','base-datos-configuracion',diagrams[3]),('Base de datos de designaciones','base-datos-designaciones',diagrams[4]),('Base de datos de soportes en Internet','base-datos-soportes-nube',diagrams[5])]:
     story.extend([NextPageTemplate('landscape'),PageBreak()]);h(title);story.append(Diagram(d));web.append('<img class="diagram" src="diagramas/'+name+'.svg" alt="'+title+'">')
 story.extend([NextPageTemplate('portrait'),PageBreak()]);h('Diccionario de tablas')
 schema=json.loads((ROOT/'.work/schema.json').read_text(encoding='utf-8'))

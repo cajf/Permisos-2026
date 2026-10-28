@@ -1,0 +1,15 @@
+erDiagram
+    attachments ||--o| attachment_contents : conserva_original
+    attachments {
+        bigint id PK
+        bigint user_id FK
+        bigint request_id FK
+        bigint act_id FK
+        varchar stored_name
+        varchar sha256
+        bigint size
+    }
+    attachment_contents {
+        bigint attachment_id PK,FK
+        longtext content_base64
+    }

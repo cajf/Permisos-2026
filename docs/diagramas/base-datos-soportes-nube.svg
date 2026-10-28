@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE svg
+  PUBLIC '-//W3C//DTD SVG 1.0//EN'
+  'http://www.w3.org/TR/2001/REC-SVG-20010904/DTD/svg10.dtd'>
+<svg width="1100" height="440" preserveAspectRatio="xMinYMin meet" viewBox="0 0 1100 440" xmlns="http://www.w3.org/2000/svg" version="1.0" fill-rule="evenodd" xmlns:xlink="http://www.w3.org/1999/xlink">
+	<title>...</title>
+	<desc>...</desc>
+	<clipPath id="clip">
+		<rect x="0" y="0" width="1100" height="440"/>
+	</clipPath>
+	<g id="group" transform="scale(1,-1) translate(0,-440)" style="clip-path: url(#clip)">
+		<g transform="">
+			<text x="45" y="405" style="font-family: SegoeBold; font-size: 23px;fill: rgb(8%,18%,21%); stroke:none;" transform="translate(0,810) scale(1,-1)">Soportes persistentes en Internet</text>
+			<rect x="60" y="170" width="340" height="162" rx="6" ry="6" style="stroke: rgb(86%,89%,87%); stroke-linecap: butt; stroke-width: 1.3; fill: rgb(100%,100%,100%); fill-rule: evenodd;"/>
+			<rect x="60" y="299" width="340" height="33" style="stroke: rgb(8%,18%,21%); stroke-linecap: butt; stroke-width: 1; fill: rgb(8%,18%,21%); fill-rule: evenodd;"/>
+			<text x="74" y="309" style="font-family: SegoeBold; font-size: 16px;fill: rgb(100%,100%,100%); stroke:none;" transform="translate(0,618) scale(1,-1)">attachments</text>
+			<text x="74" y="274" style="font-family: Segoe; font-size: 13px;fill: rgb(8%,18%,21%); stroke:none;" transform="translate(0,548) scale(1,-1)">PK id</text>
+			<text x="74" y="251" style="font-family: Segoe; font-size: 13px;fill: rgb(8%,18%,21%); stroke:none;" transform="translate(0,502) scale(1,-1)">user_id FK users</text>
+			<text x="74" y="228" style="font-family: Segoe; font-size: 13px;fill: rgb(8%,18%,21%); stroke:none;" transform="translate(0,456) scale(1,-1)">request_id o act_id FK</text>
+			<text x="74" y="205" style="font-family: Segoe; font-size: 13px;fill: rgb(8%,18%,21%); stroke:none;" transform="translate(0,410) scale(1,-1)">original_name, stored_name</text>
+			<text x="74" y="182" style="font-family: Segoe; font-size: 13px;fill: rgb(8%,18%,21%); stroke:none;" transform="translate(0,364) scale(1,-1)">mime, size, sha256</text>
+			<rect x="680" y="210" width="350" height="116" rx="6" ry="6" style="stroke: rgb(86%,89%,87%); stroke-linecap: butt; stroke-width: 1.3; fill: rgb(100%,100%,100%); fill-rule: evenodd;"/>
+			<rect x="680" y="293" width="350" height="33" style="stroke: rgb(8%,18%,21%); stroke-linecap: butt; stroke-width: 1; fill: rgb(8%,18%,21%); fill-rule: evenodd;"/>
+			<text x="694" y="303" style="font-family: SegoeBold; font-size: 16px;fill: rgb(100%,100%,100%); stroke:none;" transform="translate(0,606) scale(1,-1)">attachment_contents</text>
+			<text x="694" y="268" style="font-family: Segoe; font-size: 13px;fill: rgb(8%,18%,21%); stroke:none;" transform="translate(0,536) scale(1,-1)">PK y FK attachment_id</text>
+			<text x="694" y="245" style="font-family: Segoe; font-size: 13px;fill: rgb(8%,18%,21%); stroke:none;" transform="translate(0,490) scale(1,-1)">content_base64 LONGTEXT</text>
+			<text x="694" y="222" style="font-family: Segoe; font-size: 13px;fill: rgb(8%,18%,21%); stroke:none;" transform="translate(0,444) scale(1,-1)">ON DELETE CASCADE</text>
+			<polyline points="400 285, 680 285" style="stroke: rgb(39%,47%,43%); stroke-linecap: butt; stroke-width: 1.4; fill: None; fill-rule: evenodd;"/>
+			<text x="490" y="300" style="font-family: Segoe; font-size: 12px;fill: rgb(9%,41%,32%); stroke:none;" transform="translate(0,600) scale(1,-1)">1 : 0..1</text>
+			<text x="60" y="105" style="font-family: Segoe; font-size: 16px;fill: rgb(39%,47%,43%); stroke:none;" transform="translate(0,210) scale(1,-1)">En la nube el original se conserva en MySQL; el archivo local es una caché reconstruible.</text>
+			<text x="60" y="73" style="font-family: Segoe; font-size: 16px;fill: rgb(39%,47%,43%); stroke:none;" transform="translate(0,146) scale(1,-1)">La recuperación verifica el tamaño y el SHA-256 antes de descargar o generar el PDF.</text>
+			<text x="60" y="41" style="font-family: Segoe; font-size: 16px;fill: rgb(39%,47%,43%); stroke:none;" transform="translate(0,82) scale(1,-1)">La instalación local mantiene sus soportes en disco y no necesita contenido duplicado.</text>
+		</g>
+	</g>
+</svg>

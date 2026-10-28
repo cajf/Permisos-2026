@@ -8,7 +8,14 @@ function mysqlConnection(array $config,bool $selectDatabase=true,bool $multipleS
     foreach (['host','database'] as $key) if (str_contains((string)$config[$key],';')) throw new RuntimeException('Configuración MySQL no válida.');
     if (!preg_match('/^[A-Za-z0-9_]+$/D',$config['database'])) throw new RuntimeException('El nombre de la base MySQL solo admite letras, números y guiones bajos.');
     $dsn='mysql:host='.$config['host'].';port='.(int)$config['port'].';charset=utf8mb4'.($selectDatabase?';dbname='.$config['database']:'');
-    $pdo=new PDO($dsn,$config['username'],$config['password'],[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION,PDO::ATTR_DEFAULT_FETCH_MODE=>PDO::FETCH_ASSOC,PDO::ATTR_EMULATE_PREPARES=>false,PDO::MYSQL_ATTR_MULTI_STATEMENTS=>$multipleStatements]);
+    $options=[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION,PDO::ATTR_DEFAULT_FETCH_MODE=>PDO::FETCH_ASSOC,PDO::ATTR_EMULATE_PREPARES=>false,PDO::MYSQL_ATTR_MULTI_STATEMENTS=>$multipleStatements];
+    if (!empty($config['ssl_ca'])) {
+        if (!is_file($config['ssl_ca'])) throw new RuntimeException('No se encuentra el certificado CA de MySQL.');
+        $options[PDO::MYSQL_ATTR_SSL_CA]=$config['ssl_ca'];
+        $options[PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT]=true;
+    }
+    $pdo=new PDO($dsn,$config['username'],$config['password'],$options);
+    if (!empty($config['ssl_ca']) && empty($pdo->query("SHOW SESSION STATUS LIKE 'Ssl_cipher'")->fetch(PDO::FETCH_NUM)[1])) throw new RuntimeException('MySQL debe usar una conexión cifrada con certificado verificado.');
     $version=(string)$pdo->query('SELECT VERSION()')->fetchColumn();
     if (stripos($version,'mariadb')!==false || version_compare($version,'8.4.0','<')) throw new RuntimeException('Se requiere MySQL 8.4 o superior. La instalación local usa MySQL 8.4 LTS.');
     $pdo->exec("SET time_zone='-05:00'");

@@ -2,6 +2,7 @@
 declare(strict_types=1);
 require __DIR__.'/../app/bootstrap.php';
 require ROOT.'/app/Admin.php';
+if ($GLOBALS['config']['trust_proxy'] && ($_SERVER['HTTP_X_FORWARDED_PROTO']??'')==='https') $_SERVER['HTTPS']='on';
 ini_set('session.use_strict_mode','1');
 $sessionScope=substr(hash('sha256',databaseIdentity()),0,16);
 $sessionDir=ROOT.'/storage/sessions/'.$sessionScope;
@@ -17,10 +18,16 @@ if(getenv('APP_TESTING')==='1')header('X-TH-Test-Environment: isolated');
 try {
     if (!tableExists('users')) { http_response_code(503); exit('Inicialice la aplicación con scripts/install.php. Consulte README.md.'); }
     initializeBalanceHistory();
+    $generation=setting('session_generation');
+    if (($_SESSION['generation']??null)!==$generation) {
+        $_SESSION=[];session_regenerate_id(true);$_SESSION['generation']=$generation;
+    }
 } catch (PDOException $exception) {
     error_log('MySQL no disponible al iniciar el portal: '.$exception->getCode());
     http_response_code(503);header('Content-Type: text/plain; charset=utf-8');
-    exit('No se pudo conectar con MySQL. Inicie la aplicación con iniciar.cmd y espere la comprobación de conexión. Si el problema continúa, revise storage/mysql/server-error.log.');
+    exit(getenv('APP_CLOUD')==='1'
+        ?'No se pudo conectar con MySQL. Revise la disponibilidad de la base y las variables privadas de conexión en el panel del alojamiento.'
+        :'No se pudo conectar con MySQL. Inicie la aplicación con iniciar.cmd y espere la comprobación de conexión. Si el problema continúa, revise storage/mysql/server-error.log.');
 }
 if (isset($_SESSION['last_seen']) && time()-$_SESSION['last_seen']>1800) { $_SESSION=[]; session_regenerate_id(true); }
 $_SESSION['last_seen']=time(); $_SESSION['csrf']??=bin2hex(random_bytes(32));
@@ -141,7 +148,8 @@ if ($page!=='login') {
             if ($a['request_id']) $allowed=canReadRequest($u,row('SELECT * FROM requests WHERE id=?',[$a['request_id']]));
             if ($a['act_id'] && !$allowed) foreach (rows('SELECT r.* FROM requests r JOIN allocations l ON l.request_id=r.id WHERE l.act_id=?',[$a['act_id']]) as $r) if(canReadRequest($u,$r)) $allowed=true;
             ensure($allowed,'No tiene acceso a este soporte.');
-            header('Content-Type: '.$a['mime']); header("Content-Disposition: attachment; filename=\"soporte\"; filename*=UTF-8''".rawurlencode($a['original_name'])); readfile(uploadDir().'/'.$a['stored_name']); exit;
+            $attachmentFile=attachmentPath($a);
+            header('Content-Type: '.$a['mime']); header("Content-Disposition: attachment; filename=\"soporte\"; filename*=UTF-8''".rawurlencode($a['original_name'])); readfile($attachmentFile); exit;
         }
         if ($page==='template') {
             authorizeAdmin($u); header('Content-Type: text/csv; charset=utf-8'); header('Content-Disposition: attachment; filename="plantilla-funcionarios.csv"');

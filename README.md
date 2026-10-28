@@ -115,7 +115,15 @@ Las fechas de prueba de referencia son de 2026 y deben actualizarse al cambiar e
 - `database/legacy/sqlite-schema.sql`: compatibilidad exclusiva con la migración anterior.
 - `php scripts/export-schema.php`: exporta solo metadatos MySQL para el diccionario y diagramas.
 
-## Referencias
+## Demostración en Internet y restauración
+
+El proyecto incluye un `Dockerfile` para PHP 8.4/Apache y configuración de MySQL remoto con TLS y certificado verificado. En modo nube los soportes originales se guardan en MySQL; la copia de disco se recupera automáticamente si el alojamiento reinicia el contenedor. La instalación local conserva su almacenamiento en disco. Consulte [docs/publicacion.md](docs/publicacion.md) para Render Free y Aiven MySQL Free, sus variables privadas y límites. No se utiliza MariaDB.
+
+`php scripts/restore-original-demo.php --confirm=RESTORE_ORIGINAL_DEMO` crea un respaldo y restaura los seis usuarios ficticios de la primera versión, tres dependencias y 17 tipos, sin trámites. Genera claves nuevas en un archivo privado de `storage`, invalida las sesiones anteriores y retira los soportes respaldados. No se usa como comando de arranque ni de despliegue.
+
+`tests/original-demo.php` y `tests/attachment-storage.php` comprueban la restauración y la recuperación de soportes en bases aisladas. Ejecútelos con `-d zend.assertions=1 -d assert.exception=1`. La variable de pruebas `APP_TEST_ATTACHMENT_STORAGE=mysql` permite ejecutar `tests/run.ps1` con el almacenamiento de soportes que utiliza la nube.
+
+## Referencias técnicas
 
 - [MySQL Community 8.4 para Windows](https://dev.mysql.com/downloads/mysql/8.4.html?os=3).
 - [Bloqueos de lectura InnoDB](https://dev.mysql.com/doc/refman/8.4/en/innodb-locking-reads.html).

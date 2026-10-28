@@ -34,10 +34,36 @@ function validateUploads(array $files): array {
 function saveUploads(array $files,int $owner,?int $request=null,?int $act=null): void {
     foreach ($files as $file) {
         $stored=bin2hex(random_bytes(24));
-        ensure(move_uploaded_file($file['tmp'],uploadDir().'/'.$stored),'No se pudo almacenar el soporte.');
+        $source=$file['tmp'];
+        if ($GLOBALS['config']['attachment_storage']!=='mysql') ensure(move_uploaded_file($source,uploadDir().'/'.$stored),'No se pudo almacenar el soporte.');
         unset($file['tmp']);
-        insert('attachments',$file+['user_id'=>$owner,'request_id'=>$request,'act_id'=>$act,'stored_name'=>$stored,'created_at'=>now()]);
+        $id=insert('attachments',$file+['user_id'=>$owner,'request_id'=>$request,'act_id'=>$act,'stored_name'=>$stored,'created_at'=>now()]);
+        if ($GLOBALS['config']['attachment_storage']==='mysql') {
+            $bytes=file_get_contents($source);
+            ensure($bytes!==false && hash('sha256',$bytes)===$file['sha256'],'No se pudo comprobar el soporte antes de guardarlo.');
+            insert('attachment_contents',['attachment_id'=>$id,'content_base64'=>base64_encode($bytes)]);
+        }
     }
+}
+/** La copia local es una caché; el original persistente de la nube está en MySQL. */
+function attachmentPath(array $attachment,?PDO $pdo=null,?string $directory=null): string {
+    $pdo??=db();$directory??=uploadDir();$name=$attachment['stored_name'];
+    ensure(preg_match('/^[a-f0-9]{48}$/D',$name)===1,'Nombre interno de soporte inválido.');
+    $path=$directory.'/'.$name;
+    if (is_file($path) && hash_file('sha256',$path)===$attachment['sha256']) return $path;
+    ensure(tableExists('attachment_contents',$pdo),'No se encuentra el soporte original.');
+    $query=$pdo->prepare('SELECT content_base64 FROM attachment_contents WHERE attachment_id=?');$query->execute([$attachment['id']]);
+    $encoded=$query->fetchColumn();$bytes=$encoded===false?false:base64_decode($encoded,true);
+    ensure($bytes!==false && strlen($bytes)===(int)$attachment['size'] && hash('sha256',$bytes)===$attachment['sha256'],'No se pudo recuperar un soporte íntegro de MySQL.');
+    if (!is_dir($directory)) ensure(mkdir($directory,0700,true),'No se pudo crear la caché de soportes.');
+    $temporary=tempnam($directory,'.attachment-');
+    ensure($temporary!==false,'No se pudo crear la copia temporal del soporte.');
+    try {
+        ensure(file_put_contents($temporary,$bytes,LOCK_EX)===strlen($bytes),'No se pudo escribir el soporte recuperado.');
+        chmod($temporary,0600);
+        ensure(rename($temporary,$path),'No se pudo recuperar el archivo de soporte.');
+    } finally {if (is_file($temporary)) unlink($temporary);}
+    return $path;
 }
 function canReadRequest(array $u,array $r): bool {
     return (int)$r['user_id']===(int)$u['id'] || hasRole($u,'admin') || (int)($r['cancellation_assignee_id']??0)===(int)$u['id'] || row('SELECT id FROM approvals WHERE request_id=? AND (assigned_user_id=? OR acted_by=?)',[$r['id'],$u['id'],$u['id']])!==null;
@@ -64,7 +90,7 @@ function requestPdf(array $r): string {
     $html.='<h3>Índice de soportes</h3>'; if (!$attachments) $html.='<p>Solicitud sin soportes adjuntos.</p>'; foreach ($attachments as $a) $html.='<p>'.e($a['original_name']).'<br><small>SHA256: '.e($a['sha256']).'</small></p>';
     $pdf->writeHTML($html);
     foreach ($attachments as $a) {
-        $path=uploadDir().'/'.$a['stored_name'];
+        $path=attachmentPath($a);
         if ($a['mime']==='application/pdf') {
             $pages=$pdf->setSourceFile($path);
             for ($i=1;$i<=$pages;$i++) { $tpl=$pdf->importPage($i); $size=$pdf->getTemplateSize($tpl); $pdf->AddPage($size['orientation'],[$size['width'],$size['height']]); $pdf->useTemplate($tpl); }

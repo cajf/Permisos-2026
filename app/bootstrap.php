@@ -8,6 +8,7 @@ require_once __DIR__ . '/Database.php';
 require_once __DIR__ . '/Migrations.php';
 $config = require ROOT . '/config/example.php';
 if (is_file(ROOT . '/config/local.php')) $config = array_replace_recursive($config, require ROOT . '/config/local.php');
+if (getenv('APP_CLOUD')==='1') $config=array_replace_recursive($config,require ROOT.'/config/cloud.php');
 if (getenv('APP_TESTING')==='1' && getenv('APP_DATABASE_CONFIG')) {
     $testConfig=realpath(getenv('APP_DATABASE_CONFIG'));$testRoot=realpath(ROOT.'/.work');
     if (!$testConfig || !$testRoot || !str_starts_with(str_replace('\\','/',$testConfig),str_replace('\\','/',$testRoot).'/')) throw new RuntimeException('Configuración de pruebas fuera del directorio aislado.');

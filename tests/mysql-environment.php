@@ -7,7 +7,7 @@ $admin->exec('CREATE DATABASE '.mysqlIdentifier($name).' CHARACTER SET utf8mb4 C
 $account=$admin->quote($username)."@'127.0.0.1'";
 $admin->exec('CREATE USER '.$account.' IDENTIFIED BY '.$admin->quote($password));
 $admin->exec('GRANT SELECT,INSERT,UPDATE,DELETE,CREATE,ALTER,INDEX,DROP,REFERENCES ON '.mysqlIdentifier($name).'.* TO '.$account);
-$configuration=['mysql'=>array_replace($adminConfig,['database'=>$name,'username'=>$username,'password'=>$password]),'uploads'=>$project.'/.work/uploads-'.$suffix,'access_file'=>$project.'/.work/access-'.$suffix.'.txt'];
+$configuration=['mysql'=>array_replace($adminConfig,['database'=>$name,'username'=>$username,'password'=>$password]),'uploads'=>$project.'/.work/uploads-'.$suffix,'access_file'=>$project.'/.work/access-'.$suffix.'.txt','attachment_storage'=>getenv('APP_TEST_ATTACHMENT_STORAGE')?:'filesystem'];
 $path=$project.'/.work/mysql-test-'.$suffix.'.php';file_put_contents($path,"<?php\nreturn ".var_export($configuration,true).";\n");
 putenv('APP_TESTING=1');putenv('APP_DATABASE_CONFIG='.$path);
 $GLOBALS['test_configuration_file']=$path;
