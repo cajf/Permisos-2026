@@ -60,7 +60,7 @@ final class WorkCalendar {
             ensure(empty($item['special']) && empty($item['periods']) && empty($item['start_day']) && empty($item['end_day']),'Actualice el formulario: solo se admite la jornada laboral configurada.');
             $date=trim($item['date']??'');
             ensure(validDate($date),'Seleccione una fecha válida.');
-            ensure($date>=$clock->format('Y-m-d') && $date<=$clock->modify('+2 years')->format('Y-m-d'),'Las fechas deben estar entre hoy y los próximos dos años.');
+            ensure($date>=$clock->modify('-2 years')->format('Y-m-d') && $date<=$clock->modify('+2 years')->format('Y-m-d'),'Las fechas deben estar dentro de los dos años anteriores o siguientes a hoy.');
             $periods=$this->periods($date);
             ensure(count($periods)>0,"El $date no es un día laborable.");
             $full=($item['mode']??'hours')==='full';
@@ -68,13 +68,13 @@ final class WorkCalendar {
             $b=$full?$periods[count($periods)-1][1]:($item['end']??'');
             $minutes=$this->minutes($date,$a,$b);
             ensure($minutes>0,'El horario debe incluir tiempo laborable.');
-            ensure(new DateTimeImmutable("$date $a")>$clock,'La hora solicitada ya pasó.');
             ensure($a>=$periods[0][0] && $b<=$periods[count($periods)-1][1],'El horario solicitado está fuera de la jornada.');
             foreach ($slots as $old) ensure(!($old['date']===$date && $a<$old['end_time'] && $b>$old['start_time']),'Las franjas de una solicitud no pueden superponerse.');
             $segments=[]; foreach ($periods as [$x,$y]) if (max($a,$x)<min($b,$y)) $segments[]=[max($a,$x),min($b,$y)];
             $slots[]=['date'=>$date,'start_time'=>$a,'end_time'=>$b,'minutes'=>$minutes,'segments'=>json_encode($segments),'semester'=>substr($date,0,4).'-'.((int)substr($date,5,2)<=6?'1':'2'),'start_at'=>$date.' '.$a.':00','end_at'=>$date.' '.$b.':00','is_full_day'=>$full?1:0];
         }
         usort($slots,fn($a,$b)=>strcmp($a['date'].$a['start_time'],$b['date'].$b['start_time']));
+        ensure(max(array_column($slots,'end_at'))>$clock->format('Y-m-d H:i:s'),'El periodo de disfrute ya terminó. No se permite registrar periodos completamente terminados.');
         return $slots;
     }
 }

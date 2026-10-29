@@ -61,6 +61,8 @@ final class Workflow {
             ensure(mb_strlen($reason)>=10 && mb_strlen($reason)<=5000,'La justificación debe contener entre 10 y 5.000 caracteres.');
             ensure(mb_strlen($exception)<=3000,'La justificación de excepción es demasiado extensa.');
             $first=$slots[0];
+            $urgent=new DateTimeImmutable($first['start_at'])<=$clock;
+            if ($urgent) ensure(mb_strlen($exception)>=10,'El disfrute ya comenzó. Justifique la urgencia del registro con al menos 10 caracteres.');
             if ($this->calendar->noticeMinutes($clock,new DateTimeImmutable($first['start_at']))<2880) ensure(mb_strlen($exception)>=10,'No se completan 48 horas calendario dentro de días hábiles. Debe justificar la excepción.');
             if ($category['slug']!=='cumpleanos' && $category['max_minutes']!==null && (int)$category['policy_confirmed']===1) ensure($total<=(int)$category['max_minutes'],'La duración supera el límite configurado para este tipo.');
             $relationship=trim($input['relationship']??'');
@@ -126,6 +128,7 @@ final class Workflow {
             foreach ($route as $i=>$step) insert('approvals',$step+['request_id'=>$id,'revision'=>$revision,'step'=>$i+1]);
             saveUploads($files,(int)$owner['id'],$id);
             event((int)$owner['id'],$old?'Solicitud corregida':'Solicitud registrada','Revisión '.$revision.' · '.hours($total),$id);
+            if ($urgent) event((int)$owner['id'],'Registro urgente durante el disfrute',$exception,$id);
             notify((int)$route[0]['assigned_user_id'],'Solicitud pendiente TH-'.$id,'Tiene una solicitud pendiente de revisión. Ingrese a la aplicación para consultar los soportes.');
             notify((int)$owner['id'],'Solicitud registrada TH-'.$id,'Su solicitud fue registrada y enviada a aprobación.');
             captureBalances((int)$owner['id']);
@@ -166,11 +169,11 @@ final class Workflow {
             captureBalances((int)$act['user_id']);
         });
     }
-    public function review(array $actor,int $id,string $decision,string $comment): void {
-        $this->reviewStep($actor,$id,$decision,$comment);
+    public function review(array $actor,int $id,string $decision,string $comment,string $exceptionReason=''): void {
+        $this->reviewStep($actor,$id,$decision,$comment,null,$exceptionReason);
     }
-    private function reviewStep(array $actor,int $id,string $decision,string $comment,?int $bulkApprovalId=null): void {
-        atomic(function() use($actor,$id,$decision,$comment,$bulkApprovalId) {
+    private function reviewStep(array $actor,int $id,string $decision,string $comment,?int $bulkApprovalId=null,string $exceptionReason=''): void {
+        atomic(function() use($actor,$id,$decision,$comment,$bulkApprovalId,$exceptionReason) {
             $r=row('SELECT * FROM requests WHERE id=?',[$id]);
             ensure($r && $r['status']==='pending','La solicitud no está pendiente de aprobación.');
             $step=row("SELECT * FROM approvals WHERE request_id=? AND revision=? AND status='waiting' ORDER BY step LIMIT 1",[$id,$r['revision']]);
@@ -190,7 +193,10 @@ final class Workflow {
             ensure(in_array($decision,['approved','returned','rejected'],true),'Decisión no válida.');
             ensure(mb_strlen($comment)<=3000,'La observación no puede superar 3.000 caracteres.');
             if ($decision!=='approved') ensure(mb_strlen(trim($comment))>=5,'Explique el motivo de la devolución o rechazo.');
-            if ($decision==='approved') $this->validateApproval($r);
+            if ($decision==='approved') {
+                $exceptional=$this->validateApproval($r,$exceptionReason);
+                if ($exceptional) $comment='Aprobación excepcional durante el disfrute. Motivo: '.trim($exceptionReason).($comment!==''?' · Observación: '.$comment:'');
+            }
             run('UPDATE approvals SET status=?,acted_by=?,acted_at=?,comment=? WHERE id=?',[$decision,$actor['id'],now(),$comment,$step['id']]);
             $next=row("SELECT * FROM approvals WHERE request_id=? AND revision=? AND status='waiting' ORDER BY step LIMIT 1",[$id,$r['revision']]);
             $status=$decision==='approved'?($next?'pending':'approved'):$decision;
@@ -206,11 +212,20 @@ final class Workflow {
             captureBalances((int)$r['user_id']);
         });
     }
-    private function validateApproval(array $request): void {
+    public function periodState(int $id,?DateTimeImmutable $clock=null): string {
+        $clock??=new DateTimeImmutable();
+        $bounds=row("SELECT MIN(COALESCE(start_at,CONCAT(date,' ',start_time,':00'))) first_start,MAX(COALESCE(end_at,CONCAT(date,' ',end_time,':00'))) last_end FROM request_slots WHERE request_id=?",[$id]);
+        if (!$bounds['first_start'] || !$bounds['last_end']) return 'missing';
+        if (new DateTimeImmutable($bounds['last_end'])<=$clock) return 'ended';
+        return new DateTimeImmutable($bounds['first_start'])<=$clock?'ongoing':'future';
+    }
+    private function validateApproval(array $request,string $exceptionReason): bool {
         $id=(int)$request['id'];
         $first=row('SELECT * FROM request_slots WHERE request_id=? ORDER BY date,start_time LIMIT 1',[$id]);
         ensure($first!==null,'La solicitud no tiene fechas de disfrute. Devuélvala para corregir.');
-        ensure(new DateTimeImmutable($first['start_at']??($first['date'].' '.$first['start_time']))>new DateTimeImmutable(),'La fecha de inicio ya pasó. Devuelva la solicitud para actualizarla.');
+        $state=$this->periodState($id);
+        ensure($state!=='ended','El periodo de disfrute ya terminó. No se permite aprobar periodos completamente terminados.');
+        if ($state==='ongoing') ensure(mb_strlen(trim($exceptionReason))>=10 && mb_strlen(trim($exceptionReason))<=2500,'El disfrute ya comenzó. Registre una justificación de aprobación excepcional entre 10 y 2.500 caracteres para esta solicitud.');
         $category=row('SELECT * FROM categories WHERE id=?',[$request['category_id']]);
         ensure($category!==null,'El tipo de solicitud ya no está disponible.');
         if ((int)$category['supports_required']===1) ensure(row('SELECT id FROM attachments WHERE request_id=? LIMIT 1',[$id])!==null,'Falta el soporte obligatorio. Devuelva la solicitud para adjuntarlo.');
@@ -228,8 +243,9 @@ final class Workflow {
                 ensure($this->available(['id'=>$allocation['act_id'],'granted_minutes'=>$allocation['granted_minutes']])>=0,'El acto '.$allocation['number'].' no tiene saldo suficiente para las reservas.');
             }
         }
+        return $state==='ongoing';
     }
-    public function approveMany(array $actor,array $approvalIds,string $comment=''): array {
+    public function approveMany(array $actor,array $approvalIds,string $comment='',array $exceptionReasons=[]): array {
         ensure(hasRole($actor,'manager') || hasRole($actor,'subsecretary'),'La aprobación masiva requiere rol de jefe inmediato o subsecretario.');
         ensure(count($approvalIds)>0 && count($approvalIds)<=100,'Seleccione entre una y 100 solicitudes.');
         $ids=[];
@@ -247,7 +263,9 @@ final class Workflow {
                 $requestId=(int)$selected['request_id'];
                 ensure(!isset($seenRequests[$requestId]),'Solo puede aprobar una etapa por solicitud en cada lote.');
                 $seenRequests[$requestId]=true;
-                $this->reviewStep($actor,$requestId,'approved',$comment,$approvalId);
+                $reason=$exceptionReasons[$requestId]??'';
+                ensure(is_string($reason),'La justificación excepcional de esta solicitud no es válida.');
+                $this->reviewStep($actor,$requestId,'approved',$comment,$approvalId,$reason);
                 $result['approved'][]=$requestId;
             } catch (DomainException $e) {
                 $result['failed'][]=['approval_id'=>$approvalId,'request_id'=>$requestId,'message'=>$e->getMessage()];

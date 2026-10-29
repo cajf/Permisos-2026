@@ -8,7 +8,9 @@ En **Funcionarios**, seleccione el cargo y después uno de sus grados. El códig
 
 ## Aprobación masiva
 
-La aprobación individual y la masiva ejecutan las mismas comprobaciones dentro de una transacción por solicitud: responsable y rol vigentes, etapa pendiente, fecha de inicio futura, soporte obligatorio, duración configurada, cupo ordinario y vigencia/reserva de actos administrativos cuando corresponda.
+La aprobación individual y la masiva ejecutan las mismas comprobaciones dentro de una transacción por solicitud: responsable y rol vigentes, etapa pendiente, periodo no terminado, soporte obligatorio, duración configurada, cupo ordinario y vigencia/reserva de actos administrativos cuando corresponda.
+
+Si el disfrute ya comenzó y aún no ha terminado, cada aprobador debe registrar un motivo excepcional propio. En el lote hay un campo separado por solicitud. Los periodos completamente terminados no se pueden aprobar.
 
 Si una solicitud falla, su transacción se revierte y el lote continúa. La bandeja muestra el resumen y el motivo **No aprobada** en la fila correspondiente. El mensaje permanece al recargar la bandeja y se actualiza al realizar el siguiente lote. Las solicitudes aprobadas conservan su historial, observación, aprobador y fecha y hora.
 

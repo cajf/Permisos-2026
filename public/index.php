@@ -65,10 +65,11 @@ try {
         switch ($action) {
             case 'submit':
                 $id=$wf->submit($u,$_POST,validateUploads($_FILES['supports']??[]),empty($_POST['id'])?null:(int)$_POST['id']); $destination='/?page=request&id='.$id; break;
-            case 'review': $wf->review($u,(int)$_POST['id'],$_POST['decision']??'',trim($_POST['comment']??'')); $destination='/?page=request&id='.(int)$_POST['id']; break;
+            case 'review': $wf->review($u,(int)$_POST['id'],$_POST['decision']??'',trim($_POST['comment']??''),(string)($_POST['approval_exception_reason']??'')); $destination='/?page=request&id='.(int)$_POST['id']; break;
             case 'approve_bulk':
                 ensure(is_array($_POST['approval_ids']??null),'Seleccione las solicitudes que desea aprobar.');
-                $_SESSION['bulk_result']=$wf->approveMany($u,$_POST['approval_ids'],(string)($_POST['comment']??''));
+                ensure(is_array($_POST['exception_reasons']??[]) && count($_POST['exception_reasons']??[])<=100,'Las justificaciones del lote no son válidas.');
+                $_SESSION['bulk_result']=$wf->approveMany($u,$_POST['approval_ids'],(string)($_POST['comment']??''),$_POST['exception_reasons']??[]);
                 redirect('/?page=inbox&inbox_page='.max(1,(int)($_POST['inbox_page']??1)));
             case 'cancel': $wf->cancel($u,(int)$_POST['id'],trim($_POST['comment']??'')); $destination='/?page=request&id='.(int)$_POST['id']; break;
             case 'review_cancel': $wf->reviewCancellation($u,(int)$_POST['id'],($_POST['decision']??'')==='approve',trim($_POST['comment']??'')); $destination='/?page=request&id='.(int)$_POST['id']; break;

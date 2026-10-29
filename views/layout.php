@@ -13,11 +13,17 @@ function requestTable(array $list,bool $selectable=false,array $failures=[]): vo
   $selection='';
   if ($selectable) $selection='<td>'.(in_array($r['pending_role']??'',['manager','subsecretary'],true)?'<input type="checkbox" name="approval_ids[]" value="'.(int)$r['pending_approval_id'].'" aria-label="Seleccionar solicitud TH-'.str_pad((string)$r['id'],6,'0',STR_PAD_LEFT).'">':'').'</td>';
   echo '<tr id="request-'.(int)$r['id'].'">'.$selection.'<td><a class="strong-link" href="/?page=request&id='.(int)$r['id'].'">TH-'.str_pad((string)$r['id'],6,'0',STR_PAD_LEFT).'</a><small>'.e($r['name']??'').'</small></td><td>'.e($r['category']).'<small>'.e(familyLabel($r['family'])).'</small></td><td>'.e(substr($r['created_at'],0,10)).'</td><td>'.e(hours((int)$r['total_minutes'])).'</td><td>'.badge($r['status']).(isset($failures[(int)$r['id']])?'<small class="approval-error" role="alert">No aprobada: '.e($failures[(int)$r['id']]).'</small>':'').'</td><td><a class="icon-button" aria-label="Abrir solicitud '.(int)$r['id'].'" href="/?page=request&id='.(int)$r['id'].'">'.icon('arrow').'</a></td></tr>';
+  if ($selectable && in_array($r['pending_role']??'',['manager','subsecretary'],true)) {
+   $periodState=(new Workflow())->periodState((int)$r['id']);
+   if ($periodState==='ongoing') echo '<tr><td></td><td colspan="6"><div class="alert warning">El disfrute ya comenzó. Esta aprobación quedará registrada como excepcional.</div><label>Justificación excepcional de TH-'.str_pad((string)$r['id'],6,'0',STR_PAD_LEFT).'<textarea name="exception_reasons['.(int)$r['id'].']" maxlength="2500" rows="2" placeholder="Explica el retraso o la urgencia de esta solicitud."></textarea></label></td></tr>';
+   if ($periodState==='ended') echo '<tr><td></td><td colspan="6"><span class="approval-error">El periodo de disfrute ya terminó. No puede aprobarse; puede devolverlo o rechazarlo desde el detalle.</span></td></tr>';
+  }
+
  }
  echo '</tbody></table></div>';
 }
 ?>
-<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title><?=e($titles[$page]??'Talento Humano')?> · Bucaramanga</title><link rel="stylesheet" href="/assets/app.css?v=catalog-1"><script src="/assets/app.js?v=catalog-1" defer></script></head>
+<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title><?=e($titles[$page]??'Talento Humano')?> · Bucaramanga</title><link rel="stylesheet" href="/assets/app.css?v=ongoing-1"><script src="/assets/app.js?v=ongoing-1" defer></script></head>
 <body>
 <?php if ($page==='login'): ?>
 <main class="login-shell"><section class="login-story"><a class="brand brand-image" href="/"><img src="/assets/alcaldia-bucaramanga.png" alt="Alcaldía de Bucaramanga" width="96" height="81"></a><div><p class="eyebrow">GESTIÓN DEL TALENTO HUMANO</p><h1>Tu tiempo,<br>bien gestionado.</h1><p>Un solo espacio para solicitar permisos, compensatorios y licencias, y seguir cada paso de su aprobación.</p><div class="login-decoration" aria-hidden="true"><span>01</span><div>Solicita<span>Registra las fechas y tus soportes.</span></div><span>02</span><div>Haz seguimiento<span>Consulta las decisiones del trámite.</span></div><span>03</span><div>Descarga<span>Conserva la constancia con sus anexos.</span></div></div></div><p class="login-foot">Administración municipal · Bucaramanga, Santander</p></section>
