@@ -22,6 +22,31 @@ document.querySelectorAll('form[data-policy-form]').forEach(policy=>{
 });
 const form=document.querySelector('#request-form');
 if(form){
+ // Mantener el mismo formulario evita que el navegador vacíe los campos de archivo.
+ let sending=false;
+ const sendButton=form.querySelector('button[type="submit"]'),sendLabel=sendButton.innerHTML;
+ let submitError=document.querySelector('#main > .alert.error');
+ form.addEventListener('submit',async event=>{
+  event.preventDefault();if(sending)return;
+  const payload=new FormData(form);
+  sending=true;sendButton.disabled=true;sendButton.textContent='Enviando solicitud…';
+  if(submitError)submitError.hidden=true;
+  try{
+   const response=await fetch(form.getAttribute('action')||window.location.href,{method:'POST',body:payload,credentials:'same-origin'});
+   if(response.redirected){window.location.assign(response.url);return;}
+   const page=new DOMParser().parseFromString(await response.text(),'text/html');
+   const validation=page.querySelector('#main > .alert.error');
+   if(validation)showSubmitError(validation.textContent.trim());
+   else showSubmitError('No se pudo confirmar el envío. Los archivos siguen seleccionados. Consulta Mis solicitudes antes de volver a intentar.');
+  }catch{
+   showSubmitError('No se pudo confirmar el envío. Los archivos siguen seleccionados. Revisa la conexión y consulta Mis solicitudes antes de volver a intentar.');
+  }finally{sending=false;sendButton.disabled=false;sendButton.innerHTML=sendLabel;}
+ });
+ function showSubmitError(message){
+  if(!submitError){submitError=document.createElement('div');submitError.className='alert error';submitError.setAttribute('role','alert');submitError.tabIndex=-1;form.querySelector('.request-main').prepend(submitError);}
+  submitError.textContent=message;submitError.tabIndex=-1;submitError.hidden=false;submitError.scrollIntoView({behavior:'smooth',block:'center'});submitError.focus();
+ }
+ document.querySelector('#supports-retention-note')?.removeAttribute('hidden');
  const slots=document.querySelector('#slots'),category=document.querySelector('#category');let next=slots.children.length,sequence=0;
  const fmt=m=>`${Math.floor(m/60)} h ${String(m%60).padStart(2,'0')} min`;
  function updateSupports(){
