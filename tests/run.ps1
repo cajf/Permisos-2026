@@ -5,6 +5,8 @@ $testPhp = Join-Path $testRoot '.runtime\php\php.exe'
 $testIni = Join-Path $testRoot '.runtime\php\php.ini'
 & $testPhp -c $testIni -d display_errors=1 tests/core.php
 if ($LASTEXITCODE -ne 0) { throw 'Fallaron las comprobaciones funcionales.' }
+& $testPhp -c $testIni -d display_errors=1 tests/catalog-migration.php
+if ($LASTEXITCODE -ne 0) { throw 'Falló la migración aislada del catálogo.' }
 $testResult = Get-Content -LiteralPath '.work\test-result.json' -Raw | ConvertFrom-Json
 $previousTestDatabase = $env:APP_DATABASE_CONFIG
 $previousTestMode = $env:APP_TESTING

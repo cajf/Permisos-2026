@@ -19,7 +19,12 @@ preg_match('/page=download&id=(\d+)/',$detail['body'],$attachment);ok(http('page
 $csrf=login('qa1');$denied=http('page=request&id='.$id);ok(str_contains($denied['body'],'No tiene acceso'),'Otro funcionario no puede consultar detalle');$denied=http('page=pdf&id='.$id);ok($denied['code']===403,'Otro funcionario no puede generar PDF');$denied=http('page=download&id='.$attachment[1]);ok($denied['code']===403,'Otro funcionario no puede descargar soporte');
 $csrf=login('qa2');$inbox=http('page=inbox');ok(str_contains($inbox['body'],'id='.$id),'Solicitud visible en bandeja del jefe');
 $r=http('page=request&id='.$id,['action'=>'review','csrf'=>$csrf,'id'=>$id,'decision'=>'approved','comment'=>'Prueba de aprobación por HTTP'],true);ok($r['code']===302,'Aprobación por HTTP');ok(str_contains(http('page=request&id='.$id)['body'],'Aprobada'),'Permiso de dos horas concluye sin subsecretario');
-$csrf=login('qa5');foreach(['users','settings','calendar','policies','import','outbox','audit','reports'] as $page){$r=http('page='.$page);ok($r['code']===200 && !str_contains($r['body'],'Fatal error'),'Pantalla administrativa '.$page);}
+$csrf=login('qa5');foreach(['jobs','users','settings','calendar','policies','import','outbox','audit','reports'] as $page){$r=http('page='.$page);ok($r['code']===200 && !str_contains($r['body'],'Fatal error'),'Pantalla administrativa '.$page);}
+$catalogForm=http('page=users')['body'];
+ok(str_contains($catalogForm,'id="user-job"') && str_contains($catalogForm,'id="user-job-grade"') && str_contains($catalogForm,'readonly'),'Formulario de funcionarios ofrece cargo y grado con código automático');
+ok(http('page=jobs',['action'=>'job','csrf'=>$csrf,'title'=>'Cargo HTTP','code'=>'001','grade'=>'03'],true)['code']===302,'Talento Humano registra cargos por formulario');
+$catalogHtml=http('page=jobs')['body'];
+ok(str_contains($catalogHtml,'Cargo HTTP') && str_contains($catalogHtml,'001'),'Catálogo HTTP conserva los valores registrados');
 $book=new \PhpOffice\PhpSpreadsheet\Spreadsheet();$sheet=$book->getActiveSheet();$sheet->fromArray([['cedula','nombre','usuario','correo','cargo','codigo','grado','vinculacion','dependencia','cedula_jefe','alto_rango'],['IMPORT-001','Importado de prueba','importado.qa','importado@ejemplo.invalid','Profesional','219','24','Carrera administrativa','Dependencia de prueba','PRUEBA-2','']]);(new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($book))->save($root.'/.work/importacion-prueba.xlsx');
 $r=http('page=import',['action'=>'import_preview','csrf'=>$csrf,'excel'=>new CURLFile($root.'/.work/importacion-prueba.xlsx','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet','funcionarios.xlsx')],true);ok($r['code']===302,'Lectura de archivo XLSX');ok(str_contains(http('page=import')['body'],'Importado de prueba'),'Vista previa de importación');
 $r=http('page=import',['action'=>'import_commit','csrf'=>$csrf],true);ok($r['code']===302,'Confirmación atómica de importación');ok(str_contains(http('page=users')['body'],'Importado de prueba'),'Funcionario importado visible en directorio');ok(str_contains(http('page=import_passwords')['body'],'importado.qa'),'Descarga privada de acceso inicial');
@@ -61,10 +66,15 @@ foreach(['2026-12-17','2026-12-18'] as $date){
 $csrf=login('qa2');$managerInbox=http('page=inbox');
 ok(str_contains($managerInbox['body'],'Aprobar seleccionadas') && str_contains($managerInbox['body'],'Seleccionar todas de esta página'),'Bandeja del jefe muestra selección múltiple');
 $managerStages=array_map(fn($request)=>inboxApproval($managerInbox['body'],$request),$bulkRequests);
-$batchPost=['action'=>'approve_bulk','csrf'=>$csrf,'approval_ids[0]'=>$managerStages[0],'approval_ids[1]'=>$managerStages[1],'approval_ids[2]'=>'999999','comment'=>'Observación común por HTTP'];
+$missingSupportStage=inboxApproval($managerInbox['body'],(int)$optionalMatch[1]);
+$manualFailure=http('page=request&id='.$optionalMatch[1],['action'=>'review','csrf'=>$csrf,'id'=>$optionalMatch[1],'decision'=>'approved','comment'=>'Revisión manual'],true);
+ok(str_contains($manualFailure['body'],'Falta el soporte obligatorio.'),'Aprobación individual detecta soporte obligatorio faltante');
+$batchPost=['action'=>'approve_bulk','csrf'=>$csrf,'approval_ids[0]'=>$missingSupportStage,'approval_ids[1]'=>$managerStages[0],'approval_ids[2]'=>$managerStages[1],'approval_ids[3]'=>'999999','comment'=>'Observación común por HTTP'];
 $badCsrf=$batchPost;$badCsrf['csrf']='incorrecto';ok(str_contains(http('page=inbox',$badCsrf,true)['body'],'expiró'),'Protección CSRF para aprobación masiva');
 $batchResponse=http('page=inbox',$batchPost,true);ok($batchResponse['code']===302,'Aprobación múltiple enviada desde el formulario');
-$feedback=http('page=inbox')['body'];ok(str_contains($feedback,'2 aprobaciones registradas.') && str_contains($feedback,'1 solicitud sin aprobar.'),'Bandeja informa resultados parciales del lote');
+$feedback=http('page=inbox')['body'];ok(str_contains($feedback,'2 aprobaciones registradas.') && str_contains($feedback,'2 solicitudes sin aprobar.'),'Bandeja informa resultados parciales del lote');
+ok(str_contains($feedback,'class="approval-error"') && str_contains($feedback,'No aprobada: Falta el soporte obligatorio.'),'Bandeja muestra el motivo en la fila que no pudo aprobarse');
+ok(str_contains(http('page=inbox')['body'],'No aprobada: Falta el soporte obligatorio.'),'Error de cada solicitud permanece al recargar la bandeja');
 foreach($bulkRequests as $request){$detail=http('page=request&id='.$request)['body'];ok(str_contains($detail,'En aprobación') && str_contains($detail,'Aprobación masiva') && str_contains($detail,'Observación común por HTTP'),'Etapa del jefe conserva ruta e historial por solicitud');}
 $csrf=login('qa3');$subInbox=http('page=inbox');$subStages=array_map(fn($request)=>inboxApproval($subInbox['body'],$request),$bulkRequests);
 $subPost=['action'=>'approve_bulk','csrf'=>$csrf,'approval_ids[0]'=>$subStages[0],'approval_ids[1]'=>$subStages[1],'comment'=>'Aprobación final del lote'];

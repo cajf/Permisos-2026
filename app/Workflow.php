@@ -188,14 +188,13 @@ final class Workflow {
                 ensure($currentActor!==null && hasRole($currentActor,$step['role']),'Su rol de aprobación cambió. Actualice la sesión.');
             }
             ensure(in_array($decision,['approved','returned','rejected'],true),'Decisión no válida.');
+            ensure(mb_strlen($comment)<=3000,'La observación no puede superar 3.000 caracteres.');
             if ($decision!=='approved') ensure(mb_strlen(trim($comment))>=5,'Explique el motivo de la devolución o rechazo.');
+            if ($decision==='approved') $this->validateApproval($r);
             run('UPDATE approvals SET status=?,acted_by=?,acted_at=?,comment=? WHERE id=?',[$decision,$actor['id'],now(),$comment,$step['id']]);
             $next=row("SELECT * FROM approvals WHERE request_id=? AND revision=? AND status='waiting' ORDER BY step LIMIT 1",[$id,$r['revision']]);
             $status=$decision==='approved'?($next?'pending':'approved'):$decision;
             if ($status==='approved') {
-                // No se aprueban ausencias ya transcurridas. La excepción de anticipación permite enviar, no aprobar con retroactividad.
-                $first=row('SELECT * FROM request_slots WHERE request_id=? ORDER BY date,start_time LIMIT 1',[$id]);
-                ensure(new DateTimeImmutable($first['start_at']??($first['date'].' '.$first['start_time']))>new DateTimeImmutable(),'La fecha de inicio ya pasó. Devuelva la solicitud para actualizarla.');
                 run("UPDATE allocations SET state='consumed' WHERE request_id=?",[$id]);
             }
             if ($status==='rejected') run("UPDATE allocations SET state='released',returned_minutes=minutes WHERE request_id=?",[$id]);
@@ -206,6 +205,29 @@ final class Workflow {
             if ($decision==='approved' && $next) notify((int)$next['assigned_user_id'],'Solicitud pendiente TH-'.$id,'La etapa anterior fue aprobada. Puede revisar la solicitud.');
             captureBalances((int)$r['user_id']);
         });
+    }
+    private function validateApproval(array $request): void {
+        $id=(int)$request['id'];
+        $first=row('SELECT * FROM request_slots WHERE request_id=? ORDER BY date,start_time LIMIT 1',[$id]);
+        ensure($first!==null,'La solicitud no tiene fechas de disfrute. Devuélvala para corregir.');
+        ensure(new DateTimeImmutable($first['start_at']??($first['date'].' '.$first['start_time']))>new DateTimeImmutable(),'La fecha de inicio ya pasó. Devuelva la solicitud para actualizarla.');
+        $category=row('SELECT * FROM categories WHERE id=?',[$request['category_id']]);
+        ensure($category!==null,'El tipo de solicitud ya no está disponible.');
+        if ((int)$category['supports_required']===1) ensure(row('SELECT id FROM attachments WHERE request_id=? LIMIT 1',[$id])!==null,'Falta el soporte obligatorio. Devuelva la solicitud para adjuntarlo.');
+        if ($category['slug']!=='cumpleanos' && $category['max_minutes']!==null && (int)$category['policy_confirmed']===1) ensure((int)$request['total_minutes']<=(int)$category['max_minutes'],'La duración supera el límite vigente del tipo de solicitud.');
+        if ($category['slug']==='ordinario') {
+            foreach (rows('SELECT * FROM request_slots WHERE request_id=?',[$id]) as $slot) foreach($this->slotSemesters($slot) as $semester=>$minutes) ensure($this->quota((int)$request['user_id'],$semester)<=1530,'La solicitud excede el cupo semestral de Ordinario-Remunerado.');
+        }
+        if ($category['slug']==='acto') {
+            $allocations=rows('SELECT a.*,x.status act_status,x.issued_on,x.expires_on,x.granted_minutes,x.user_id act_owner,x.number FROM allocations a JOIN acts x ON x.id=a.act_id WHERE a.request_id=?',[$id]);
+            ensure(array_sum(array_column($allocations,'minutes'))===(int)$request['total_minutes'],'La reserva de los actos no coincide con el tiempo solicitado.');
+            $last=row('SELECT MAX(COALESCE(end_at,CONCAT(date,\' \',end_time,\':00\'))) last_end FROM request_slots WHERE request_id=?',[$id])['last_end'];
+            foreach($allocations as $allocation) {
+                ensure($allocation['state']==='reserved' && $allocation['act_status']==='approved' && (int)$allocation['act_owner']===(int)$request['user_id'],'El acto no está aprobado o su reserva ya no está disponible.');
+                ensure($allocation['issued_on']<=$first['date'] && $allocation['expires_on']>=date('Y-m-d') && $allocation['expires_on']>=date('Y-m-d',strtotime($last)-1),'El acto '.$allocation['number'].' no está vigente para las fechas solicitadas.');
+                ensure($this->available(['id'=>$allocation['act_id'],'granted_minutes'=>$allocation['granted_minutes']])>=0,'El acto '.$allocation['number'].' no tiene saldo suficiente para las reservas.');
+            }
+        }
     }
     public function approveMany(array $actor,array $approvalIds,string $comment=''): array {
         ensure(hasRole($actor,'manager') || hasRole($actor,'subsecretary'),'La aprobación masiva requiere rol de jefe inmediato o subsecretario.');

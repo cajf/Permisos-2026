@@ -1,4 +1,18 @@
 'use strict';
+const jobSelect=document.querySelector('#user-job');
+if(jobSelect){
+ const code=document.querySelector('#user-job-code'),grade=document.querySelector('#user-job-grade');
+ const options=[...grade.querySelectorAll('option[data-job]')].map(option=>option.cloneNode(true));
+ function updateJob(keep=false){
+  const previous=keep?grade.value:null;code.value=jobSelect.selectedOptions[0]?.dataset.code||'';
+  grade.replaceChildren(new Option('Selecciona un grado',''));
+  options.filter(option=>option.dataset.job===jobSelect.value).forEach(option=>grade.add(option.cloneNode(true)));
+  if(previous!==null && [...grade.options].some(option=>option.value===previous))grade.value=previous;
+  grade.disabled=!jobSelect.value;
+  grade.required=!(grade.dataset.legacyJob===jobSelect.value && grade.dataset.legacyBlank==='1');
+ }
+ jobSelect.addEventListener('change',()=>updateJob());updateJob(true);
+}
 document.querySelector('.mobile-menu')?.addEventListener('click',e=>{const open=document.body.classList.toggle('menu-open');e.currentTarget.setAttribute('aria-expanded',String(open));});
 document.querySelectorAll('form[data-confirm]').forEach(form=>form.addEventListener('submit',e=>{if(!confirm(form.dataset.confirm))e.preventDefault();}));
 document.querySelectorAll('form[data-policy-form]').forEach(policy=>{

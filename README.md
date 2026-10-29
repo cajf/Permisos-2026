@@ -131,3 +131,12 @@ El proyecto incluye un `Dockerfile` para PHP 8.4/Apache y configuración de MySQ
 - [Métodos de respaldo MySQL](https://dev.mysql.com/doc/refman/8.4/en/backup-methods.html).
 
 Los soportes y duraciones del catálogo proceden del formato suministrado y las decisiones del usuario; no representan una validación normativa adicional.
+
+
+## Catálogo de cargos y revisión masiva
+
+Talento Humano registra los cargos con su código y grados desde **Cargos y grados**. Funcionarios ofrece las listas relacionadas y carga el código automáticamente. Registre antes en el catálogo las combinaciones que importará desde Excel. Los datos históricos de las solicitudes se conservan.
+
+Para actualizar una instalación existente, ejecute `php scripts/update-job-catalog.php` con acceso administrativo a MySQL. La herramienta crea un respaldo verificado, agrega las tablas y traslada los cargos actuales sin inventar datos faltantes. No requiere ampliar los privilegios del usuario web. Consulte [las instrucciones](docs/cargos-y-aprobaciones.md).
+
+La aprobación individual y la masiva comparten las validaciones. Cada solicitud del lote se procesa en su propia transacción; si falla, se muestra el motivo en su fila y continúa el resto del lote. La fecha de inicio se comprueba desde la primera etapa.

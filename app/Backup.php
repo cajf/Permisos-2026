@@ -11,7 +11,7 @@ function createMysqlBackup(PDO $pdo,string $uploads,string $destination): array 
         $pdo->query('SELECT id FROM app_locks WHERE id=1 FOR UPDATE')->fetchColumn();
         fwrite($handle,"SET NAMES utf8mb4;\nSET FOREIGN_KEY_CHECKS=0;\nSET SQL_MODE=".$pdo->quote($pdo->query('SELECT @@SESSION.sql_mode')->fetchColumn()).";\n");
         foreach (array_merge(applicationTables(),['app_locks']) as $table) {
-            if ($table==='attachment_contents' && !tableExists($table,$pdo)) continue;
+            if (in_array($table,['attachment_contents','jobs','job_grades'],true) && !tableExists($table,$pdo)) continue;
             $quoted=mysqlIdentifier($table);$create=$pdo->query('SHOW CREATE TABLE '.$quoted)->fetch(PDO::FETCH_NUM)[1];
             fwrite($handle,$create.";\n");
             $keys=array_column($pdo->query("SHOW KEYS FROM ".$quoted." WHERE Key_name='PRIMARY'")->fetchAll(),'Column_name');

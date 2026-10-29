@@ -15,6 +15,7 @@ $original->exec('VACUUM INTO '.$original->quote($snapshotFile));unset($original)
 $source=new PDO('sqlite:'.$snapshotFile,null,null,[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION,PDO::ATTR_DEFAULT_FETCH_MODE=>PDO::FETCH_ASSOC]);
 migrateLegacySqlite($source);
 $result=transferSqliteToMysql($source,mysqlConnection($targetConfig['mysql']),$sourceUploads,$targetConfig['uploads']);
+seedJobCatalog(mysqlConnection($targetConfig['mysql']));
 $result['source_snapshot']=$snapshotFile;$result['destination']=$targetConfig['mysql']['database'];
 $report=ROOT.'/storage/mysql/migration-'.date('Ymd-His').'.json';file_put_contents($report,json_encode($result,JSON_PRETTY_PRINT|JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES));
 if (isset($options['activate'])) {

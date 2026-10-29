@@ -134,7 +134,19 @@ def cloud_storage_er():
     text(d,60,41,'La instalación local mantiene sus soportes en disco y no necesita contenido duplicado.',16,color=MUTED)
     return export(d,'base-datos-soportes-nube')
 
-diagrams=[usecases(),core_er(),support_er(),config_er(),designation_er(),cloud_storage_er()]
+def job_catalog_er():
+    d=Drawing(1100,520)
+    text(d,45,475,'Catálogo de cargos, códigos y grados',23,True)
+    box(d,60,230,330,'jobs',['PK id','UQ title','code: único por cargo'])
+    box(d,680,200,350,'job_grades',['PK id','job_id FK jobs','grade (texto)','UQ job_id + grade'])
+    line(d,[390,310,680,310],'1 : N',500,330)
+    text(d,60,150,'El formulario selecciona el cargo, carga su código y limita los grados disponibles.',16,color=MUTED)
+    text(d,60,112,'users conserva la combinación elegida; el servidor la valida contra el catálogo.',16,color=MUTED)
+    text(d,60,74,'requests.snapshot conserva los datos históricos al radicar la solicitud.',16,color=MUTED)
+    text(d,60,36,'Talento Humano mantiene el catálogo; los códigos y grados conservan ceros iniciales.',16,color=MUTED)
+    return export(d,'base-datos-cargos')
+
+diagrams=[usecases(),core_er(),support_er(),config_er(),designation_er(),cloud_storage_er(),job_catalog_er()]
 styles=getSampleStyleSheet()
 styles.add(ParagraphStyle(name='BodyApp',fontName='Segoe',fontSize=10,leading=15,spaceAfter=9,textColor=NAVY))
 styles.add(ParagraphStyle(name='TitleApp',fontName='SegoeBold',fontSize=27,leading=33,spaceAfter=18,textColor=colors.black))
@@ -210,9 +222,16 @@ sub('Conservación de cálculos')
 p('La solicitud guarda las franjas laborables que se usaron al enviarla. Un cambio posterior del calendario o del horario no recalcula las duraciones históricas ni altera lo ya disfrutado. Si cambian las condiciones de una solicitud pendiente, devuélvala para corregir y reenviar.')
 sub('Importes y unidades')
 p('Todos los cálculos se guardan en minutos enteros. En campos de horas, 8,5 equivale a 510 minutos. La interfaz permite incrementos de 0,05 horas, equivalentes a tres minutos. El servicio rechaza valores que no equivalen a minutos enteros.')
+page();h('Cargos, códigos y grados')
+p('Desde Administración > Cargos y grados, Talento Humano registra cada cargo con un único código y su primer grado. Agregar un grado permite asociar varios grados al mismo cargo y código. Los valores se guardan como texto para conservar los ceros iniciales. No se admite repetir un cargo con otro código.')
+p('Al crear o actualizar un funcionario, seleccione el cargo; su código se carga automáticamente y la lista de grados muestra solo los registrados para ese cargo. El servidor valida la combinación, incluso cuando los datos se importan por Excel. Registre previamente los cargos y grados del archivo de importación.')
+p('Editar cargo cambia el nombre o código del catálogo y los datos actuales de los funcionarios asociados. Las solicitudes conservan sus datos históricos. Los valores faltantes de los registros anteriores se conservan sin inventar códigos o grados: Talento Humano debe completarlos antes de las nuevas asignaciones.')
+sub('Resultados de aprobación masiva')
+p('La revisión individual y la masiva comparten las mismas validaciones y realizan una transacción por solicitud. Se comprueban etapa y responsable, fecha futura, soporte obligatorio, duración máxima configurada, cupo ordinario y actos vigentes con reserva suficiente cuando corresponda. La fecha inicial se valida en cada etapa.')
+p('Si una solicitud falla, queda sin aprobar y se continúa con las demás. El resumen muestra el resultado del lote y cada fila afectada muestra No aprobada seguido del motivo. El mensaje permanece al recargar la bandeja y se actualiza al procesar el siguiente lote. La solicitud fallida no deja una aprobación parcial.')
 page();h('Administrar funcionarios e importar Excel')
 sub('Directorio y responsables')
-p('En Funcionarios puede crear dependencias, registrar o editar funcionarios, su fecha de nacimiento, roles y clasificación de alto rango. La fecha de nacimiento es necesaria para Cumpleaños y solo la mantiene Talento Humano. La clasificación usa tres valores específicos: Asesor de Despacho, Secretario de Despacho y Jefe de Oficina. El cargo escrito como texto no modifica por sí mismo el flujo.')
+p('En Funcionarios puede crear dependencias, registrar o editar funcionarios, seleccionar cargo y grado del catálogo, registrar su fecha de nacimiento, roles y clasificación de alto rango. La fecha de nacimiento es necesaria para Cumpleaños y solo la mantiene Talento Humano. La clasificación usa tres valores específicos: Asesor de Despacho, Secretario de Despacho y Jefe de Oficina. El nombre del cargo no modifica por sí mismo el flujo.')
 p('En Designaciones seleccione un jefe inmediato, un suplente para solicitudes propias, una o varias dependencias y la fecha de inicio. Registre también la designación institucional del subsecretario y su suplente. El periodo anterior termina el día calendario previo; los responsables futuros no pueden aprobar anticipadamente. Los cambios guardan usuario, fecha y hora. Las fechas deben ser hoy o futuras y posteriores a la última designación del mismo alcance. El alcalde y su suplente se configuran por separado.')
 sub('Importación')
 for s in ['Descargue la plantilla CSV desde Importar Excel. Puede completarla y guardarla como CSV o XLSX.','Use los encabezados: cedula, nombre, usuario, correo, cargo, codigo, grado, vinculacion, dependencia, cedula_jefe, alto_rango y fecha_nacimiento (opcional, texto AAAA-MM-DD). Mantenga las cédulas como texto.','Incluya los jefes en el mismo archivo o asegúrese de que ya existan. Los campos cedula_jefe mantienen compatibilidad con listados anteriores. Las designaciones vigentes por dependencia tienen prioridad sobre ese dato individual.','Cargue un archivo de hasta 5 MB y 1.000 registros. Revise la vista previa y confirme. Una cédula existente actualiza sus datos; una nueva crea una cuenta.','Descargue las contraseñas temporales de las cuentas nuevas durante esa sesión y entregue cada acceso a su titular. Los roles administrativos existentes se conservan.']:bullet(s)
@@ -274,9 +293,9 @@ bullet('Completar y validar duraciones, frecuencias, parentescos y soportes obli
 bullet('Proporcionar parámetros SMTP y verificar la recepción de novedades con cuentas institucionales.')
 bullet('Definir responsables competentes para las solicitudes propias de aprobadores que no tengan suplente configurado.')
 sub('Decisiones técnicas visibles en el funcionamiento')
-p('Las solicitudes se registran para fechas y horas futuras. La aprobación final se detiene si su fecha inicial ya pasó, en cuyo caso se debe devolver para corregir. La cancelación reintegra tiempo según la hora de autorización, no según la hora de petición. Las solicitudes devueltas retienen sus reservas y un cambio de calendario no recalcula trámites existentes.')
+p('Las solicitudes se registran para fechas y horas futuras. La aprobación se detiene en cualquiera de sus etapas si su fecha inicial ya pasó, en cuyo caso se debe devolver para corregir. La cancelación reintegra tiempo según la hora de autorización, no según la hora de petición. Las solicitudes devueltas retienen sus reservas y un cambio de calendario no recalcula trámites existentes.')
 
-for title,name,d in [('Casos de uso','casos-de-uso',diagrams[0]),('Base de datos de trámites','base-datos-tramites',diagrams[1]),('Base de datos de saldos y soportes','base-datos-saldos',diagrams[2]),('Base de datos de configuración','base-datos-configuracion',diagrams[3]),('Base de datos de designaciones','base-datos-designaciones',diagrams[4]),('Base de datos de soportes en Internet','base-datos-soportes-nube',diagrams[5])]:
+for title,name,d in [('Casos de uso','casos-de-uso',diagrams[0]),('Base de datos de trámites','base-datos-tramites',diagrams[1]),('Base de datos de saldos y soportes','base-datos-saldos',diagrams[2]),('Base de datos de configuración','base-datos-configuracion',diagrams[3]),('Base de datos de designaciones','base-datos-designaciones',diagrams[4]),('Base de datos de soportes en Internet','base-datos-soportes-nube',diagrams[5]),('Base de datos de cargos','base-datos-cargos',diagrams[6])]:
     story.extend([NextPageTemplate('landscape'),PageBreak()]);h(title);story.append(Diagram(d));web.append('<img class="diagram" src="diagramas/'+name+'.svg" alt="'+title+'">')
 story.extend([NextPageTemplate('portrait'),PageBreak()]);h('Diccionario de tablas')
 schema=json.loads((ROOT/'.work/schema.json').read_text(encoding='utf-8'))
@@ -290,4 +309,4 @@ doc=BaseDocTemplate(str(DOC/'manual.pdf'),pagesize=A4,leftMargin=42,rightMargin=
 doc.addPageTemplates([PageTemplate(id='portrait',frames=[Frame(42,50,A4[0]-84,A4[1]-92,leftPadding=0,rightPadding=0,topPadding=0,bottomPadding=0)],onPage=footer,pagesize=A4),PageTemplate(id='landscape',frames=[Frame(42,50,landscape(A4)[0]-84,landscape(A4)[1]-92,leftPadding=0,rightPadding=0,topPadding=0,bottomPadding=0)],onPage=footer,pagesize=landscape(A4))]);doc.build(story)
 css='body{font:16px/1.7 Segoe UI,Arial,sans-serif;color:#20343b;background:#f5f7f5;margin:0}main{max-width:1020px;margin:30px auto;background:white;padding:50px}h1,h2,h3{color:#000;line-height:1.3}h1{font-size:34px}h2{font-size:25px;margin-top:45px}h3{font-size:19px}p{max-width:850px}a{color:#176953}table{border-collapse:collapse;width:100%;font-size:13px;margin:20px 0}td,th{border:1px solid #dce5df;padding:12px;text-align:left;vertical-align:top}th{background:#eef4f0}.diagram{width:100%;margin:20px 0} @media(max-width:700px){main{padding:22px;margin:0}table{font-size:11px}td,th{padding:6px}}'
 (DOC/'manual.html').write_text('<!doctype html><html lang="es"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Manual de Talento Humano</title><style>'+css+'</style><main>'+''.join(web)+'</main></html>',encoding='utf-8')
-print('Manual PDF/HTML y cinco diagramas SVG generados.')
+print('Manual PDF/HTML y siete diagramas SVG generados.')

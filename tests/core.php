@@ -161,6 +161,7 @@ refuses(fn()=>$wf->submit(person(8),$noticeInput,[],null,new DateTimeImmutable('
 run('UPDATE categories SET supports_required=1 WHERE id=?',[$noticeCategory['id']]);
 
 require __DIR__.'/designations.php';
+require __DIR__.'/catalog-bulk.php';
 require __DIR__.'/migrations.php';
 require __DIR__.'/mysql.php';
 echo "\n$checks comprobaciones correctas.\n";

@@ -2,7 +2,7 @@
 declare(strict_types=1);
 
 function applicationTables(): array {
-    return ['departments','users','settings','categories','holidays','schedules','acts','requests','request_slots','designations','approvals','allocations','attachments','attachment_contents','events','outbox','balance_snapshots'];
+    return ['departments','jobs','job_grades','users','settings','categories','holidays','schedules','acts','requests','request_slots','designations','approvals','allocations','attachments','attachment_contents','events','outbox','balance_snapshots'];
 }
 function canonicalRows(array $records): string {
     foreach ($records as &$record) {ksort($record);foreach ($record as &$value) if ($value!==null) $value=(string)$value;unset($value);}unset($record);
@@ -26,7 +26,7 @@ function transferSqliteToMysql(PDO $source,PDO $target,string $sourceUploads,str
         $target->exec('SET FOREIGN_KEY_CHECKS=0');
         foreach (applicationTables() as $table) {
             $info=$source->query('PRAGMA table_info('.$table.')')->fetchAll(PDO::FETCH_ASSOC);
-            if (!$info && $table==='attachment_contents') {$counts[$table]=0;continue;}
+            if (!$info && in_array($table,['attachment_contents','jobs','job_grades'],true)) {$counts[$table]=0;continue;}
             if (!$info) throw new RuntimeException('Falta una tabla del origen: '.$table.'.');
             $columns=array_column($info,'name');$primary=array_column(array_filter($info,fn($field)=>(int)$field['pk']>0),'name');
             $order=' ORDER BY '.implode(',',array_map('mysqlIdentifier',$primary));

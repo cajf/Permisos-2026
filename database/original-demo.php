@@ -4,13 +4,14 @@ declare(strict_types=1);
 /** Restaura únicamente los datos ficticios de la primera versión, con las reglas actuales. */
 function restoreOriginalDemo(): array {
     require_once ROOT.'/database/holidays.php';
-    return atomic(function (): array {
+    $credentials=atomic(function (): array {
         if (tableExists('attachment_contents')) run('DELETE FROM attachment_contents');
         foreach (['balance_snapshots','outbox','events','attachments','allocations','approvals','request_slots','requests','acts','schedules','designations','holidays','categories','settings'] as $table) {
             run('DELETE FROM '.mysqlIdentifier($table));
         }
         run('UPDATE users SET manager_id=NULL,deputy_manager_id=NULL');
         run('DELETE FROM users');
+        run('DELETE FROM job_grades');run('DELETE FROM jobs');
         run('DELETE FROM departments');
         foreach (['Secretaría Administrativa','Secretaría de Planeación','Despacho del Alcalde'] as $i=>$name) insert('departments',['id'=>$i+1,'name'=>$name]);
         $people=[
@@ -38,4 +39,6 @@ function restoreOriginalDemo(): array {
         verifyMysqlReferences(db());
         return $credentials;
     });
+    seedJobCatalog(db());
+    return $credentials;
 }

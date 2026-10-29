@@ -1,0 +1,12 @@
+erDiagram
+    jobs ||--|{ job_grades : tiene
+    jobs {
+        bigint id PK
+        varchar title UK
+        varchar code
+    }
+    job_grades {
+        bigint id PK
+        bigint job_id FK
+        varchar grade
+    }

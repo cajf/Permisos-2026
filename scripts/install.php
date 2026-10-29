@@ -32,4 +32,5 @@ atomic(function() {
     $text="ACCESO LOCAL DE DEMOSTRACIÓN\n\nURL: http://127.0.0.1:8088\nUsuarios: admin, funcionario, jefe, subsecretario, alcalde, asesor, nomina\nContraseña inicial: $password\n\nTodos los datos son ficticios. Cada cuenta debe cambiar la contraseña al ingresar.\nNo publique estos datos ni esta base de demostración en Internet.\n";
     file_put_contents($GLOBALS['config']['access_file']??ROOT.'/storage/acceso-local.txt',$text);
 });
+seedJobCatalog(administrativeMysqlConnection());
 echo "Base creada. Credenciales en storage/acceso-local.txt.\n";

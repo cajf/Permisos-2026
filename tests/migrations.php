@@ -43,9 +43,9 @@ check($wf->consumedSlot($archivedSlot,'2026-11-21 03:00:00')===270,'La cancelaci
 check($retiredDatabase->query("SELECT notes FROM categories WHERE slug='academico'")->fetchColumn()==='Nota administrativa personalizada','El retiro no modifica las reglas de otros tipos');
 
 // Al corregir una solicitud se conserva el archivo técnico, pero se vuelve a solicitar con la jornada configurada.
-$correction=testSubmit(9,'academico',[slot('2026-12-10','07:30','08:30')],[],new DateTimeImmutable('2026-10-27 06:00'));
+$correction=testSubmit(9,'academico',[slot('2026-12-10','07:30','08:30')],[],new DateTimeImmutable($today.' 06:00'));
 $wf->review(person(11),$correction,'returned','Corrija el motivo de su solicitud');
 $snapshot=row('SELECT snapshot FROM requests WHERE id=?',[$correction]);$snapshotData=json_decode($snapshot['snapshot'],true);$snapshotData['archived_data']=$archivedSnapshot['archived_data'];
 run('UPDATE requests SET snapshot=? WHERE id=?',[json_encode($snapshotData),$correction]);
-$wf->submit(person(9),['category_id'=>cat('academico')['id'],'slots'=>[slot('2026-12-10','09:00','10:00')],'justification'=>'Solicitud corregida con jornada laboral configurada'],[],$correction,new DateTimeImmutable('2026-10-27 06:00'));
+$wf->submit(person(9),['category_id'=>cat('academico')['id'],'slots'=>[slot('2026-12-10','09:00','10:00')],'justification'=>'Solicitud corregida con jornada laboral configurada'],[],$correction,new DateTimeImmutable($today.' 06:00'));
 check(json_decode(row('SELECT snapshot FROM requests WHERE id=?',[$correction])['snapshot'],true)['archived_data']===$archivedSnapshot['archived_data'],'La corrección conserva la copia histórica sin reactivar el horario retirado');

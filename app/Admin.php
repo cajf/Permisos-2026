@@ -6,6 +6,8 @@ function saveUser(array $actor,array $data,?int $id=null): void {
     atomic(function() use($actor,$data,$id) {
         $existing=$id?row('SELECT * FROM users WHERE id=?',[$id]):null;
         if ($id) ensure($existing!==null,'Funcionario no encontrado.');
+        $data=array_replace($data,resolveJob($data));
+        if (!$existing) ensure($data['code']!=='' && $data['grade']!=='','Complete el código y los grados del cargo antes de asignarlo a un nuevo funcionario.');
         foreach (['name','identification','username','email','job_title'] as $field) ensure(trim($data[$field]??'')!=='','Complete los campos obligatorios del funcionario.');
         ensure(filter_var($data['email'],FILTER_VALIDATE_EMAIL)!==false,'El correo no es válido.');
         ensure(preg_match('/^[a-zA-Z0-9._@-]{3,80}$/D',$data['username'])===1,'El usuario admite de 3 a 80 letras, números, puntos, @, guiones y guiones bajos.');
@@ -67,6 +69,9 @@ function commitImport(array $actor,array $data): array {
     return atomic(function() use($actor,$data) {
         $passwords=[]; $ids=[]; $seen=[];
         foreach ($data as $i=>$r) {
+            try { $job=resolveJob(['job_title'=>$r['cargo']??'','code'=>$r['codigo']??'','grade'=>$r['grado']??'']); }
+            catch (DomainException $e) { throw new DomainException('Fila '.($i+2).': '.$e->getMessage().' Registre primero la combinación en Cargos, códigos y grados.'); }
+            $r=array_replace($r,['cargo'=>$job['job_title'],'codigo'=>$job['code'],'grado'=>$job['grade']]);
             ensure($r['cedula']!=='' && $r['nombre']!=='' && $r['cargo']!=='' && $r['dependencia']!=='','Faltan datos en la fila '.($i+2).'.');
             ensure(!isset($seen[$r['cedula']]),'La cédula '.$r['cedula'].' está repetida.'); $seen[$r['cedula']]=true;
             ensure(filter_var($r['correo'],FILTER_VALIDATE_EMAIL)!==false,'Correo no válido en la fila '.($i+2).'.');
