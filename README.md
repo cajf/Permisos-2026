@@ -140,3 +140,7 @@ Talento Humano registra los cargos con su código y grados desde **Cargos y grad
 Para actualizar una instalación existente, ejecute `php scripts/update-job-catalog.php` con acceso administrativo a MySQL. La herramienta crea un respaldo verificado, agrega las tablas y traslada los cargos actuales sin inventar datos faltantes. No requiere ampliar los privilegios del usuario web. Consulte [las instrucciones](docs/cargos-y-aprobaciones.md).
 
 La aprobación individual y la masiva comparten las validaciones. Cada solicitud del lote se procesa en su propia transacción; si falla, se muestra el motivo en su fila y continúa el resto del lote. Se admite el registro urgente y la aprobación excepcional durante el disfrute con justificación. Cada aprobador debe explicar su motivo; en lotes se exige por solicitud. No se registran ni aprueban periodos completamente terminados. Se conserva toda la duración original, con trazabilidad en historial y PDF.
+
+## Certificado electoral para Sufragar
+
+El OCR local de Tesseract contrasta cédula y fecha electoral y exige disfrute entre los días 1 y 30 calendario siguientes. Las inconsistencias legibles bloquean el registro; la falta de lectura permite radicar con alerta destacada y revisión manual obligatoria por cada aprobador, también en lotes. El resultado se conserva en la copia histórica de la solicitud y en el PDF, sin agregar tablas. Consulte [configuración, límites y pruebas](docs/certificado-electoral.md). El Dockerfile incorpora las dependencias de OCR y PDF para la nube.

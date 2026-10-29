@@ -86,4 +86,5 @@ $csrf=login('qa8');$subPost['csrf']=$csrf;ok(str_contains(http('page=inbox',$sub
 
 require __DIR__.'/designations-http.php';
 require __DIR__.'/ongoing-http.php';
+require __DIR__.'/electoral-http.php';
 file_put_contents($root.'/.work/http-result.json',json_encode(['checks'=>$checks,'request_id'=>$id,'completed'=>date(DATE_ATOM)],JSON_PRETTY_PRINT));echo "\n$checks comprobaciones HTTP correctas.\n";

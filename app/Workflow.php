@@ -50,7 +50,8 @@ final class Workflow {
     }
     public function submit(array $owner,array $input,array $files=[],?int $id=null,?DateTimeImmutable $clock=null): int {
         $clock??=new DateTimeImmutable();
-        return atomic(function() use($owner,$input,$files,$id,$clock) {
+        $electoral=ElectoralCertificate::prepare($owner,$input,$files,$id);
+        return atomic(function() use($owner,$input,$files,$id,$clock,$electoral) {
             $old=$id?row('SELECT * FROM requests WHERE id=?',[$id]):null;
             if ($id) ensure($old && (int)$old['user_id']===(int)$owner['id'] && $old['status']==='returned','Solo puede corregir una solicitud propia devuelta.');
             $category=row('SELECT * FROM categories WHERE id=?',[(int)($input['category_id']??0)]);
@@ -95,6 +96,7 @@ final class Workflow {
             $route=$this->route($owner,$category,$total,$clock->format('Y-m-d'));
             $revision=$old?(int)$old['revision']+1:1;
             $snapshotData=array_intersect_key($owner,array_flip(['name','identification','job_title','code','grade','department','appointment_type','high_rank']));
+            if($category['slug']==='sufragar') $snapshotData['electoral_check']=ElectoralCertificate::validate($electoral,$owner['identification'],$slots,$clock->format('Y-m-d'));
             if ($old) {
                 $previousSnapshot=json_decode($old['snapshot'],true,512,JSON_THROW_ON_ERROR);
                 if (isset($previousSnapshot['archived_data'])) $snapshotData['archived_data']=$previousSnapshot['archived_data'];
@@ -128,8 +130,9 @@ final class Workflow {
             foreach ($route as $i=>$step) insert('approvals',$step+['request_id'=>$id,'revision'=>$revision,'step'=>$i+1]);
             saveUploads($files,(int)$owner['id'],$id);
             event((int)$owner['id'],$old?'Solicitud corregida':'Solicitud registrada','Revisión '.$revision.' · '.hours($total),$id);
+            if(isset($snapshotData['electoral_check'])) event((int)$owner['id'],'Validación de certificado electoral',ElectoralCertificate::summary($snapshotData['electoral_check']),$id);
             if ($urgent) event((int)$owner['id'],'Registro urgente durante el disfrute',$exception,$id);
-            notify((int)$route[0]['assigned_user_id'],'Solicitud pendiente TH-'.$id,'Tiene una solicitud pendiente de revisión. Ingrese a la aplicación para consultar los soportes.');
+            notify((int)$route[0]['assigned_user_id'],'Solicitud pendiente TH-'.$id,'Tiene una solicitud pendiente de revisión. Ingrese a la aplicación para consultar los soportes.'.(isset($snapshotData['electoral_check']) && $snapshotData['electoral_check']['status']==='manual'?' ATENCIÓN: revisión manual obligatoria del certificado electoral.':''));
             notify((int)$owner['id'],'Solicitud registrada TH-'.$id,'Su solicitud fue registrada y enviada a aprobación.');
             captureBalances((int)$owner['id']);
             return $id;
@@ -169,11 +172,11 @@ final class Workflow {
             captureBalances((int)$act['user_id']);
         });
     }
-    public function review(array $actor,int $id,string $decision,string $comment,string $exceptionReason=''): void {
-        $this->reviewStep($actor,$id,$decision,$comment,null,$exceptionReason);
+    public function review(array $actor,int $id,string $decision,string $comment,string $exceptionReason='',string $electoralReview=''): void {
+        $this->reviewStep($actor,$id,$decision,$comment,null,$exceptionReason,$electoralReview);
     }
-    private function reviewStep(array $actor,int $id,string $decision,string $comment,?int $bulkApprovalId=null,string $exceptionReason=''): void {
-        atomic(function() use($actor,$id,$decision,$comment,$bulkApprovalId,$exceptionReason) {
+    private function reviewStep(array $actor,int $id,string $decision,string $comment,?int $bulkApprovalId=null,string $exceptionReason='',string $electoralReview=''): void {
+        atomic(function() use($actor,$id,$decision,$comment,$bulkApprovalId,$exceptionReason,$electoralReview) {
             $r=row('SELECT * FROM requests WHERE id=?',[$id]);
             ensure($r && $r['status']==='pending','La solicitud no está pendiente de aprobación.');
             $step=row("SELECT * FROM approvals WHERE request_id=? AND revision=? AND status='waiting' ORDER BY step LIMIT 1",[$id,$r['revision']]);
@@ -196,6 +199,11 @@ final class Workflow {
             if ($decision==='approved') {
                 $exceptional=$this->validateApproval($r,$exceptionReason);
                 if ($exceptional) $comment='Aprobación excepcional durante el disfrute. Motivo: '.trim($exceptionReason).($comment!==''?' · Observación: '.$comment:'');
+                $category=row('SELECT slug FROM categories WHERE id=?',[$r['category_id']]);
+                if($category['slug']==='sufragar' && ElectoralCertificate::needsManual($r)) {
+                    ensure(mb_strlen(trim($electoralReview))>=10 && mb_strlen(trim($electoralReview))<=1500,'Revise manualmente el certificado electoral y registre para esta solicitud la verificación de cédula, fecha de elecciones y plazo de 30 días (entre 10 y 1.500 caracteres).');
+                    $comment='Revisión manual del certificado electoral: '.trim($electoralReview).($comment!==''?' · '.$comment:'');
+                }
             }
             run('UPDATE approvals SET status=?,acted_by=?,acted_at=?,comment=? WHERE id=?',[$decision,$actor['id'],now(),$comment,$step['id']]);
             $next=row("SELECT * FROM approvals WHERE request_id=? AND revision=? AND status='waiting' ORDER BY step LIMIT 1",[$id,$r['revision']]);
@@ -208,7 +216,7 @@ final class Workflow {
             run('UPDATE requests SET status=?,updated_at=? WHERE id=?',[$status,now(),$id]);
             event((int)$actor['id'],'Revisión: '.statusLabel($decision),roleLabel($step['role']).($bulkApprovalId!==null?' · Aprobación masiva':'').' · '.$comment,$id);
             notify((int)$r['user_id'],'Novedad de solicitud TH-'.$id,statusLabel($status).' · '.$comment);
-            if ($decision==='approved' && $next) notify((int)$next['assigned_user_id'],'Solicitud pendiente TH-'.$id,'La etapa anterior fue aprobada. Puede revisar la solicitud.');
+            if ($decision==='approved' && $next) notify((int)$next['assigned_user_id'],'Solicitud pendiente TH-'.$id,'La etapa anterior fue aprobada. Puede revisar la solicitud.'.(($category['slug']??'')==='sufragar' && ElectoralCertificate::needsManual($r)?' ATENCIÓN: revisión manual obligatoria del certificado electoral.':''));
             captureBalances((int)$r['user_id']);
         });
     }
@@ -228,6 +236,13 @@ final class Workflow {
         if ($state==='ongoing') ensure(mb_strlen(trim($exceptionReason))>=10 && mb_strlen(trim($exceptionReason))<=2500,'El disfrute ya comenzó. Registre una justificación de aprobación excepcional entre 10 y 2.500 caracteres para esta solicitud.');
         $category=row('SELECT * FROM categories WHERE id=?',[$request['category_id']]);
         ensure($category!==null,'El tipo de solicitud ya no está disponible.');
+        if($category['slug']==='sufragar' && !ElectoralCertificate::needsManual($request)) {
+            $snapshot=json_decode($request['snapshot'],true,512,JSON_THROW_ON_ERROR);
+            $checked=ElectoralCertificate::validate($snapshot['electoral_check'],(string)$snapshot['identification'],rows('SELECT * FROM request_slots WHERE request_id=?',[$id]));
+            ensure($checked['status']==='verified','La lectura electoral guardada no es concluyente. Devuelva la solicitud para revisar el soporte.');
+            $hashes=array_column(rows('SELECT sha256 FROM attachments WHERE request_id=?',[$id]),'sha256');
+            foreach($checked['documents'] as $document) if($document['recognized']) ensure(in_array($document['sha256'],$hashes,true),'Falta el soporte que se utilizó para validar el certificado electoral. Devuelva la solicitud para corregir.');
+        }
         if ((int)$category['supports_required']===1) ensure(row('SELECT id FROM attachments WHERE request_id=? LIMIT 1',[$id])!==null,'Falta el soporte obligatorio. Devuelva la solicitud para adjuntarlo.');
         if ($category['slug']!=='cumpleanos' && $category['max_minutes']!==null && (int)$category['policy_confirmed']===1) ensure((int)$request['total_minutes']<=(int)$category['max_minutes'],'La duración supera el límite vigente del tipo de solicitud.');
         if ($category['slug']==='ordinario') {
@@ -245,7 +260,7 @@ final class Workflow {
         }
         return $state==='ongoing';
     }
-    public function approveMany(array $actor,array $approvalIds,string $comment='',array $exceptionReasons=[]): array {
+    public function approveMany(array $actor,array $approvalIds,string $comment='',array $exceptionReasons=[],array $electoralReviews=[]): array {
         ensure(hasRole($actor,'manager') || hasRole($actor,'subsecretary'),'La aprobación masiva requiere rol de jefe inmediato o subsecretario.');
         ensure(count($approvalIds)>0 && count($approvalIds)<=100,'Seleccione entre una y 100 solicitudes.');
         $ids=[];
@@ -265,7 +280,9 @@ final class Workflow {
                 $seenRequests[$requestId]=true;
                 $reason=$exceptionReasons[$requestId]??'';
                 ensure(is_string($reason),'La justificación excepcional de esta solicitud no es válida.');
-                $this->reviewStep($actor,$requestId,'approved',$comment,$approvalId,$reason);
+                $electoralReview=$electoralReviews[$requestId]??'';
+                ensure(is_string($electoralReview),'La revisión manual del certificado electoral no es válida.');
+                $this->reviewStep($actor,$requestId,'approved',$comment,$approvalId,$reason,$electoralReview);
                 $result['approved'][]=$requestId;
             } catch (DomainException $e) {
                 $result['failed'][]=['approval_id'=>$approvalId,'request_id'=>$requestId,'message'=>$e->getMessage()];

@@ -7,3 +7,5 @@
 .brand.brand-image{display:block;width:100px;max-width:100%;padding:6px;background:#fff;border-radius:6px;flex-shrink:0}.brand-image img{display:block;width:100%;max-width:100%;height:auto}.login-story>.brand-image{width:108px;padding:6px}.login-story>div{padding:24px 0}.sidebar{overflow-y:auto}.sidebar .brand-image{margin-bottom:16px}@media(max-width:700px){.login-story>.brand-image{width:90px}.login-story>div{padding:20px 0 0}}
 /* Resultado individual de las aprobaciones masivas. */
 .approval-error{display:block;max-width:340px;margin-top:8px;color:#a32929;font-weight:600;white-space:normal}input[readonly]{background:#f3f5f4}
+/* El aviso electoral conserva texto explícito y contraste, también sin JavaScript. */
+.electoral-alert{background:#fff0db;border:2px solid #a14800;color:#542900;padding:18px;margin:16px 0}.electoral-alert h2{color:#542900}.electoral-alert label{display:block;margin-top:12px}.electoral-alert textarea{background:#fff;color:#172f35;width:100%}

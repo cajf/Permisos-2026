@@ -165,5 +165,6 @@ require __DIR__.'/catalog-bulk.php';
 require __DIR__.'/ongoing.php';
 require __DIR__.'/migrations.php';
 require __DIR__.'/mysql.php';
+require __DIR__.'/electoral.php';
 echo "\n$checks comprobaciones correctas.\n";
 file_put_contents(ROOT.'/.work/test-result.json',json_encode(['checks'=>$checks,'database'=>$GLOBALS['config']['mysql']['database'],'database_config'=>$GLOBALS['test_configuration_file'],'engine'=>db()->query('SELECT VERSION()')->fetchColumn(),'completed'=>now()],JSON_PRETTY_PRINT));

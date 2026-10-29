@@ -9,6 +9,8 @@ return [
     'base_url' => 'http://127.0.0.1:8088',
     'attachment_storage' => 'filesystem',
     'trust_proxy' => false,
+    // Rutas absolutas opcionales. Vacías: .runtime en Windows y PATH en Linux.
+    'electoral_ocr' => ['tesseract'=>'', 'pdftoppm'=>'', 'pdfinfo'=>''],
     'smtp' => [
         // Sin servidor configurado, los mensajes permanecen pendientes en la cola.
         'host' => '', 'port' => 587, 'username' => '', 'password' => '',

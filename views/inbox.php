@@ -2,7 +2,7 @@
 $inboxFilter="FROM requests r JOIN categories c ON c.id=r.category_id JOIN users u ON u.id=r.user_id JOIN approvals a ON a.request_id=r.id AND a.revision=r.revision WHERE r.status='pending' AND a.status='waiting' AND a.assigned_user_id=? AND NOT EXISTS(SELECT 1 FROM approvals b WHERE b.request_id=a.request_id AND b.revision=a.revision AND b.step<a.step AND b.status='waiting')";
 $totalPending=(int)row('SELECT COUNT(*) n '.$inboxFilter,[$u['id']])['n'];
 $pageCount=max(1,(int)ceil($totalPending/100));$inboxPage=min($pageCount,max(1,(int)($_GET['inbox_page']??1)));
-$pendingRows=rows('SELECT r.*,c.name category,c.family,u.name,a.id pending_approval_id,a.role pending_role '.$inboxFilter.' ORDER BY r.created_at,r.id LIMIT 100 OFFSET '.(($inboxPage-1)*100),[$u['id']]);
+$pendingRows=rows('SELECT r.*,c.name category,c.family,c.slug,u.name,a.id pending_approval_id,a.role pending_role '.$inboxFilter.' ORDER BY r.created_at,r.id LIMIT 100 OFFSET '.(($inboxPage-1)*100),[$u['id']]);
 $canBulk=(hasRole($u,'manager')||hasRole($u,'subsecretary')) && count(array_filter($pendingRows,fn($r)=>in_array($r['pending_role'],['manager','subsecretary'],true)))>0;
 $bulkResult=$_SESSION['bulk_result']??null;unset($_SESSION['bulk_result']);
 if ($bulkResult) $_SESSION['bulk_failures']=$bulkResult['failed'];
@@ -35,6 +35,6 @@ $failureMessages=[]; foreach($_SESSION['bulk_failures']??[] as $failure) if($fai
     <?php else: requestTable($pendingRows,false,$failureMessages); endif; ?>
     <?php if($pageCount>1): ?><nav class="bulk-pagination" aria-label="Páginas de solicitudes pendientes"><?php if($inboxPage>1): ?><a class="button secondary small" href="/?page=inbox&amp;inbox_page=<?=$inboxPage-1?>">Anterior</a><?php endif; ?><span class="fine">Página <?=$inboxPage?> de <?=$pageCount?></span><?php if($inboxPage<$pageCount): ?><a class="button secondary small" href="/?page=inbox&amp;inbox_page=<?=$inboxPage+1?>">Siguiente</a><?php endif; ?></nav><?php endif; ?>
 </section>
-<?php if(hasRole($u,'subsecretary')): $cancels=[]; foreach(rows("SELECT r.*,c.name category,c.family,u.name FROM requests r JOIN categories c ON c.id=r.category_id JOIN users u ON u.id=r.user_id WHERE r.status='cancel_pending'") as $r) { try { if((int)$r['cancellation_assignee_id']===(int)$u['id']) $cancels[]=$r; } catch(DomainException){} } ?>
+<?php if(hasRole($u,'subsecretary')): $cancels=[]; foreach(rows("SELECT r.*,c.name category,c.family,c.slug,u.name FROM requests r JOIN categories c ON c.id=r.category_id JOIN users u ON u.id=r.user_id WHERE r.status='cancel_pending'") as $r) { try { if((int)$r['cancellation_assignee_id']===(int)$u['id']) $cancels[]=$r; } catch(DomainException){} } ?>
 <section class="panel"><div class="panel-header"><h2>Cancelaciones por autorizar</h2></div><?php requestTable($cancels); ?></section>
 <?php endif; ?>

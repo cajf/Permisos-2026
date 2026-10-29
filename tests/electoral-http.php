@@ -1,0 +1,21 @@
+<?php
+declare(strict_types=1);
+$csrf=login('electoral.qa');
+$electoralInput=['action'=>'submit','csrf'=>$csrf,'category_id'=>'10','justification'=>'Prueba HTTP de certificado electoral no reconocible','exception_reason'=>'Excepción de prueba para verificar OCR','slots[0][date]'=>'2026-11-19','slots[0][start]'=>'07:30','slots[0][end]'=>'08:30','slots[0][mode]'=>'hours','supports[0]'=>new CURLFile($root.'/.work/soporte.png','image/png','soporte-ilegible.png')];
+$submitted=http('page=new',$electoralInput,true);
+ok($submitted['code']===302 && preg_match('/Location: \/\?page=request&id=(\d+)/i',$submitted['headers'],$electoralMatch)===1,'HTTP registra Sufragar con soporte no reconocible para revisión manual');
+$electoralId=(int)$electoralMatch[1];
+ok(str_contains(http('page=request&id='.$electoralId)['body'],'Atención revisión manual obligatoria'),'Detalle destaca que OCR no pudo validar el certificado');
+$badWindow=$electoralInput;$badWindow['slots[0][date]']='2026-11-25';$badWindow['supports[0]']=new CURLFile($root.'/.work/electoral-sample.png','image/png','MUESTRA-SIN-VALIDEZ.png');
+$blocked=http('page=new',$badWindow,true);
+ok($blocked['code']===200 && str_contains($blocked['body'],'30 días calendario') && !str_contains($blocked['headers'],'Location:'),'HTTP bloquea fechas fuera de plazo cuando el certificado se lee');
+$csrf=login('qa2');$inbox=http('page=inbox');
+ok(str_contains($inbox['body'],'electoral_reviews['.$electoralId.']') && str_contains($inbox['body'],'REVISIÓN MANUAL OBLIGATORIA'),'Bandeja masiva ofrece alerta y constancia individual del certificado');
+$attempt=http('page=request&id='.$electoralId,['action'=>'review','csrf'=>$csrf,'id'=>$electoralId,'decision'=>'approved','comment'=>''],true);
+ok($attempt['code']===200 && str_contains($attempt['body'],'Revise manualmente el certificado'),'Servidor no permite saltar la revisión manual desde el detalle');
+$proof='Cédula y fecha electoral revisadas manualmente; disfrute dentro de los 30 días.';
+$decision=http('page=request&id='.$electoralId,['action'=>'review','csrf'=>$csrf,'id'=>$electoralId,'decision'=>'approved','comment'=>'','electoral_review'=>$proof],true);
+ok($decision['code']===302,'Detalle permite aprobar tras registrar la constancia manual');
+$csrf=login('qa3');$inbox=http('page=inbox');$electoralStage=inboxApproval($inbox['body'],$electoralId);
+$batch=http('page=inbox',['action'=>'approve_bulk','csrf'=>$csrf,'approval_ids[0]'=>$electoralStage,'electoral_reviews['.$electoralId.']'=>$proof],true);
+ok($batch['code']===302 && str_contains(http('page=request&id='.$electoralId)['body'],'badge badge-approved">Aprobada'),'Ruta HTTP masiva transmite la constancia electoral y completa la segunda etapa');

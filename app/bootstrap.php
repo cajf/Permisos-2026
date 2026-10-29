@@ -71,5 +71,6 @@ function familyLabel(string $s): string { return ['permiso'=>'Permiso','compensa
 require_once __DIR__.'/Calendar.php';
 require_once __DIR__.'/Workflow.php';
 require_once __DIR__.'/Files.php';
+require_once __DIR__.'/ElectoralCertificate.php';
 require_once __DIR__.'/Designations.php';
 require_once __DIR__.'/JobCatalog.php';
