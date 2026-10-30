@@ -153,4 +153,4 @@ El subsecretario titular vigente dispone de un tablero con actualización cada 3
 
 ## Consulta de saldos
 
-La pantalla inicia sin resultados. Al pulsar Consultar saldos filtra en MySQL por intervalo de fechas, nombres o apellidos (sin distinguir tildes ni mayúsculas) y dependencia, con alcance de acceso y páginas de 20 funcionarios. Presenta el último registro de saldo de cada funcionario dentro del intervalo; no recalcula consumos del periodo. Las pruebas aisladas están en tests/balance-search-run.php.
+La pantalla inicia sin resultados. Al pulsar Consultar saldos filtra en MySQL por intervalo de fechas, nombres o apellidos (sin distinguir tildes ni mayúsculas) y dependencia, con alcance de acceso y páginas de 10 funcionarios. Presenta el último registro de saldo de cada funcionario dentro del intervalo; no recalcula consumos del periodo. Las pruebas aisladas están en tests/balance-search-run.php.

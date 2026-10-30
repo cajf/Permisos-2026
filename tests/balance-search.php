@@ -36,6 +36,7 @@ for($i=0;$i<22;$i++){
  insert('balance_snapshots',['user_id'=>$id,'department_id'=>1,'created_at'=>$day.' 10:00:00','data'=>$data]);
 }
 $first=searchBalanceSnapshots(person(5),$input);$second=searchBalanceSnapshots(person(5),$input+['results_page'=>2]);
-check(count($first['items'])===20&&$first['more']&&count($second['items'])===4&&!$second['more'],'Paginación limita carga a 20 funcionarios y detecta siguiente página');
+$third=searchBalanceSnapshots(person(5),$input+['results_page'=>3]);
+check(count($first['items'])===10&&$first['more']&&count($second['items'])===10&&$second['more']&&count($third['items'])===4&&!$third['more'],'Paginación limita carga a 10 funcionarios y detecta última página');
 check(!array_intersect(array_column($first['items'],'id'),array_column($second['items'],'id')),'Páginas sin duplicados');
 echo $checks." comprobaciones de consulta de saldos correctas.\n";

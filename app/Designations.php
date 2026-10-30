@@ -80,9 +80,9 @@ function searchBalanceSnapshots(array $viewer,array $input): array {
     if($name!==''){$where[]="JSON_UNQUOTE(JSON_EXTRACT(s.data,'$.name')) COLLATE utf8mb4_0900_ai_ci LIKE CONVERT(? USING utf8mb4) COLLATE utf8mb4_0900_ai_ci ESCAPE '='";$params[]='%'.str_replace(['=','%','_'],['==','=%','=_'],$name).'%';}
     // Una ficha por funcionario: último saldo registrado dentro del intervalo.
     $where[]='NOT EXISTS(SELECT 1 FROM balance_snapshots newer WHERE newer.user_id=s.user_id AND newer.created_at<=? AND (newer.created_at>s.created_at OR (newer.created_at=s.created_at AND newer.id>s.id)))';$params[]=$to.' 23:59:59';
-    $page=max(1,min(100000,(int)($input['results_page']??1)));$offset=($page-1)*20;
-    $items=rows('SELECT s.*,d.name department FROM balance_snapshots s JOIN departments d ON d.id=s.department_id WHERE '.implode(' AND ',$where).' ORDER BY s.user_id LIMIT 21 OFFSET '.$offset,$params);
-    $more=count($items)>20;return ['items'=>array_slice($items,0,20),'more'=>$more,'page'=>$page];
+    $page=max(1,min(100000,(int)($input['results_page']??1)));$offset=($page-1)*10;
+    $items=rows('SELECT s.*,d.name department FROM balance_snapshots s JOIN departments d ON d.id=s.department_id WHERE '.implode(' AND ',$where).' ORDER BY s.user_id LIMIT 11 OFFSET '.$offset,$params);
+    $more=count($items)>10;return ['items'=>array_slice($items,0,10),'more'=>$more,'page'=>$page];
 }
 function initializeBalanceHistory(): void {
     if (!tableExists('balance_snapshots') || setting('balance_history_started')!=='') return;
