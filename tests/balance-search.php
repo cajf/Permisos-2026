@@ -7,6 +7,8 @@ check(count(searchBalanceSnapshots(person(1),$input)['items'])===1,'Funcionario 
 check(!canFilterBalanceDepartment(person(1))&&canFilterBalanceDepartment(person(5)),'Funcionario sin filtro de dependencia; administrador conserva selector');
 check(count(searchBalanceSnapshots(person(1),array_replace($input,['department'=>'999']))['items'])===1,'Funcionario consulta todas sus dependencias aunque llegue filtro ajeno por URL');
 check(count(searchBalanceSnapshots(person(1),array_replace($input,['department'=>"1 OR 1=1"]))['items'])===1,'Servidor ignora dependencia manipulada para consulta personal');
+check(count(searchBalanceSnapshots(person(1),$input+['name'=>'Otra persona'])['items'])===1,'Servidor ignora nombre ajeno en consulta personal');
+check(count(searchBalanceSnapshots(person(1),$input+['name'=>str_repeat('x',121)])['items'])===1,'Nombre enviado por URL no impide consultar los propios saldos');
 check(count(searchBalanceSnapshots(person(5),$input+['name'=>'perez'])['items'])===2,'Busca apellidos sin exigir mayúsculas o tildes');
 check(searchBalanceSnapshots(person(5),$input+['name'=>"' OR 1=1 --"])['items']===[],'Nombre se trata como parámetro literal');
 check(searchBalanceSnapshots(person(5),array_replace($input,['department'=>'999']))['items']===[],'Dependencia filtra antes de cargar datos');
