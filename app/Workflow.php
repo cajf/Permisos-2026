@@ -95,8 +95,13 @@ final class Workflow {
             }
             $route=$this->route($owner,$category,$total,$clock->format('Y-m-d'));
             $revision=$old?(int)$old['revision']+1:1;
+            if($category['slug']==='jurado') {
+                ensure(in_array($input['jury_role']??'', ['jurado','clavero'],true),'Seleccione si solicita por clavero o por jurado.');
+                ensure(count($slots)===1 && (int)$slots[0]['is_full_day']===1,'Clavero o jurado permite una única jornada completa de disfrute. Seleccione Día completo.');
+            }
             $snapshotData=array_intersect_key($owner,array_flip(['name','identification','job_title','code','grade','department','appointment_type','high_rank']));
-            if($category['slug']==='sufragar') $snapshotData['electoral_check']=ElectoralCertificate::validate($electoral,$owner['identification'],$slots,$clock->format('Y-m-d'));
+            if($category['slug']==='jurado') $snapshotData['jury_role']=$input['jury_role'];
+            if($electoral!==null) $snapshotData['electoral_check']=ElectoralCertificate::validate($electoral,$owner['identification'],$slots,$clock->format('Y-m-d'));
             if ($old) {
                 $previousSnapshot=json_decode($old['snapshot'],true,512,JSON_THROW_ON_ERROR);
                 if (isset($previousSnapshot['archived_data'])) $snapshotData['archived_data']=$previousSnapshot['archived_data'];
@@ -200,8 +205,8 @@ final class Workflow {
                 $exceptional=$this->validateApproval($r,$exceptionReason);
                 if ($exceptional) $comment='Aprobación excepcional durante el disfrute. Motivo: '.trim($exceptionReason).($comment!==''?' · Observación: '.$comment:'');
                 $category=row('SELECT slug FROM categories WHERE id=?',[$r['category_id']]);
-                if($category['slug']==='sufragar' && ElectoralCertificate::needsManual($r)) {
-                    ensure(mb_strlen(trim($electoralReview))>=10 && mb_strlen(trim($electoralReview))<=1500,'Revise manualmente el certificado electoral y registre para esta solicitud la verificación de cédula, fecha de elecciones y plazo de 30 días (entre 10 y 1.500 caracteres).');
+                if(($category['slug']==='sufragar' || ($category['slug']==='jurado' && (json_decode($r['snapshot'],true)['jury_role']??'')!=='clavero')) && ElectoralCertificate::needsManual($r)) {
+                    ensure(mb_strlen(trim($electoralReview))>=10 && mb_strlen(trim($electoralReview))<=1500,'Revise manualmente el certificado electoral y registre para esta solicitud la verificación de cédula, fecha de elecciones y plazo aplicable de 30 días calendario o 45 días hábiles (entre 10 y 1.500 caracteres).');
                     $comment='Revisión manual del certificado electoral: '.trim($electoralReview).($comment!==''?' · '.$comment:'');
                 }
             }
@@ -216,7 +221,7 @@ final class Workflow {
             run('UPDATE requests SET status=?,updated_at=? WHERE id=?',[$status,now(),$id]);
             event((int)$actor['id'],'Revisión: '.statusLabel($decision),roleLabel($step['role']).($bulkApprovalId!==null?' · Aprobación masiva':'').' · '.$comment,$id);
             notify((int)$r['user_id'],'Novedad de solicitud TH-'.$id,statusLabel($status).' · '.$comment);
-            if ($decision==='approved' && $next) notify((int)$next['assigned_user_id'],'Solicitud pendiente TH-'.$id,'La etapa anterior fue aprobada. Puede revisar la solicitud.'.(($category['slug']??'')==='sufragar' && ElectoralCertificate::needsManual($r)?' ATENCIÓN: revisión manual obligatoria del certificado electoral.':''));
+            if ($decision==='approved' && $next) notify((int)$next['assigned_user_id'],'Solicitud pendiente TH-'.$id,'La etapa anterior fue aprobada. Puede revisar la solicitud.'.((($category['slug']??'')==='sufragar' || (($category['slug']??'')==='jurado' && (json_decode($r['snapshot'],true)['jury_role']??'')!=='clavero')) && ElectoralCertificate::needsManual($r)?' ATENCIÓN: revisión manual obligatoria del certificado electoral.':''));
             captureBalances((int)$r['user_id']);
         });
     }
@@ -236,7 +241,12 @@ final class Workflow {
         if ($state==='ongoing') ensure(mb_strlen(trim($exceptionReason))>=10 && mb_strlen(trim($exceptionReason))<=2500,'El disfrute ya comenzó. Registre una justificación de aprobación excepcional entre 10 y 2.500 caracteres para esta solicitud.');
         $category=row('SELECT * FROM categories WHERE id=?',[$request['category_id']]);
         ensure($category!==null,'El tipo de solicitud ya no está disponible.');
-        if($category['slug']==='sufragar' && !ElectoralCertificate::needsManual($request)) {
+        if($category['slug']==='jurado') {
+            ensure(in_array(json_decode($request['snapshot'],true)['jury_role']??'', ['jurado','clavero'],true),'Falta clasificar la solicitud como jurado o clavero. Devuélvala para corregir.');
+            $jurySlots=rows('SELECT * FROM request_slots WHERE request_id=?',[$id]);
+            ensure(count($jurySlots)===1 && (int)$jurySlots[0]['is_full_day']===1 && $this->calendar->isBusinessDay($jurySlots[0]['date']),'Clavero o jurado exige una única jornada completa. Devuelva la solicitud para corregir.');
+        }
+        if(in_array($category['slug'],['sufragar','jurado'],true) && !ElectoralCertificate::needsManual($request)) {
             $snapshot=json_decode($request['snapshot'],true,512,JSON_THROW_ON_ERROR);
             $checked=ElectoralCertificate::validate($snapshot['electoral_check'],(string)$snapshot['identification'],rows('SELECT * FROM request_slots WHERE request_id=?',[$id]));
             ensure($checked['status']==='verified','La lectura electoral guardada no es concluyente. Devuelva la solicitud para revisar el soporte.');

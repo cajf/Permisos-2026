@@ -58,6 +58,8 @@ if(form){
  async function refresh(){
   updateSupports();
   const seq=++sequence;let total=0;
+  const jury=category.selectedOptions[0]?.dataset.slug==='jurado';document.querySelector('#add-slot').disabled=jury;
+  slots.querySelectorAll('select').forEach(select=>{select.querySelector('option[value=hours]').disabled=jury;if(jury)select.value='full';});
   await Promise.all([...slots.children].map(async row=>{
    const date=row.querySelector('[type=date]'),times=row.querySelectorAll('[type=time]'),full=row.querySelector('select').value==='full';times.forEach(t=>t.disabled=full);
    if(!date.value){row.dataset.minutes='0';row.querySelector('.slot-result').textContent='';return;}
@@ -70,6 +72,7 @@ if(form){
   const selected=category.selectedOptions[0],slug=selected?.dataset.slug,high=document.querySelector('#route-guide').dataset.highRank;
   document.querySelector('#allocation-panel').hidden=slug!=='acto';document.querySelector('#relationship-field').hidden=slug!=='luto';document.querySelector('[name=relationship]').required=slug==='luto';
   document.querySelector('#birthday-year-field').hidden=slug!=='cumpleanos';
+  document.querySelector('#jury-role-field').hidden=slug!=='jurado';document.querySelector('#jury-role').required=slug==='jurado';
   document.querySelector('#electoral-guide').hidden=slug!=='sufragar';
   const guide=document.querySelector('#route-guide');guide.textContent=!slug?'Selecciona el tipo y las fechas.':high&&selected.dataset.family==='permiso'?'Alcalde · aprobación exclusiva':slug==='ordinario'&&total>0&&total<=120?'Jefe inmediato · aprobación única':'Jefe inmediato → Subsecretario de Talento Humano';
  }

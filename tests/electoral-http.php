@@ -19,3 +19,17 @@ ok($decision['code']===302,'Detalle permite aprobar tras registrar la constancia
 $csrf=login('qa3');$inbox=http('page=inbox');$electoralStage=inboxApproval($inbox['body'],$electoralId);
 $batch=http('page=inbox',['action'=>'approve_bulk','csrf'=>$csrf,'approval_ids[0]'=>$electoralStage,'electoral_reviews['.$electoralId.']'=>$proof],true);
 ok($batch['code']===302 && str_contains(http('page=request&id='.$electoralId)['body'],'badge badge-approved">Aprobada'),'Ruta HTTP masiva transmite la constancia electoral y completa la segunda etapa');
+
+$csrf=login('electoral.qa');
+ok(str_contains(http('page=new')['body'],'name="jury_role"'),'Formulario ofrece clasificación clavero o jurado');
+$juryPost=$electoralInput;$juryPost['csrf']=$csrf;$juryPost['category_id']='11';$juryPost['jury_role']='clavero';$juryPost['slots[0][date]']='2026-11-23';$juryPost['slots[0][mode]']='full';
+$jr=http('page=new',$juryPost,true);ok($jr['code']===302 && preg_match('/Location: \/\?page=request&id=(\d+)/i',$jr['headers'],$jm)===1,'HTTP registra un día completo como clavero');
+$claveroId=(int)$jm[1];ok(str_contains(http('page=request&id='.$claveroId)['body'],'clavero'),'Detalle conserva clasificación de clavero');
+$juryPost['jury_role']='jurado';$juryPost['slots[0][date]']='2026-11-24';
+$jr=http('page=new',$juryPost,true);ok($jr['code']===302 && preg_match('/Location: \/\?page=request&id=(\d+)/i',$jr['headers'],$jm)===1,'HTTP registra jurado ilegible con alerta manual');
+$juryId=(int)$jm[1];ok(str_contains(http('page=request&id='.$juryId)['body'],'Atención revisión manual obligatoria'),'Jurado muestra alerta al no reconocer constancia');
+$juryPost['slots[0][date]']='2026-11-25';$juryPost['slots[0][mode]']='hours';
+ok(str_contains(http('page=new',$juryPost,true)['body'],'única jornada completa'),'Servidor bloquea solicitud por horas para jurado');
+$csrf=login('qa2');
+ok(http('page=request&id='.$claveroId,['action'=>'review','csrf'=>$csrf,'id'=>$claveroId,'decision'=>'approved','comment'=>''],true)['code']===302,'Clavero se aprueba sin revisión OCR de jurado');
+ok(str_contains(http('page=request&id='.$juryId,['action'=>'review','csrf'=>$csrf,'id'=>$juryId,'decision'=>'approved','comment'=>''],true)['body'],'Revise manualmente'),'Jurado requiere constancia manual al aprobar por HTTP');

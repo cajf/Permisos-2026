@@ -36,3 +36,11 @@ Fuentes del reconocimiento: [Tesseract](https://tesseract-ocr.github.io/tessdoc/
 ## Verificación
 
 `tests/electoral.php`, incluido en `tests/core.php`, usa datos ficticios en MySQL aislado. Comprueba lectura real de una imagen y un PDF escaneado, límites de fecha, cédula distinta, ausencia del motor, persistencia del aviso y revisión manual por ambos aprobadores, incluida una aprobación masiva con resultados parciales. El ejemplo no es un certificado válido.
+
+## Jurado y clavero
+
+El tipo Claveros / Jurado de votación exige elegir modalidad y una única fecha en modalidad Día completo. No admite fracciones por horas ni varias jornadas. La modalidad queda en requests.snapshot.jury_role.
+
+Jurado utiliza el mismo motor local, pero reconoce una constancia o certificado de prestación del servicio como jurado de votación, en lugar del certificado de sufragio. Contrasta cédula y fecha electoral. El disfrute debe estar después de las elecciones y hasta el día hábil 45, inclusive, según sábados, domingos y festivos registrados en el calendario de la aplicación. Las inconsistencias legibles bloquean; la lectura no concluyente genera alerta y constancia manual obligatoria por cada aprobador, incluso en lotes. Clavero no requiere este OCR ni recibe automáticamente ese plazo de jurado.
+
+La modalidad, el resultado y las decisiones se conservan en la copia histórica, eventos y PDF. Las solicitudes antiguas sin modalidad requieren clasificación al corregirse. No se crean tablas nuevas. Ejecute tests/jury-run.php para probar estas reglas en una base aislada.

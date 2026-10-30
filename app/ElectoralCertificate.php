@@ -12,11 +12,12 @@ final class ElectoralCertificate {
         return strlen($digits)>=4 && strlen($digits)<=12 ? ltrim($digits,'0') : null;
     }
     /** Solo extrae campos contextualizados en líneas legibles, sin corregir dígitos adivinados. */
-    public static function parse(array $lines): array {
+    public static function parse(array $lines,string $kind='sufragar'): array {
         $clear=[];
         foreach ($lines as $line) if (($line['confidence']??0)>=80) $clear[]=self::normalize((string)$line['text']);
         $text=implode("\n",$clear);
         $recognized=preg_match('/CERTIFICADO\s+ELECTORAL/',$text) && preg_match('/REGISTRADURIA/',$text) && preg_match('/NACIONAL|COLOMBIA/',$text);
+        if($kind==='jurado') $recognized=preg_match('/CERTIFICADO|CONSTANCIA/',$text) && preg_match('/JURADO(?:S)?\s+(?:DE\s+)?VOTACION/',$text) && preg_match('/PREST|SERVICIO|CUMPLIO|EJERCIO/',$text) && preg_match('/REGISTRADURIA/',$text);
         if (!$recognized) return ['recognized'=>false,'documents'=>[],'dates'=>[]];
         $numbers=[];$dates=[];
         foreach ($clear as $i=>$line) {
@@ -35,7 +36,7 @@ final class ElectoralCertificate {
         }
         return ['recognized'=>true,'documents'=>array_values(array_unique($numbers)),'dates'=>array_values(array_unique($dates))];
     }
-    public static function fromTsv(string $tsv): array {
+    public static function fromTsv(string $tsv,string $kind='sufragar'): array {
         $lines=[];
         foreach(explode("\n",$tsv) as $row) {
             $c=explode("\t",rtrim($row,"\r"),12);
@@ -44,7 +45,7 @@ final class ElectoralCertificate {
             $lines[$key]['text']=($lines[$key]['text']??'').' '.$c[11];
             $lines[$key]['confidence']=min($lines[$key]['confidence']??100,(float)$c[10]);
         }
-        return self::parse(array_values($lines));
+        return self::parse(array_values($lines),$kind);
     }
     private static function binary(string $name): string {
         $configured=$GLOBALS['config']['electoral_ocr'][$name]??'';
@@ -76,8 +77,8 @@ final class ElectoralCertificate {
         if($exit!==0) throw new RuntimeException('No se pudo leer el soporte con OCR');
         return (string)file_get_contents($out);
     }
-    public static function readFiles(array $files): array {
-        $result=['version'=>1,'status'=>'manual','checked_at'=>now(),'documents'=>[],'reasons'=>[]];
+    public static function readFiles(array $files,string $kind='sufragar'): array {
+        $result=['version'=>1,'kind'=>$kind,'status'=>'manual','checked_at'=>now(),'documents'=>[],'reasons'=>[]];
         $dir=ROOT.'/storage/cache/ocr-'.bin2hex(random_bytes(12));
         if(!@mkdir($dir,0700,true)) {$result['reasons'][]='No se pudo preparar la lectura del soporte.';return $result;}
         $deadline=microtime(true)+35;$pages=0;
@@ -99,7 +100,7 @@ final class ElectoralCertificate {
                     foreach($images as $image) {
                         $pages++;
                         $tsv=self::command([self::binary('tesseract'),$image,'stdout','-l','spa','--psm','3','tsv'],$dir,min($deadline,microtime(true)+10));
-                        $parsed=self::fromTsv($tsv);
+                        $parsed=self::fromTsv($tsv,$kind);
                         $result['documents'][]=$parsed+['sha256'=>$file['sha256'],'file'=>$file['original_name']];
                     }
                 } catch(Throwable $e) {
@@ -115,13 +116,13 @@ final class ElectoralCertificate {
     /** Se ejecuta antes del bloqueo transaccional y nunca acepta resultados enviados por el navegador. */
     public static function prepare(array $owner,array $input,array $files,?int $id): ?array {
         $category=row('SELECT slug FROM categories WHERE id=?',[(int)($input['category_id']??0)]);
-        if(($category['slug']??'')!=='sufragar') return null;
+        if(($category['slug']??'')!=='sufragar' && !(($category['slug']??'')==='jurado' && ($input['jury_role']??'')==='jurado')) return null;
         if($id) {
             $old=row('SELECT user_id,status FROM requests WHERE id=?',[$id]);
             ensure($old && (int)$old['user_id']===(int)$owner['id'] && $old['status']==='returned','Solo puede corregir una solicitud propia devuelta.');
             $files=array_merge(rows('SELECT * FROM attachments WHERE request_id=?',[$id]),$files);
         }
-        return self::readFiles($files);
+        return self::readFiles($files,($category['slug']==='jurado'?'jurado':'sufragar'));
     }
     public static function validate(array $report,string $identification,array $slots,?string $today=null): array {
         $expected=self::documentNumber($identification);$valid=[];
@@ -133,20 +134,26 @@ final class ElectoralCertificate {
                 $date=$document['dates'][0];
                 ensure($date<=($today??date('Y-m-d')),'La fecha de elecciones leída es futura. Revise y cargue el certificado electoral correcto.');
                 $first=(new DateTimeImmutable($date))->modify('+1 day')->format('Y-m-d');
-                $last=(new DateTimeImmutable($date))->modify('+30 days')->format('Y-m-d');
-                foreach($slots as $slot) ensure($slot['date']>=$first && $slot['date']<=$last,'El compensatorio por sufragar debe disfrutarse entre '.$first.' y '.$last.' (los 30 días calendario siguientes a las elecciones).');
+                $last=self::deadline($date,$report['kind']??'sufragar');
+                foreach($slots as $slot) ensure($slot['date']>=$first && $slot['date']<=$last,'El compensatorio debe disfrutarse entre '.$first.' y '.$last.' ('.(($report['kind']??'')==='jurado'?'45 días hábiles':'30 días calendario').' siguientes a las elecciones).');
                 if(count($document['documents'])===1 && $expected!==null) $valid[]=['election_date'=>$date,'document_number'=>$document['documents'][0],'sha256'=>$document['sha256']];
             }
         }
         $dates=array_unique(array_column($valid,'election_date'));
         if($valid && count($dates)===1 && !$report['reasons']) {
             $report['status']='verified';$report['election_date']=$valid[0]['election_date'];$report['document_number']=$valid[0]['document_number'];
-            $report['valid_until']=(new DateTimeImmutable($report['election_date']))->modify('+30 days')->format('Y-m-d');
+            $report['valid_until']=self::deadline($report['election_date'],$report['kind']??'sufragar');
         } else {
             $report['status']='manual';
-            $report['reasons'][]='No se identificaron inequívocamente el certificado electoral colombiano, la cédula y una fecha de elecciones coincidente. Es obligatoria la revisión manual del soporte y del plazo de disfrute.';
+            $report['reasons'][]='No se identificaron inequívocamente el soporte electoral colombiano requerido, la cédula y una fecha de elecciones coincidente. Es obligatoria la revisión manual del soporte y del plazo de disfrute.';
         }
         return $report;
+    }
+    public static function deadline(string $date,string $kind): string {
+        if($kind!=='jurado') return (new DateTimeImmutable($date))->modify('+30 days')->format('Y-m-d');
+        $at=new DateTimeImmutable($date);$count=0;$holidays=array_flip(array_column(rows('SELECT date FROM holidays WHERE date>?',[$date]),'date'));
+        while($count<45) { $at=$at->modify('+1 day'); if((int)$at->format('N')<=5 && !isset($holidays[$at->format('Y-m-d')])) $count++; }
+        return $at->format('Y-m-d');
     }
     public static function report(array $request): ?array {
         $snapshot=json_decode($request['snapshot']??'{}',true);
@@ -158,6 +165,6 @@ final class ElectoralCertificate {
     public static function summary(array $report): string {
         return ($report['status']??'manual')==='verified'
             ?'Lectura OCR completada: cédula coincidente; elecciones '.$report['election_date'].'; disfrute permitido hasta '.$report['valid_until'].'. La lectura no certifica autenticidad.'
-            :'REVISIÓN MANUAL OBLIGATORIA DEL CERTIFICADO ELECTORAL. '.implode(' ',array_unique($report['reasons']??['No existe una validación automática de este soporte.']));
+            :'REVISIÓN MANUAL OBLIGATORIA DEL CERTIFICADO ELECTORAL'.(($report['kind']??'')==='jurado'?' O CONSTANCIA DE JURADO':'').'. '.implode(' ',array_unique($report['reasons']??['No existe una validación automática de este soporte.']));
     }
 }

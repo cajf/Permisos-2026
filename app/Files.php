@@ -78,11 +78,12 @@ function requestPdf(array $r): string {
     $html='<h1>Alcaldía de Bucaramanga</h1><h2>Solicitud '.sprintf('TH-%06d',$r['id']).'</h2><p>Gestión del Talento Humano · F-GAT-8100-238,37-183</p>';
     $data=['Estado'=>statusLabel($r['status']),'Tipo'=>familyLabel($c['family']).' · '.$c['name'],'Funcionario'=>$snap['name'],'Cédula'=>$snap['identification'],'Cargo'=>$snap['job_title'],'Código / grado'=>$snap['code'].' / '.$snap['grade'],'Dependencia'=>$snap['department'],'Fecha de registro'=>$r['created_at'].' (America/Bogota)','Duración'=>hours((int)$r['total_minutes']),'Justificación'=>$r['justification'],'Excepción de anticipación'=>$r['exception_reason'],'Parentesco'=>$r['relationship']];
     $html.='<table cellpadding="6" border="1">'; foreach ($data as $k=>$v) $html.='<tr><td width="32%"><b>'.e($k).'</b></td><td width="68%">'.nl2br(e($v)).'</td></tr>'; $html.='</table><h3>Fechas y horarios</h3>';
-    if($c['slug']==='sufragar') $html.='<h3>Validación del certificado electoral</h3><p>'.e(ElectoralCertificate::summary(ElectoralCertificate::report($r)??['status'=>'manual'])).'</p><p>El OCR no comprueba autenticidad ante la Registraduría.</p>';
+    if(($c['slug']==='sufragar' || ($c['slug']==='jurado' && ($snap['jury_role']??'')!=='clavero'))) $html.='<h3>Validación del certificado electoral</h3><p>'.e(ElectoralCertificate::summary(ElectoralCertificate::report($r)??['status'=>'manual'])).'</p><p>El OCR no comprueba autenticidad ante la Registraduría.</p>';
     if ($r['birthday_year']) $html.='<p>Beneficio de cumpleaños de la vigencia '.(int)$r['birthday_year'].'.</p>';
     foreach (rows('SELECT * FROM request_slots WHERE request_id=? ORDER BY date,start_time',[$r['id']]) as $s) {
         $html.='<p>'.e(($s['start_at']??($s['date'].' '.$s['start_time'])).' a '.($s['end_at']??($s['date'].' '.$s['end_time'])).' · '.hours((int)$s['minutes'])).'</p>';
     }
+    if($c['slug']==='jurado') $html.='<p>Modalidad: '.e($snap['jury_role']??'Sin clasificar').'</p>';
     $html.='<h3>Constancias e historial</h3><p>Las actuaciones se registran con fecha y hora de Bogotá. Este documento no contiene firma digital.</p>';
     foreach (rows('SELECT e.*,u.name FROM events e JOIN users u ON u.id=e.actor_id WHERE request_id=? ORDER BY e.id',[$r['id']]) as $ev) $html.='<p><b>'.e($ev['created_at'].' · '.$ev['name']).'</b><br>'.e($ev['action'].' · '.$ev['detail']).'</p>';
     $acts=rows('SELECT a.number,l.minutes,l.returned_minutes,l.state FROM allocations l JOIN acts a ON a.id=l.act_id WHERE request_id=?',[$r['id']]);
