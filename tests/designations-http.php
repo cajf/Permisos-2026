@@ -13,9 +13,9 @@ $actPost=['action'=>'act','csrf'=>$csrf,'number'=>'ACTO-HTTP-NOMINA','issued_on'
 ok(http('page=acts',$actPost,true)['code']===302,'El funcionario registra un acto para validación exclusiva de Nómina');
 $csrf=login('qa12');$payrollActs=http('page=acts')['body'];
 $dom=new DOMDocument();$dom->loadHTML($payrollActs);$xp=new DOMXPath($dom);
-$actNodes=$xp->query("//article[.//h3[text()='ACTO-HTTP-NOMINA']]//input[@name='id']/@value");
+$actNodes=$xp->query("//article[.//h3[text()='Resolución No. ACTO-HTTP-NOMINA']]//input[@name='id']/@value");
 ok($actNodes->length===1,'Nómina recibe el acto pendiente con acciones de revisión');$payrollActId=$actNodes->item(0)->nodeValue;
-$fileNodes=$xp->query("//article[.//h3[text()='ACTO-HTTP-NOMINA']]//a[contains(@href,'page=download')]/@href");
+$fileNodes=$xp->query("//article[.//h3[text()='Resolución No. ACTO-HTTP-NOMINA']]//a[contains(@href,'page=download')]/@href");
 ok($fileNodes->length===1 && str_starts_with(http(ltrim($fileNodes->item(0)->nodeValue,'/?'))['body'],'%PDF-'),'Nómina puede descargar el soporte antes de decidir');
 $csrf=login('qa7');$noPayroll=http('page=acts',['action'=>'review_act','csrf'=>$csrf,'id'=>$payrollActId,'decision'=>'approved','comment'=>'Intento solo Talento Humano'],true);
 ok(str_contains($noPayroll['body'],'requiere el rol de Nómina'),'Talento Humano sin rol de Nómina no puede validar actos por HTTP');

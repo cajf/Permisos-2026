@@ -1,0 +1,2 @@
+<nav class="form-panel" aria-label="Páginas del listado"><span>Página <?=(int)$listing['page']?> · Hasta 10 <?=($listingPage==='acts')?'resoluciones':'registros'?> por página</span>
+<?php foreach(['Anterior'=>$listing['page']>1?$listing['page']-1:null,'Siguiente'=>$listing['more']?$listing['page']+1:null] as $label=>$number): if($number===null)continue; ?><a class="button secondary" href="/?<?=e(http_build_query(array_replace($_GET,['page'=>$listingPage,'list_page'=>$number])))?>"><?=e($label)?></a><?php endforeach; ?></nav>

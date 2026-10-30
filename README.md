@@ -154,3 +154,7 @@ El subsecretario titular vigente dispone de un tablero con actualización cada 3
 ## Consulta de saldos
 
 La pantalla inicia sin resultados. Al pulsar Consultar saldos filtra en MySQL por intervalo de fechas, nombres o apellidos (sin distinguir tildes ni mayúsculas) y dependencia, con alcance de acceso y páginas de 10 funcionarios. Presenta el último registro de saldo de cada funcionario dentro del intervalo; no recalcula consumos del periodo. Las pruebas aisladas están en tests/balance-search-run.php.
+
+## Listados paginados
+
+Actos registrados agrupa hasta diez números de resolución por página; el prefijo Resolución No. es visual. El directorio de funcionarios, el catálogo de cargos y el historial de designaciones muestran diez filas por página y permiten filtros combinados. Los selectores de registro conservan el catálogo completo. La consulta de vigencias del historial usa intersección de periodos. Pruebas aisladas de SQL, permisos y formularios: tests/run-listings.ps1.

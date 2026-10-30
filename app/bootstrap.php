@@ -75,3 +75,4 @@ require_once __DIR__.'/ElectoralCertificate.php';
 require_once __DIR__.'/Designations.php';
 require_once __DIR__.'/JobCatalog.php';
 require_once __DIR__.'/Analytics.php';
+require_once __DIR__ . '/Listings.php';
