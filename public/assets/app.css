@@ -9,3 +9,5 @@
 .approval-error{display:block;max-width:340px;margin-top:8px;color:#a32929;font-weight:600;white-space:normal}input[readonly]{background:#f3f5f4}
 /* El aviso electoral conserva texto explícito y contraste, también sin JavaScript. */
 .electoral-alert{background:#fff0db;border:2px solid #a14800;color:#542900;padding:18px;margin:16px 0}.electoral-alert h2{color:#542900}.electoral-alert label{display:block;margin-top:12px}.electoral-alert textarea{background:#fff;color:#172f35;width:100%}
+
+.analytics-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:16px;margin:24px 0}.analytics-cards article{padding:20px}.analytics-cards strong{display:block;font-size:32px}.analytics-trend article{margin:16px 0}.analytics-bar{display:flex;height:32px;background:#eef1f1;border-radius:5px;overflow:hidden}.analytics-bar span{min-width:0;color:white;text-align:center;overflow:hidden}.analytics-permiso{background:#176953}.analytics-compensatorio{background:#315e9a}.analytics-licencia{background:#8a5a15}#analytics-status{margin-top:16px}#analytics-trend p{font-size:13px;margin-top:6px}

@@ -1,0 +1,10 @@
+// Crear cada medida por separado en la tabla Disfrute.
+Total solicitudes = DISTINCTCOUNT(Disfrute[solicitud_id])
+
+Permisos = CALCULATE([Total solicitudes], Disfrute[familia] = "permiso")
+
+Compensatorios = CALCULATE([Total solicitudes], Disfrute[familia] = "compensatorio")
+
+Licencias = CALCULATE([Total solicitudes], Disfrute[familia] IN { "remunerada", "no_remunerada" })
+
+Horas disfrutadas = DIVIDE(SUM(Disfrute[segundos_disfrutados]), 3600)

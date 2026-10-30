@@ -146,3 +146,7 @@ La aprobación individual y la masiva comparten las validaciones. Cada solicitud
 El OCR local de Tesseract contrasta cédula y fecha electoral y exige disfrute entre los días 1 y 30 calendario siguientes. Las inconsistencias legibles bloquean el registro; la falta de lectura permite radicar con alerta destacada y revisión manual obligatoria por cada aprobador, también en lotes. El resultado se conserva en la copia histórica de la solicitud y en el PDF, sin agregar tablas. Consulte [configuración, límites y pruebas](docs/certificado-electoral.md). El Dockerfile incorpora las dependencias de OCR y PDF para la nube.
 
 El compensatorio Claveros / Jurado exige elegir modalidad y una jornada completa. Para jurado se reconoce la constancia de prestación del servicio y se aplica el plazo de 45 días hábiles según el calendario registrado. La lectura no concluyente exige revisión manual individual o masiva. Clavero no utiliza este OCR.
+
+## Tablero de disfrute
+
+El subsecretario titular vigente dispone de un tablero con actualización cada 30 segundos, filtros por vigencia y dependencia, totales únicos y comparación histórica. Incluye disfrute iniciado aprobado y cancelaciones con disfrute parcial, sin sumar tiempo futuro. La exportación privada y los archivos de Power Query y DAX preparan la integración posterior con Power BI, todavía sin cuenta ni informe publicado. Consulte [criterios de conteo y preparación](docs/powerbi/README.md).

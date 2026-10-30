@@ -1,0 +1,42 @@
+<?php
+declare(strict_types=1);
+$clock=new DateTimeImmutable('2026-10-29 10:00:00');
+function factRequest(string $slug,string $date,array $segments,string $status='approved',?string $cancelled=null,bool $final=true,int $department=1):int {
+ $id=insert('requests',['user_id'=>1,'category_id'=>cat($slug)['id'],'department_id'=>$department,'status'=>$status,'justification'=>'Prueba del tablero','total_minutes'=>510,'snapshot'=>'{}','created_at'=>now(),'updated_at'=>now(),'cancelled_at'=>$cancelled]);
+ insert('request_slots',['request_id'=>$id,'date'=>$date,'start_time'=>'07:30','end_time'=>'17:00','minutes'=>510,'segments'=>json_encode($segments),'semester'=>substr($date,0,4).'-2']);
+ insert('approvals',['request_id'=>$id,'revision'=>1,'step'=>1,'role'=>'manager','assigned_user_id'=>2,'status'=>'approved']);
+ insert('approvals',['request_id'=>$id,'revision'=>1,'step'=>2,'role'=>'subsecretary','assigned_user_id'=>3,'status'=>$final?'approved':'waiting']);return $id;
+}
+insert('departments',['name'=>'Segunda dependencia']);
+$started=factRequest('ordinario','2026-10-29',[['07:30','12:00'],['13:00','17:00']]);
+$partial=factRequest('bici','2026-10-28',[['07:30','12:00'],['13:00','17:00']],'cancelled','2026-10-28 09:00:00');
+factRequest('ordinario','2026-10-30',[['07:30','09:30']]);
+factRequest('ordinario','2026-10-28',[['07:30','09:30']],'cancelled','2026-10-28 06:00:00');
+factRequest('ordinario','2026-10-28',[['07:30','09:30']],'cancelled','2026-10-28 08:00:00',false);
+factRequest('ordinario','2026-10-28',[['07:30','09:30']],'pending');
+$prior=factRequest('ordinario','2025-12-31',[['2025-12-31 23:00:00','2026-01-01 01:00:00']]);
+$licence=rows("SELECT slug FROM categories WHERE family='remunerada' LIMIT 1")[0]['slug'];
+factRequest($licence,'2026-10-28',[['07:30','09:30']],'cancel_pending',null,true,2);
+$facts=enjoyedFacts($clock);$find=fn($id,$year)=>array_values(array_filter($facts,fn($f)=>$f['request_id']===$id&&$f['year']===$year))[0]??null;
+check(count($facts)===5,'Solo disfrute real aprobado; excluye futuro, pendiente y cancelación sin disfrute o sin aprobación final');
+check($find($started,2026)['seconds']===9000,'Disfrute iniciado se limita a la hora actual');
+check($find($partial,2026)['seconds']===5400,'Cancelación parcial limita duración efectiva');
+check($find($prior,2025)['seconds']===3600&&$find($prior,2026)['seconds']===3600,'Cruce de vigencia conserva una fila por año');
+$data=analyticsData(['year'=>'2026'],$clock);
+check($data['counts']===['total'=>4,'permiso'=>2,'compensatorio'=>1,'licencia'=>1],'Tarjetas agrupan familias y cuentan solicitudes distintas');
+check(analyticsData(['year'=>'all'],$clock)['counts']['total']===4,'Total multivigencia no duplica solicitudes');
+check(analyticsData(['year'=>'2025'],$clock)['counts']['total']===1,'Filtro de vigencia anterior');
+check(analyticsData(['year'=>'2026','department'=>'2'],$clock)['counts']['licencia']===1,'Filtro por dependencia');
+run('UPDATE users SET department_id=2 WHERE id=1');
+check($find($started,2026)['department_id']===1&&analyticsData(['year'=>'2026','department'=>'1'],$clock)['counts']['total']===3,'Traslado del funcionario no altera dependencia histórica');
+check(!str_contains(json_encode($data),'PRUEBA-')&&!str_contains(json_encode($data),'qa1@'),'Datos sin identificaciones ni correos');
+foreach(['year'=>"2026 OR 1=1",'department'=>'1 UNION SELECT'] as $key=>$value)refuses(fn()=>analyticsSelection([$key=>$value]),'Rechaza filtro inválido '.$key);
+check(canAccessAnalytics(person(3)),'Responsable institucional vigente accede');
+foreach([1,2,4,5,7] as $id)check(!canAccessAnalytics(person($id)),'Rol distinto no accede: '.$id);
+run("UPDATE users SET roles='[\"subsecretary\"]' WHERE id=8");
+insert('designations',['role'=>'subsecretary','user_id'=>8,'alternate_id'=>3,'start_date'=>date('Y-m-d'),'created_by'=>5,'created_at'=>now()]);
+check(canAccessAnalytics(person(8))&&!canAccessAnalytics(person(3)),'Solo titular vigente: excluye anterior y suplente');
+run('UPDATE users SET active=0 WHERE id=8');check(!canAccessAnalytics(person(8)),'Titular inactivo no accede');
+run('UPDATE users SET active=1 WHERE id=8');
+file_put_contents(ROOT.'/.work/analytics-test-result.json',json_encode(['database_config'=>$GLOBALS['test_configuration_file'],'checks'=>$checks]));
+echo $checks." comprobaciones del tablero correctas.\n";
