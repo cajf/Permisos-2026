@@ -15,11 +15,15 @@ foreach(['qa1','qa2','qa3','qa4','qa5'] as $name){
 login('qa8');
 $asset=curl_init($base.'/assets/analytics.js');curl_setopt($asset,CURLOPT_RETURNTRANSFER,true);$assetBody=curl_exec($asset);ok(curl_getinfo($asset,CURLINFO_HTTP_CODE)===200&&str_contains($assetBody,"'use strict'"),'JavaScript del tablero servido como recurso estático');
 $r=http('page=analytics');ok($r['code']===200&&str_contains($r['body'],'analytics-board'),'Titular vigente accede al tablero');
+ok(strpos($r['body'],'Solicitudes aprobadas')<strpos($r['body'],'Solicitudes disfrutadas'),'Tablero de aprobadas aparece primero');
+ok(substr_count($r['body'],'data-analytics-board')===2,'Ambos tableros disponen de filtros y actualización independientes');
 ok(str_contains($r['headers'],'no-store')&&str_contains($r['headers'],'private'),'Tablero privado sin caché');
 $r=http('page=analytics_data&year=all');$data=json_decode($r['body'],true,512,JSON_THROW_ON_ERROR);
 ok($r['code']===200&&$data['counts']['total']>=2&&isset($data['counts']['licencia']),'JSON devuelve conteo de disfrute actualizado');
 $r=http('page=analytics_export&year=all');ok($r['code']===200&&str_contains($r['headers'],'text/csv')&&str_contains($r['body'],'segundos_disfrutados'),'Exportación privada para Power BI');
 ok(!str_contains($r['body'],'PRUEBA-')&&!str_contains($r['body'],'@ejemplo.invalid'),'CSV sin cédulas ni correos');
+$r=http('page=analytics_data&year=all&metric=approved');$approved=json_decode($r['body'],true,512,JSON_THROW_ON_ERROR);ok($r['code']===200&&$approved['counts']['total']===4,'API de aprobadas conserva todas las solicitudes autorizadas');
+ok(str_contains(http('page=analytics_export&year=all&metric=approved')['body'],'segundos_aprobados'),'Exportación de aprobadas identifica duración autorizada');
 ok(http('page=analytics_data&year=2026%20OR%201=1')['code']!==200,'Filtros malformados no se ejecutan');
 echo $checks." comprobaciones HTTP del tablero correctas.\n";
 

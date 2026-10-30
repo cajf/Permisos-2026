@@ -137,9 +137,9 @@ if ($page!=='login') {
             if(!canAccessAnalytics($u)) {http_response_code(403);if($page==='analytics_data'){header('Content-Type: application/json; charset=utf-8');echo json_encode(['error'=>'Acceso exclusivo del subsecretario titular vigente.']);exit;} $error='Acceso exclusivo del subsecretario titular vigente.';$page='dashboard';}
             elseif($page==='analytics_data') {header('Content-Type: application/json; charset=utf-8');echo json_encode(analyticsData($_GET),JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR);exit;}
             elseif($page==='analytics_export') {
-                [$year,$department]=analyticsSelection($_GET);$facts=enjoyedFacts();
-                header('Content-Type: text/csv; charset=utf-8');header('Content-Disposition: attachment; filename="disfrute-power-bi.csv"');echo "\xEF\xBB\xBF";$out=fopen('php://output','w');
-                fputcsv($out,['solicitud_id','vigencia','dependencia_id','dependencia','familia','tipo','segundos_disfrutados'],';','"','');
+                [$year,$department]=analyticsSelection($_GET);$metric=analyticsMetric($_GET);$facts=$metric==='approved'?approvedFacts():enjoyedFacts();
+                header('Content-Type: text/csv; charset=utf-8');header('Content-Disposition: attachment; filename="'.($metric==='approved'?'aprobadas':'disfrute').'-power-bi.csv"');echo "\xEF\xBB\xBF";$out=fopen('php://output','w');
+                fputcsv($out,['solicitud_id','vigencia','dependencia_id','dependencia','familia','tipo',$metric==='approved'?'segundos_aprobados':'segundos_disfrutados'],';','"','');
                 foreach($facts as $f) if(($year==='all'||$f['year']===(int)$year)&&($department==='all'||$f['department_id']===(int)$department)) {
                     $values=[$f['request_id'],$f['year'],$f['department_id'],$f['department'],$f['family'],$f['category'],$f['seconds']];$values=array_map(fn($v)=>preg_match('/^[=+\-@\t\r]/',(string)$v)?"'".$v:$v,$values);fputcsv($out,$values,';','"','');
                 }fclose($out);exit;

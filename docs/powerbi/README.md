@@ -2,6 +2,10 @@
 
 ## Entrega actual
 
+La sección presenta primero **Solicitudes aprobadas** y debajo **Solicitudes disfrutadas**, con filtros y actualización independientes. El tablero de aprobadas incluye todas las solicitudes con aprobación final en estado aprobada o cancelación pendiente, sin limitar el tiempo a la fecha actual. Excluye canceladas, rechazadas y solicitudes sin aprobación final. Usa la vigencia de las fechas autorizadas de disfrute, no la fecha de aprobación. Cada solicitud cuenta una vez por selección, aunque abarque varios días o vigencias. Conserva la dependencia del trámite.
+
+La API y la exportación admiten `metric=approved` para aprobadas y `metric=enjoyed` (predeterminado) para disfrutadas. El CSV de aprobadas identifica la duración como `segundos_aprobados`; para usarlo en Power BI cree una consulta independiente llamada Aprobadas y adapte ese nombre de campo en Power Query y DAX. No mezcle ambas exportaciones: representan métricas diferentes.
+
 El tablero propio está en `/?page=analytics`. Consulta MySQL en cada actualización y se renueva cada 30 segundos mientras la pestaña está visible; al regresar a ella vuelve a consultar. Muestra fecha y hora de última actualización y conserva los últimos datos si hay una interrupción. No es un informe de Microsoft Power BI.
 
 Solo el titular vigente de la designación institucional de subsecretario puede acceder. Sin una designación vigente, se usa el responsable institucional heredado. También se comprueban cuenta activa y rol actual. Administradores, alcalde, jefes, suplentes y subsecretarios anteriores no obtienen acceso por esos roles. La autorización se repite en página, JSON y CSV, no solo en el menú. Respuestas privadas sin caché.

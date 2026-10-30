@@ -13,9 +13,16 @@ function authorizeAnalytics(array $actor): void {
 }
 /** Una fila por solicitud y vigencia con tiempo real de disfrute positivo. Sin datos personales. */
 function enjoyedFacts(?DateTimeImmutable $clock=null): array {
+    return requestAnalyticsFacts(false,$clock);
+}
+function approvedFacts(?DateTimeImmutable $clock=null): array {
+    return requestAnalyticsFacts(true,$clock);
+}
+function requestAnalyticsFacts(bool $approved,?DateTimeImmutable $clock=null): array {
     $clock??=new DateTimeImmutable();$facts=[];
-    $sql="SELECT r.id,r.status,r.cancelled_at,r.department_id,c.family,c.name category,d.name department,s.date,s.segments FROM requests r JOIN categories c ON c.id=r.category_id JOIN request_slots s ON s.request_id=r.id LEFT JOIN departments d ON d.id=r.department_id WHERE r.status IN ('approved','cancel_pending','cancelled') AND s.date<=? AND EXISTS(SELECT 1 FROM approvals a WHERE a.request_id=r.id AND a.revision=r.revision AND a.status='approved' AND a.step=(SELECT MAX(b.step) FROM approvals b WHERE b.request_id=r.id AND b.revision=r.revision)) ORDER BY r.id,s.date,s.start_time";
-    foreach(rows($sql,[$clock->format('Y-m-d')]) as $slot) {
+    $where=$approved?"r.status IN ('approved','cancel_pending')":"r.status IN ('approved','cancel_pending','cancelled') AND s.date<=?";
+    $sql="SELECT r.id,r.status,r.cancelled_at,r.department_id,c.family,c.name category,d.name department,s.date,s.segments FROM requests r JOIN categories c ON c.id=r.category_id JOIN request_slots s ON s.request_id=r.id LEFT JOIN departments d ON d.id=r.department_id WHERE $where AND EXISTS(SELECT 1 FROM approvals a WHERE a.request_id=r.id AND a.revision=r.revision AND a.status='approved' AND a.step=(SELECT MAX(b.step) FROM approvals b WHERE b.request_id=r.id AND b.revision=r.revision)) ORDER BY r.id,s.date,s.start_time";
+    foreach(rows($sql,$approved?[]:[$clock->format('Y-m-d')]) as $slot) {
         $cap=$clock;
         if($slot['status']==='cancelled') {
             // Sin fecha efectiva no se inventa disfrute histórico de una cancelación.
@@ -24,7 +31,8 @@ function enjoyedFacts(?DateTimeImmutable $clock=null): array {
         }
         foreach(json_decode($slot['segments'],true,512,JSON_THROW_ON_ERROR) as [$a,$b]) {
             $from=new DateTimeImmutable(strlen($a)>5?$a:$slot['date'].' '.$a);
-            $to=min(new DateTimeImmutable(strlen($b)>5?$b:$slot['date'].' '.$b),$cap);
+            $end=new DateTimeImmutable(strlen($b)>5?$b:$slot['date'].' '.$b);
+            $to=$approved?$end:min($end,$cap);
             while($from<$to) {
                 $year=(int)$from->format('Y');$next=min($to,new DateTimeImmutable(($year+1).'-01-01 00:00:00'));
                 $key=$slot['id'].'-'.$year;
@@ -42,7 +50,7 @@ function analyticsSelection(array $input): array {
     return [$year,$department];
 }
 function analyticsData(array $input,?DateTimeImmutable $clock=null): array {
-    [$year,$department]=analyticsSelection($input);$clock??=new DateTimeImmutable();$facts=enjoyedFacts($clock);
+    [$year,$department]=analyticsSelection($input);$clock??=new DateTimeImmutable();$metric=analyticsMetric($input);$facts=$metric==='approved'?approvedFacts($clock):enjoyedFacts($clock);
     $counts=['total'=>[],'permiso'=>[],'compensatorio'=>[],'licencia'=>[]];$byDepartment=[];$byYear=[];$years=[(int)$clock->format('Y')];$departments=[];
     foreach(rows('SELECT id,name FROM departments ORDER BY name') as $d) $departments[(int)$d['id']]=$d['name'];
     foreach($facts as $f) {
@@ -64,4 +72,7 @@ function analyticsData(array $input,?DateTimeImmutable $clock=null): array {
     foreach($departments as $id=>$name) if(($department==='all'||$id===(int)$department)&&!isset($byDepartment[$id]))$byDepartment[$id]=['id'=>$id,'name'=>$name,'permiso'=>0,'compensatorio'=>0,'licencia'=>0,'total'=>0];
     usort($byDepartment,fn($a,$b)=>$b['total']<=>$a['total']?:strcmp($a['name'],$b['name']));ksort($byYear);$years=array_values(array_unique($years));rsort($years);
     return ['generated_at'=>$clock->format('Y-m-d H:i:s'),'timezone'=>'America/Bogota','year'=>$year,'department'=>$department,'counts'=>$counts,'departments'=>array_values($byDepartment),'trend'=>array_values($byYear),'years'=>$years,'department_options'=>array_map(fn($id,$name)=>['id'=>$id,'name'=>$name],array_keys($departments),array_values($departments))];
+}
+function analyticsMetric(array $input): string {
+    $metric=$input['metric']??'enjoyed';ensure(in_array($metric,['enjoyed','approved'],true),'Seleccione un tablero válido.');return $metric;
 }

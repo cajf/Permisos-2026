@@ -23,6 +23,13 @@ check($find($started,2026)['seconds']===9000,'Disfrute iniciado se limita a la h
 check($find($partial,2026)['seconds']===5400,'Cancelación parcial limita duración efectiva');
 check($find($prior,2025)['seconds']===3600&&$find($prior,2026)['seconds']===3600,'Cruce de vigencia conserva una fila por año');
 $data=analyticsData(['year'=>'2026'],$clock);
+$approved=analyticsData(['year'=>'2026','metric'=>'approved'],$clock);
+check($approved['counts']===['total'=>4,'permiso'=>3,'compensatorio'=>0,'licencia'=>1],'Aprobadas incluye disfrute futuro y cancelación pendiente; excluye canceladas y pendientes');
+check(analyticsData(['year'=>'all','metric'=>'approved'],$clock)['counts']['total']===4,'Aprobadas no duplica solicitudes que cruzan vigencia');
+check(analyticsData(['year'=>'2025','metric'=>'approved'],$clock)['counts']['total']===1,'Aprobadas se atribuye a la vigencia del disfrute autorizado');
+$approvedRows=approvedFacts($clock);$full=array_values(array_filter($approvedRows,fn($f)=>$f['request_id']===$started))[0];
+check($full['seconds']===30600,'Aprobadas conserva toda la duración autorizada, sin limitarla a la hora actual');
+refuses(fn()=>analyticsData(['metric'=>'other'],$clock),'Rechaza modo de tablero desconocido');
 check($data['counts']===['total'=>4,'permiso'=>2,'compensatorio'=>1,'licencia'=>1],'Tarjetas agrupan familias y cuentan solicitudes distintas');
 check(analyticsData(['year'=>'all'],$clock)['counts']['total']===4,'Total multivigencia no duplica solicitudes');
 check(analyticsData(['year'=>'2025'],$clock)['counts']['total']===1,'Filtro de vigencia anterior');

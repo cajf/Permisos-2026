@@ -43,4 +43,4 @@ function requestTable(array $list,bool $selectable=false,array $failures=[]): vo
 <?php if (isset($_SESSION['flash'])): ?><div class="alert success" role="status"><?=e($_SESSION['flash'])?></div><?php unset($_SESSION['flash']); endif; ?>
 <?php try { $view=in_array($page,['analytics','jobs','designations','balances','dashboard','requests','new','request','inbox','acts','password','users','settings','calendar','policies','import','outbox','audit','reports','manual'],true)?$page:'dashboard'; require ROOT.'/views/'.$view.'.php'; } catch (DomainException $ex) { echo '<div class="alert error" role="alert">'.e($ex->getMessage()).'</div>'; } ?>
 <footer class="main-footer"><span>Gestión del Talento Humano</span><span>Fechas y horas de Bogotá · <?=date('Y')?></span></footer></main></div>
-<?php endif; ?><?php if($page==='analytics'): ?><script src="/assets/analytics.js?v=1" defer></script><?php endif; ?></body></html>
+<?php endif; ?><?php if($page==='analytics'): ?><script src="/assets/analytics.js?v=2" defer></script><?php endif; ?></body></html>
