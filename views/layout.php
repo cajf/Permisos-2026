@@ -30,7 +30,7 @@ function requestTable(array $list,bool $selectable=false,array $failures=[]): vo
  echo '</tbody></table></div>';
 }
 ?>
-<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title><?=e($titles[$page]??'Talento Humano')?> · Bucaramanga</title><link rel="stylesheet" href="/assets/app.css?v=analytics-1"><script src="/assets/app.js?v=analytics-1" defer></script></head>
+<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title><?=e($titles[$page]??'Talento Humano')?> · Bucaramanga</title><link rel="stylesheet" href="/assets/app.css?v=balances-2"><script src="/assets/app.js?v=balances-2" defer></script></head>
 <body>
 <?php if ($page==='login'): ?>
 <main class="login-shell"><section class="login-story"><a class="brand brand-image" href="/"><img src="/assets/alcaldia-bucaramanga.png" alt="Alcaldía de Bucaramanga" width="96" height="81"></a><div><p class="eyebrow">GESTIÓN DEL TALENTO HUMANO</p><h1>Tu tiempo,<br>bien gestionado.</h1><p>Un solo espacio para solicitar permisos, compensatorios y licencias, y seguir cada paso de su aprobación.</p><div class="login-decoration" aria-hidden="true"><span>01</span><div>Solicita<span>Registra las fechas y tus soportes.</span></div><span>02</span><div>Haz seguimiento<span>Consulta las decisiones del trámite.</span></div><span>03</span><div>Descarga<span>Conserva la constancia con sus anexos.</span></div></div></div><p class="login-foot">Administración municipal · Bucaramanga, Santander</p></section>

@@ -9,6 +9,8 @@ check(searchBalanceSnapshots(person(5),$input+['name'=>"' OR 1=1 --"])['items']=
 check(searchBalanceSnapshots(person(5),array_replace($input,['department'=>'999']))['items']===[],'Dependencia filtra antes de cargar datos');
 refuses(fn()=>searchBalanceSnapshots(person(5),array_replace($input,['from'=>'2099-12-31'])),'Rechaza fechas invertidas');
 refuses(fn()=>searchBalanceSnapshots(person(5),array_replace($input,['department'=>'1 OR 1=1'])),'Rechaza dependencia malformada');
+refuses(fn()=>searchBalanceSnapshots(person(5),['from'=>'2025-12-31','to'=>'2026-01-01']),'Rechaza intervalo que cruza de año');
+check(searchBalanceSnapshots(person(5),['from'=>'2025-01-01','to'=>'2025-12-31'])['items']===[],'Permite consultar un año anterior completo');
 insert('designations',['role'=>'manager','department_id'=>1,'user_id'=>2,'start_date'=>$day,'created_by'=>5,'created_at'=>now()]);
 check(count(searchBalanceSnapshots(person(2),$input)['items'])===2,'Jefe consulta su dependencia durante su designación');
 insert('balance_snapshots',['user_id'=>1,'department_id'=>1,'created_at'=>$day.' 09:00:00','data'=>$data]);

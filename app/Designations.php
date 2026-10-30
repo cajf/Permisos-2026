@@ -63,6 +63,7 @@ function balanceScope(array $viewer,string $date): array {
 function searchBalanceSnapshots(array $viewer,array $input): array {
     $from=trim((string)($input['from']??''));$to=trim((string)($input['to']??''));
     ensure(validDate($from)&&validDate($to)&&$from<=$to&&$to<=date('Y-m-d'),'Seleccione fechas válidas: inicio no posterior al final y final hasta hoy.');
+    ensure(substr($from,0,4)===substr($to,0,4),'La fecha de inicio y la fecha final deben pertenecer al mismo año.');
     $name=trim((string)($input['name']??''));ensure(mb_strlen($name)<=120,'El nombre no puede superar 120 caracteres.');
     $department=(string)($input['department']??'all');ensure($department==='all'||preg_match('/^[1-9][0-9]{0,17}$/D',$department),'Seleccione una dependencia válida.');
     $scope=balanceScope($viewer,$to);$where=['s.created_at>=?','s.created_at<=?'];$params=[$from.' 00:00:00',$to.' 23:59:59'];

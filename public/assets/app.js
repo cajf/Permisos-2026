@@ -89,3 +89,9 @@ if(bulkForm){
  all.addEventListener('change',()=>{choices.forEach(input=>input.checked=all.checked);update();});choices.forEach(input=>input.addEventListener('change',update));
  bulkForm.addEventListener('submit',event=>{if(!choices.some(input=>input.checked)){event.preventDefault();return;}button.disabled=true;button.textContent='Procesando aprobaciones…';});update();
 }
+const balanceForm=document.querySelector('form[data-balance-filters]');
+if(balanceForm){
+ const start=balanceForm.elements.from,end=balanceForm.elements.to;
+ const validateYear=()=>end.setCustomValidity(start.value&&end.value&&start.value.slice(0,4)!==end.value.slice(0,4)?'La fecha de inicio y la fecha final deben pertenecer al mismo año.':'');
+ start.addEventListener('change',validateYear);end.addEventListener('change',validateYear);validateYear();
+}
