@@ -1,20 +1,15 @@
 <?php
 declare(strict_types=1);
-if (PHP_SAPI!=='cli') exit;
+if(PHP_SAPI!=='cli')exit;
+if(in_array('--smtp',$argv,true)){require __DIR__.'/mail-worker-smtp.php';exit;}
 require __DIR__.'/../app/bootstrap.php';
-$smtp=$GLOBALS['config']['smtp'];
-if (!$smtp['host'] || !$smtp['from']) { echo "SMTP no configurado. La cola permanece pendiente.\n"; exit(0); }
-foreach (rows("SELECT * FROM outbox WHERE status IN ('pending','failed') AND attempts<5 ORDER BY id LIMIT 50") as $item) {
-    // Reclamo atómico: evita que dos trabajadores envíen el mismo mensaje.
-    if (!run("UPDATE outbox SET status='sending',attempts=attempts+1 WHERE id=? AND status IN ('pending','failed')",[$item['id']])) continue;
-    try {
-        $mail=new \PHPMailer\PHPMailer\PHPMailer(true);
-        $mail->isSMTP(); $mail->Host=$smtp['host']; $mail->Port=(int)$smtp['port'];
-        $mail->SMTPAuth=$smtp['username']!==''; $mail->Username=$smtp['username']; $mail->Password=$smtp['password'];
-        $mail->SMTPSecure=$smtp['encryption']; $mail->CharSet='UTF-8'; $mail->Timeout=15;
-        $mail->setFrom($smtp['from'],$smtp['from_name']); $mail->addAddress($item['recipient']);
-        $mail->Subject=$item['subject']; $mail->Body=$item['body']."\n\n".$GLOBALS['config']['base_url'];
-        $mail->send(); run("UPDATE outbox SET status='sent',sent_at=?,last_error=NULL WHERE id=?",[now(),$item['id']]);
-    } catch (Throwable $ex) { run("UPDATE outbox SET status='failed',last_error=? WHERE id=?",[mb_substr($ex->getMessage(),0,1000),$item['id']]); }
-}
-echo "Lote de correo procesado.\n";
+$issues=notificationMailIssues();
+if(in_array('--ready',$argv,true)){echo $issues?'0':'1';exit;}
+if($issues){echo implode("\n",$issues)."\nLa cola permanece pendiente.\n";exit(in_array('--check',$argv,true)?1:0);}
+if(in_array('--check',$argv,true)){echo "API Brevo configurada. No se realizó ningún envío.\n";exit;}
+do {
+ try{echo json_encode(processNotificationMail(5),JSON_UNESCAPED_UNICODE).PHP_EOL;}
+ catch(Throwable){error_log('No se pudo procesar la cola de notificaciones.');}
+ if(!in_array('--loop',$argv,true))break;
+ sleep(30);
+}while(true);

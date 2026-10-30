@@ -11,6 +11,7 @@ if ($LASTEXITCODE -ne 0) { throw 'Fallaron las pruebas de jurado y clavero.' }
 & $testPhp -c $testIni tests/balance-search-run.php
 if ($LASTEXITCODE -ne 0) { throw 'Fallaron las pruebas de consulta de saldos.' }
 & (Join-Path $PSScriptRoot 'run-listings.ps1')
+& (Join-Path $PSScriptRoot 'run-mail.ps1')
 & $testPhp -c $testIni -d display_errors=1 tests/catalog-migration.php
 if ($LASTEXITCODE -ne 0) { throw 'Falló la migración aislada del catálogo.' }
 $testResult = Get-Content -LiteralPath '.work\test-result.json' -Raw | ConvertFrom-Json

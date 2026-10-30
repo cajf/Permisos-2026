@@ -158,3 +158,7 @@ La pantalla inicia sin resultados. Al pulsar Consultar saldos filtra en MySQL po
 ## Listados paginados
 
 Actos registrados agrupa hasta diez números de resolución por página; el prefijo Resolución No. es visual. El directorio de funcionarios, el catálogo de cargos y el historial de designaciones muestran diez filas por página y permiten filtros combinados. Los selectores de registro conservan el catálogo completo. La consulta de vigencias del historial usa intersección de periodos. Pruebas aisladas de SQL, permisos y formularios: tests/run-listings.ps1.
+
+## Correo por API de Brevo
+
+Integración preparada y desactivada por defecto. Requiere cuenta gratuita, remitente verificado, clave API privada, fecha fija de inicio y habilitación explícita. Se excluyen mensajes anteriores al inicio, destinatarios ficticios y contenido sensible del cuerpo original. La pantalla Correos muestra el estado y admite pruebas administrativas al configurarse. Consulte [pasos y variables](docs/correo-brevo.md). El trabajador funciona mientras el servicio o la instalación local están activos; Render gratuito no garantiza continuidad. Pruebas sin envíos reales: tests/run-mail.ps1.

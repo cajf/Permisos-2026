@@ -5,5 +5,14 @@ if (!(Test-Path -LiteralPath $projectPhp)) { throw 'Instale PHP y use las instru
 & (Join-Path $PSScriptRoot 'scripts\start-mysql.ps1')
 & $projectPhp -c (Join-Path $PSScriptRoot '.runtime\php\php.ini') (Join-Path $PSScriptRoot 'scripts\check-database.php')
 if ($LASTEXITCODE -ne 0) { throw 'No se pudo comprobar la base de datos. El servidor web no se inicio.' }
-& $projectPhp -c (Join-Path $PSScriptRoot '.runtime\php\php.ini') -S 127.0.0.1:8088 -t public public/router.php
-if ($LASTEXITCODE -ne 0) { throw 'El servidor PHP termino con un error. Revise el puerto 8088.' }
+$localMailProcess=$null
+$localMailReady=& $projectPhp -c (Join-Path $PSScriptRoot '.runtime\php\php.ini') scripts/mail-worker.php --ready
+if($LASTEXITCODE -eq 0 -and $localMailReady -eq '1'){
+    $localMailProcess=Start-Process -FilePath $projectPhp -ArgumentList @('-c',('"'+(Join-Path $PSScriptRoot '.runtime/php/php.ini')+'"'),'scripts/mail-worker.php','--loop') -WorkingDirectory $PSScriptRoot -WindowStyle Hidden -PassThru -RedirectStandardOutput (Join-Path $PSScriptRoot 'storage/mail-worker.log') -RedirectStandardError (Join-Path $PSScriptRoot 'storage/mail-worker-error.log')
+}
+try {
+    & $projectPhp -c (Join-Path $PSScriptRoot '.runtime\php\php.ini') -S 127.0.0.1:8088 -t public public/router.php
+    if ($LASTEXITCODE -ne 0) { throw 'El servidor PHP termino con un error. Revise el puerto 8088.' }
+} finally {
+    if($localMailProcess -and !$localMailProcess.HasExited){Stop-Process -Id $localMailProcess.Id}
+}

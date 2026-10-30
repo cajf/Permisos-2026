@@ -122,6 +122,15 @@ try {
             case 'import_commit':
                 authorizeAdmin($u); ensure(!empty($_SESSION['import']),'Prepare primero la importación.');
                 $_SESSION['import_passwords']=commitImport($u,$_SESSION['import']); unset($_SESSION['import']); $destination='/?page=import'; break;
+            case 'mail_test':
+                authorizeAdmin($u);ensure(!notificationMailIssues(),'Configure y active la API antes de solicitar una prueba.');
+                $recipient=trim((string)($_POST['test_recipient']??''));ensure(notificationMailbox($recipient),'Indique una dirección real autorizada para recibir la prueba.');
+                insert('outbox',['recipient'=>$recipient,'subject'=>'Prueba de notificaciones · Permisos Bucaramanga','body'=>'Prueba de conexión solicitada por el administrador.','created_at'=>now()]);
+                event((int)$u['id'],'Prueba de correo en cola','Prueba solicitada por el administrador.');$destination='/?page=outbox';break;
+            case 'mail_process':
+                authorizeAdmin($u);ensure(!notificationMailIssues(),'Configure y active la API antes de procesar la cola.');
+                $mailResult=processNotificationMail(3);event((int)$u['id'],'Procesamiento de correo',json_encode($mailResult));
+                $_SESSION['flash']='Lote procesado: '.(int)$mailResult['accepted'].' aceptados por Brevo. Consulte estados y errores.';redirect('/?page=outbox');
             default: throw new DomainException('Acción desconocida.');
         }
         $_SESSION['flash']='La operación se guardó correctamente.'; redirect($destination);
