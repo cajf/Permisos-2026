@@ -13,6 +13,9 @@
 !public/**
 !views/
 !views/**
+!scripts/
+!scripts/mail-worker.php
+!scripts/mail-worker-smtp.php
 !docs/
 !docs/manual.pdf
 !docker/
