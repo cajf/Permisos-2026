@@ -4,6 +4,9 @@ $data=json_encode(['name'=>'María Pérez Gómez','types'=>[],'quotas'=>[],'acts
 foreach([1,2] as $id)insert('balance_snapshots',['user_id'=>$id,'department_id'=>1,'created_at'=>$day.' 08:00:00','data'=>$data]);
 check(count(searchBalanceSnapshots(person(5),$input)['items'])===2,'Administrador consulta saldos del intervalo');
 check(count(searchBalanceSnapshots(person(1),$input)['items'])===1,'Funcionario solo obtiene sus propios saldos');
+check(!canFilterBalanceDepartment(person(1))&&canFilterBalanceDepartment(person(5)),'Funcionario sin filtro de dependencia; administrador conserva selector');
+check(count(searchBalanceSnapshots(person(1),array_replace($input,['department'=>'999']))['items'])===1,'Funcionario consulta todas sus dependencias aunque llegue filtro ajeno por URL');
+check(count(searchBalanceSnapshots(person(1),array_replace($input,['department'=>"1 OR 1=1"]))['items'])===1,'Servidor ignora dependencia manipulada para consulta personal');
 check(count(searchBalanceSnapshots(person(5),$input+['name'=>'perez'])['items'])===2,'Busca apellidos sin exigir mayúsculas o tildes');
 check(searchBalanceSnapshots(person(5),$input+['name'=>"' OR 1=1 --"])['items']===[],'Nombre se trata como parámetro literal');
 check(searchBalanceSnapshots(person(5),array_replace($input,['department'=>'999']))['items']===[],'Dependencia filtra antes de cargar datos');
@@ -16,6 +19,10 @@ check(count(searchBalanceSnapshots(person(2),$input)['items'])===2,'Jefe consult
 insert('balance_snapshots',['user_id'=>1,'department_id'=>1,'created_at'=>$day.' 09:00:00','data'=>$data]);
 check(count(searchBalanceSnapshots(person(5),$input)['items'])===2,'Múltiples movimientos no duplican al funcionario');
 check(searchBalanceSnapshots(person(5),$input)['items'][0]['created_at']===$day.' 09:00:00','Selecciona el último saldo del intervalo');
+insert('departments',['name'=>'Dependencia de traslado']);run('UPDATE users SET department_id=2 WHERE id=1');
+insert('balance_snapshots',['user_id'=>1,'department_id'=>2,'created_at'=>$day.' 11:00:00','data'=>$data]);
+$personal=searchBalanceSnapshots(person(1),array_replace($input,['department'=>'1']));
+check(count($personal['items'])===1&&(int)$personal['items'][0]['department_id']===2,'Traslado no oculta el saldo personal aunque el enlace conserve dependencia anterior');
 for($i=0;$i<22;$i++){
  $id=insert('users',['name'=>'Prueba paginación '.$i,'username'=>'balance'.$i,'identification'=>'BAL-'.$i,'email'=>'b'.$i.'@ejemplo.invalid','job_title'=>'Prueba','password'=>'sin-acceso','department_id'=>1,'roles'=>'[]']);
  insert('balance_snapshots',['user_id'=>$id,'department_id'=>1,'created_at'=>$day.' 10:00:00','data'=>$data]);
