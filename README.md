@@ -150,3 +150,7 @@ El compensatorio Claveros / Jurado exige elegir modalidad y una jornada completa
 ## Tablero de disfrute
 
 El subsecretario titular vigente dispone de un tablero con actualización cada 30 segundos, filtros por vigencia y dependencia, totales únicos y comparación histórica. Incluye disfrute iniciado aprobado y cancelaciones con disfrute parcial, sin sumar tiempo futuro. La exportación privada y los archivos de Power Query y DAX preparan la integración posterior con Power BI, todavía sin cuenta ni informe publicado. Consulte [criterios de conteo y preparación](docs/powerbi/README.md).
+
+## Consulta de saldos
+
+La pantalla inicia sin resultados. Al pulsar Consultar saldos filtra en MySQL por intervalo de fechas, nombres o apellidos (sin distinguir tildes ni mayúsculas) y dependencia, con alcance de acceso y páginas de 20 funcionarios. Presenta el último registro de saldo de cada funcionario dentro del intervalo; no recalcula consumos del periodo. Las pruebas aisladas están en tests/balance-search-run.php.

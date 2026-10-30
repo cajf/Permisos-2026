@@ -59,6 +59,26 @@ function balanceScope(array $viewer,string $date): array {
     $departments=array_map('intval',array_column(rows("SELECT DISTINCT department_id FROM designations WHERE role='manager' AND (user_id=? OR alternate_id=?) AND start_date<=? AND (end_date IS NULL OR end_date>=?)",[$viewer['id'],$viewer['id'],$date,$date]),'department_id'));
     return ['all'=>false,'departments'=>$departments];
 }
+/** Consulta explícita y paginada; filtra en MySQL antes de cargar los saldos. */
+function searchBalanceSnapshots(array $viewer,array $input): array {
+    $from=trim((string)($input['from']??''));$to=trim((string)($input['to']??''));
+    ensure(validDate($from)&&validDate($to)&&$from<=$to&&$to<=date('Y-m-d'),'Seleccione fechas válidas: inicio no posterior al final y final hasta hoy.');
+    $name=trim((string)($input['name']??''));ensure(mb_strlen($name)<=120,'El nombre no puede superar 120 caracteres.');
+    $department=(string)($input['department']??'all');ensure($department==='all'||preg_match('/^[1-9][0-9]{0,17}$/D',$department),'Seleccione una dependencia válida.');
+    $scope=balanceScope($viewer,$to);$where=['s.created_at>=?','s.created_at<=?'];$params=[$from.' 00:00:00',$to.' 23:59:59'];
+    if(!$scope['all']) {
+        // Las consultas históricas respetan el periodo del jefe y de cada registro.
+        $where[]="(s.user_id=? OR (s.department_id IN (".implode(',',array_fill(0,count($scope['departments'])?:1,'?')).") AND EXISTS(SELECT 1 FROM designations dg WHERE dg.role='manager' AND dg.department_id=s.department_id AND (dg.user_id=? OR dg.alternate_id=?) AND dg.start_date<=DATE(s.created_at) AND (dg.end_date IS NULL OR dg.end_date>=DATE(s.created_at)))))";
+        array_push($params,$viewer['id'],...($scope['departments']?:[0]));array_push($params,$viewer['id'],$viewer['id']);
+    }
+    if($department!=='all'){$where[]='s.department_id=?';$params[]=$department;}
+    if($name!==''){$where[]="JSON_UNQUOTE(JSON_EXTRACT(s.data,'$.name')) COLLATE utf8mb4_0900_ai_ci LIKE CONVERT(? USING utf8mb4) COLLATE utf8mb4_0900_ai_ci ESCAPE '='";$params[]='%'.str_replace(['=','%','_'],['==','=%','=_'],$name).'%';}
+    // Una ficha por funcionario: último saldo registrado dentro del intervalo.
+    $where[]='NOT EXISTS(SELECT 1 FROM balance_snapshots newer WHERE newer.user_id=s.user_id AND newer.created_at<=? AND (newer.created_at>s.created_at OR (newer.created_at=s.created_at AND newer.id>s.id)))';$params[]=$to.' 23:59:59';
+    $page=max(1,min(100000,(int)($input['results_page']??1)));$offset=($page-1)*20;
+    $items=rows('SELECT s.*,d.name department FROM balance_snapshots s JOIN departments d ON d.id=s.department_id WHERE '.implode(' AND ',$where).' ORDER BY s.user_id LIMIT 21 OFFSET '.$offset,$params);
+    $more=count($items)>20;return ['items'=>array_slice($items,0,20),'more'=>$more,'page'=>$page];
+}
 function initializeBalanceHistory(): void {
     if (!tableExists('balance_snapshots') || setting('balance_history_started')!=='') return;
     atomic(function() {
