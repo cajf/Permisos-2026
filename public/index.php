@@ -122,6 +122,9 @@ try {
             case 'import_commit':
                 authorizeAdmin($u); ensure(!empty($_SESSION['import']),'Prepare primero la importación.');
                 $_SESSION['import_passwords']=commitImport($u,$_SESSION['import']); unset($_SESSION['import']); $destination='/?page=import'; break;
+            case 'mail_template_save':
+                saveMailTemplate($u,(string)($_POST['template_key']??''),(string)($_POST['subject']??''),(string)($_POST['message']??''));
+                $_SESSION['flash']='Plantilla guardada. Se aplicará a las nuevas notificaciones de este evento.';redirect('/?page=mail_templates');
             case 'mail_test':
                 authorizeAdmin($u);ensure(!notificationMailIssues(),'Configure y active la API antes de solicitar una prueba.');
                 $recipient=trim((string)($_POST['test_recipient']??''));ensure(notificationMailbox($recipient),'Indique una dirección real autorizada para recibir la prueba.');

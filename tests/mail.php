@@ -38,5 +38,6 @@ check(notificationBrevoResponse('{"messageId":"id-simulado"}',201)==='id-simulad
 foreach([[false,0,'uncertain'],['respuesta inválida',201,'uncertain'],['{}',500,'uncertain'],['{}',429,'failed'],['{"api-key":"secreto"}',401,'blocked']] as [$body,$code,$state]){
  try{notificationBrevoResponse($body,$code);check(false,'Debe rechazar la respuesta simulada');}catch(NotificationDeliveryError $e){check($e->deliveryState===$state&&!str_contains($e->getMessage(),'secreto'),'Clasifica respuesta '.$code.' sin revelar respuesta privada');}
 }
+require __DIR__.'/mail-templates.php';
 file_put_contents(ROOT.'/.work/mail-test-result.json',json_encode(['database_config'=>$GLOBALS['test_configuration_file'],'checks'=>$checks]));
 echo $checks." comprobaciones de correo correctas, sin envíos reales.\n";

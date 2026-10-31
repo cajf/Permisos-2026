@@ -77,3 +77,4 @@ require_once __DIR__.'/JobCatalog.php';
 require_once __DIR__.'/Analytics.php';
 require_once __DIR__ . '/Listings.php';
 require_once __DIR__ . '/NotificationMail.php';
+require_once __DIR__ . '/MailTemplates.php';

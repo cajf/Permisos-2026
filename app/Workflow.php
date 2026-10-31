@@ -138,7 +138,7 @@ final class Workflow {
             if(isset($snapshotData['electoral_check'])) event((int)$owner['id'],'Validación de certificado electoral',ElectoralCertificate::summary($snapshotData['electoral_check']),$id);
             if ($urgent) event((int)$owner['id'],'Registro urgente durante el disfrute',$exception,$id);
             notify((int)$route[0]['assigned_user_id'],'Solicitud pendiente TH-'.$id,'Tiene una solicitud pendiente de revisión. Ingrese a la aplicación para consultar los soportes.'.(isset($snapshotData['electoral_check']) && $snapshotData['electoral_check']['status']==='manual'?' ATENCIÓN: revisión manual obligatoria del certificado electoral.':''));
-            notify((int)$owner['id'],'Solicitud registrada TH-'.$id,'Su solicitud fue registrada y enviada a aprobación.');
+            notifyTemplate((int)$owner['id'],'request_registered',['{radicado}'=>'TH-'.str_pad((string)$id,6,'0',STR_PAD_LEFT)]);
             captureBalances((int)$owner['id']);
             return $id;
         });
@@ -173,7 +173,7 @@ final class Workflow {
             ensure($decision!=='approved'||$act['expires_on']>=date('Y-m-d'),'No se puede aprobar un acto vencido.');
             run('UPDATE acts SET status=?,reviewed_by=?,reviewed_at=?,comment=? WHERE id=?',[$decision,$admin['id'],now(),$comment,$id]);
             event((int)$admin['id'],'Acto '.statusLabel($decision),'Acto '.$id.' · '.$comment);
-            notify((int)$act['user_id'],'Revisión de acto administrativo',$act['number'].' · '.statusLabel($decision).' · '.$comment);
+            notifyTemplate((int)$act['user_id'],$decision==='approved'?'act_approved':'act_rejected',['{resolucion}'=>$act['number']]);
             captureBalances((int)$act['user_id']);
         });
     }
@@ -220,7 +220,8 @@ final class Workflow {
             if (in_array($status,['rejected','returned'],true)) run("UPDATE approvals SET status='skipped' WHERE request_id=? AND revision=? AND status='waiting'",[$id,$r['revision']]);
             run('UPDATE requests SET status=?,updated_at=? WHERE id=?',[$status,now(),$id]);
             event((int)$actor['id'],'Revisión: '.statusLabel($decision),roleLabel($step['role']).($bulkApprovalId!==null?' · Aprobación masiva':'').' · '.$comment,$id);
-            notify((int)$r['user_id'],'Novedad de solicitud TH-'.$id,statusLabel($status).' · '.$comment);
+            $mailEvent=match($status){'approved'=>'request_approved','returned'=>'request_returned','rejected'=>'request_rejected',default=>'manager_approved'};
+            notifyTemplate((int)$r['user_id'],$mailEvent,['{radicado}'=>'TH-'.str_pad((string)$id,6,'0',STR_PAD_LEFT)]);
             if ($decision==='approved' && $next) notify((int)$next['assigned_user_id'],'Solicitud pendiente TH-'.$id,'La etapa anterior fue aprobada. Puede revisar la solicitud.'.((($category['slug']??'')==='sufragar' || (($category['slug']??'')==='jurado' && (json_decode($r['snapshot'],true)['jury_role']??'')!=='clavero')) && ElectoralCertificate::needsManual($r)?' ATENCIÓN: revisión manual obligatoria del certificado electoral.':''));
             captureBalances((int)$r['user_id']);
         });

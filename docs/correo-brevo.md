@@ -2,7 +2,15 @@
 
 ## Estado y pasos del usuario
 
-La integración está preparada, pero desactivada. No se ha creado una cuenta, guardado una clave ni realizado un envío real. Se requiere cuenta gratuita, remitente verificado, activación transaccional por Brevo y una dirección autorizada para comprobar recepción.
+La integración admite envío mediante cuenta gratuita, remitente verificado y clave privada. Su activación depende de las variables de cada entorno. Las claves y los datos de conexión no se incluyen en este documento ni en GitHub.
+
+## Edición de plantillas
+
+El administrador de Talento Humano accede a Administración > Plantillas de correo, o desde Correos > Editar plantillas de correo. Hay siete formularios: registro de solicitud, aprobación del jefe inmediato, aprobación final, devolución, rechazo de solicitud y aprobación o rechazo del acto administrativo por Nómina. Cada uno permite editar asunto (hasta 180 caracteres, una línea) y mensaje (hasta 4.000 caracteres de texto plano), guardar y consultar una vista previa con datos de ejemplo. No se envía ningún correo al guardar ni al consultar la vista previa.
+
+Use {radicado} para solicitudes, {resolucion} para actos y {enlace} para la dirección de la aplicación. Las variables se sustituyen al generar la notificación. Si el mensaje no incluye {enlace}, se agrega al final. El HTML escrito se muestra como texto y no se ejecuta. Los comentarios, motivos privados y soportes no se añaden automáticamente. Las otras notificaciones conservan el mensaje genérico.
+
+Las plantillas se guardan en settings con claves mail_template_*, sin cambios de esquema. La cola outbox conserva una copia del asunto y del mensaje renderizados al producirse el evento; las modificaciones posteriores no cambian mensajes ya encolados. La edición exige rol admin, sesión y CSRF, y queda registrada en Historial. La aprobación final sustituye a la intermedia cuando solo aprueba el jefe inmediato o el alcalde. Las aprobaciones masivas utilizan el mismo flujo y las mismas plantillas que las individuales.
 
 1. Para las pruebas, use un correo propio al que tenga acceso o cree un buzón gratuito dedicado. Identifíquelo como pruebas; no lo presente como buzón oficial de la Alcaldía. Cree el buzón y complete sus términos directamente en el proveedor.
 2. Regístrese en https://www.brevo.com/ y elija Free. Complete personalmente verificación de identidad, términos y confirmación de correo. No agregue tarjeta ni compre créditos o complementos.
@@ -32,7 +40,7 @@ No configure una fecha antigua: el objetivo es excluir avisos acumulados durante
 
 - La API usa HTTPS y validación TLS, endpoint fijo https://api.brevo.com/v3/smtp/email. Las credenciales van en la cabecera privada api-key; no se admiten redirecciones. PHP requiere cURL, incorporado en Docker.
 - Se conserva outbox. El reclamo atómico y un bloqueo MySQL evitan que trabajadores simultáneos envíen el mismo registro. No cambia el esquema. settings guarda contadores, pausas e identificadores de aceptación bajo claves mail_*.
-- Los correos contienen el asunto/radicado y un aviso genérico con enlace a la aplicación. No transmiten el cuerpo original de la cola, que puede contener motivos o comentarios, ni anexos. Se conserva la información completa dentro de la aplicación.
+- Los siete eventos configurables utilizan la copia de la plantilla guardada en la cola. Las demás notificaciones utilizan el aviso genérico con enlace a la aplicación. No se transmiten los cuerpos antiguos con motivos o comentarios ni anexos; la información completa se consulta dentro de la aplicación.
 - Se procesan lotes de cinco cada 30 segundos mientras el trabajador está activo. El botón administrativo procesa hasta tres. No se envía desde el registro/aprobación de una solicitud, por lo que una falla del proveedor no revierte el trámite.
 - En Render, el contenedor inicia el trabajador como www-data cuando APP_MAIL_ENABLED=1. El plan gratuito puede suspenderse por inactividad; no se garantiza envío inmediato ni continuidad 24/7. Para producción se necesita ejecución continua autorizada. No se creó ningún servicio de pago ni monitor externo.
 - En local, iniciar.cmd inicia el trabajador oculto solo si la configuración es válida y lo detiene al cerrar el servidor. Para operación manual: PHP scripts/mail-worker.php --check verifica configuración sin enviar; sin argumentos procesa un lote; --loop mantiene el trabajador. Use la instalación PHP del proyecto y su php.ini.

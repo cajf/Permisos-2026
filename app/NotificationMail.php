@@ -23,6 +23,8 @@ function notificationPayload(array $item): array {
     $c=notificationMailConfig();ensure(notificationMailbox($item['recipient']),'Destinatario de demostración o dirección no válida.');
     // No se transmiten comentarios de aprobación, motivos, soportes ni datos de salud.
     $text="Tiene una notificación de la aplicación de permisos, compensatorios y licencias.\n\n".$item['subject']."\n\nIngrese con su usuario para consultar el detalle:\n".$GLOBALS['config']['base_url'];
+    $snapshot=json_decode($item['body']??'',true);
+    if(is_array($snapshot)&&($snapshot['mail_template_version']??null)===1&&isset(mailTemplateDefaults()[$snapshot['event']??''])&&is_string($snapshot['text']??null))$text=$snapshot['text'];
     return ['sender'=>['email'=>$c['from'],'name'=>$c['from_name']],'to'=>[['email'=>$item['recipient']]],'subject'=>$item['subject'],'textContent'=>$text,'htmlContent'=>'<p>'.nl2br(e($text)).'</p>'];
 }
 class NotificationDeliveryError extends RuntimeException {
