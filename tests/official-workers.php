@@ -23,4 +23,10 @@ check($standard->periods('2026-12-01')===[['07:30','12:00'],['13:00','17:00']],'
 refuses(fn()=>saveSchedule(person(5),$data),'Evita vigencias superpuestas del mismo grupo');
 $data['schedule_group']='regular';saveSchedule(person(5),$data);check($standard->periods('2026-12-01')===[['06:00','14:00']],'Admite vigencias coincidentes para grupos distintos');
 check((int)row('SELECT total_minutes FROM requests WHERE id=?',[$request])['total_minutes']===1440&&row('SELECT start_time FROM request_slots WHERE request_id=? ORDER BY date LIMIT 1',[$request])['start_time']==='07:00','Conserva minutos y franjas de solicitudes existentes');
+check($calendar->schedule('2026-12-01')['temporary']===true&&$calendar->schedule('2026-12-01')['name']==='Horario oficial temporal','Identifica el horario temporal vigente de trabajador oficial');
+check($standard->schedule('2026-12-01')['temporary']===true,'Identifica el horario temporal vigente de otras vinculaciones');
+check($calendar->schedule('2026-12-07')['temporary']===false,'Identifica el regreso a la jornada ordinaria');
+ob_start();require ROOT.'/views/current-schedules.php';$currentScheduleHtml=ob_get_clean();
+check(str_contains($currentScheduleHtml,'Trabajador oficial')&&str_contains($currentScheduleHtml,'Otras vinculaciones')&&substr_count($currentScheduleHtml,'Total diario')===2,'Calendario muestra ambas jornadas con total diario');
+check(str_contains($currentScheduleHtml,'07:00 – 15:00')&&str_contains($currentScheduleHtml,'8 h 00 min')&&str_contains($currentScheduleHtml,'8 h 30 min'),'Muestra jornadas ordinarias de ocho y ocho y media horas');
 echo $checks." comprobaciones correctas, sin envíos reales.\n";

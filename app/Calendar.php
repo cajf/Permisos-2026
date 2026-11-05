@@ -11,13 +11,19 @@ final class WorkCalendar {
         ensure(validDate($date),'La fecha no es válida.');
         $weekday=(int)(new DateTimeImmutable($date))->format('N');
         if (!$this->isBusinessDay($date)) return [];
+        return $this->schedule($date)['periods'][(string)$weekday]??[];
+    }
+    /** Jornada semanal vigente: también puede consultarse en fines de semana y festivos. */
+    public function schedule(string $date):array {
+        ensure(validDate($date),'La fecha no es válida.');
         if($this->officialWorker){
-            foreach(array_reverse(json_decode(setting('official_worker_schedules','[]'),true,512,JSON_THROW_ON_ERROR)) as $schedule)if($schedule['start_date']<=$date&&$schedule['end_date']>=$date)return $schedule['periods'][(string)$weekday]??[];
-            return [['07:00','15:00']];
+            foreach(array_reverse(json_decode(setting('official_worker_schedules','[]'),true,512,JSON_THROW_ON_ERROR)) as $schedule)if($schedule['start_date']<=$date&&$schedule['end_date']>=$date)return $schedule+['temporary'=>true];
+        }else{
+            $override=row('SELECT * FROM schedules WHERE start_date<=? AND end_date>=? ORDER BY id DESC LIMIT 1',[$date,$date]);
+            if($override){$override['periods']=json_decode($override['periods'],true,512,JSON_THROW_ON_ERROR);return $override+['temporary'=>true];}
         }
-        $override=row('SELECT * FROM schedules WHERE start_date<=? AND end_date>=? ORDER BY id DESC LIMIT 1',[$date,$date]);
-        if ($override) return json_decode($override['periods'],true,512,JSON_THROW_ON_ERROR)[(string)$weekday]??[];
-        return $weekday===5 ? [['07:00','12:00'],['12:30','16:00']] : [['07:30','12:00'],['13:00','17:00']];
+        $periods=[];for($day=1;$day<=5;$day++)$periods[$day]=$this->officialWorker?[['07:00','15:00']]:($day===5?[['07:00','12:00'],['12:30','16:00']]:[['07:30','12:00'],['13:00','17:00']]);
+        return ['name'=>'Jornada ordinaria','temporary'=>false,'periods'=>$periods,'start_date'=>null,'end_date'=>null];
     }
     public function minutes(string $date,string $start,string $end): int {
         ensure(preg_match('/^\d{2}:\d{2}$/D',$start)===1 && preg_match('/^\d{2}:\d{2}$/D',$end)===1,'Use horas en formato HH:MM.');
