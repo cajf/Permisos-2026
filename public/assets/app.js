@@ -60,6 +60,20 @@ if(form){
   document.querySelector('#supports-label').textContent=selected?.dataset.slug?(required?'Selecciona tus archivos *':'Selecciona tus archivos (opcional)'):'Selecciona tus archivos';
   document.querySelector('#supports-guide').textContent=!selected?.dataset.slug?'Selecciona un tipo para consultar los soportes.':`${required?'Soporte obligatorio.':'Soporte opcional.'} ${selected.dataset.supports||'Puedes adjuntar documentos si lo consideras necesario.'}`;
  }
+ function updateAllocations(){
+  const panel=document.querySelector('#allocation-panel'),message=document.querySelector('#allocation-summary'),inputs=[...panel.querySelectorAll('[data-allocation-hours]')],dateFields=[...slots.querySelectorAll('[type=date]')];
+  inputs.forEach(input=>input.setCustomValidity(''));dateFields.forEach(input=>input.setCustomValidity(''));
+  if(category.selectedOptions[0]?.dataset.slug!=='acto')return;
+  const allocated=inputs.reduce((sum,input)=>sum+Math.round(Number(input.value||0)*60),0),requested=[...slots.children].reduce((sum,row)=>sum+Number(row.dataset.minutes||0),0),limit=Number(panel.dataset.dailyLimit);
+  const dates=new Set(dateFields.map(input=>input.value).filter(Boolean));let error='';
+  if(dates.size>1)error='El compensatorio debe disfrutarse en una única fecha laboral.';
+  else if(allocated>limit||requested>limit)error=`La suma no puede superar ${fmt(limit)} por jornada.`;
+  else if(allocated!==requested)error='La suma de los actos debe coincidir con el tiempo solicitado.';
+  message.textContent=`Seleccionado en actos: ${fmt(allocated)} · Solicitado: ${fmt(requested)} · Máximo diario: ${fmt(limit)}${error?' · '+error:''}`;
+  message.className=error?'alert warning':'alert success';
+  if(error&&inputs.length)inputs[0].setCustomValidity(error);
+ }
+ document.querySelector('#allocation-panel').addEventListener('input',updateAllocations);
  async function refresh(){
   updateSupports();
   const seq=++sequence;let total=0;
@@ -79,6 +93,7 @@ if(form){
   document.querySelector('#birthday-year-field').hidden=slug!=='cumpleanos';
   document.querySelector('#jury-role-field').hidden=slug!=='jurado';document.querySelector('#jury-role').required=slug==='jurado';
   document.querySelector('#electoral-guide').hidden=slug!=='sufragar';
+  updateAllocations();
   const guide=document.querySelector('#route-guide');guide.textContent=!slug?'Selecciona el tipo y las fechas.':high&&selected.dataset.family==='permiso'?'Alcalde · aprobación exclusiva':slug==='ordinario'&&total>0&&total<=120?'Jefe inmediato · aprobación única':'Jefe inmediato → Subsecretario de Talento Humano';
  }
  slots.addEventListener('change',refresh);category.addEventListener('change',refresh);

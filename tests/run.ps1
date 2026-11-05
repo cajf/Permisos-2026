@@ -15,6 +15,8 @@ if ($LASTEXITCODE -ne 0) { throw 'Fallaron las pruebas de consulta de saldos.' }
 & (Join-Path $PSScriptRoot 'run-permissions.ps1')
 & (Join-Path $PSScriptRoot 'run-official-job-categories.ps1')
 if ($LASTEXITCODE -ne 0) { throw 'Fallaron las pruebas de categorías de trabajador oficial.' }
+& $testPhp -c $testIni tests/act-workday.php
+if ($LASTEXITCODE -ne 0) { throw 'Fallaron las pruebas de compensatorio por actos en una jornada.' }
 & $testPhp -c $testIni tests/official-workers.php
 if ($LASTEXITCODE -ne 0) { throw 'Fallaron las pruebas de trabajador oficial.' }
 & $testPhp -c $testIni -d display_errors=1 tests/catalog-migration.php

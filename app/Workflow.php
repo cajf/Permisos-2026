@@ -60,6 +60,7 @@ final class Workflow {
             ensure($category!==null,'Seleccione un tipo de solicitud.');
             $slots=$this->calendar->slots($input['slots']??[],$clock);
             $total=array_sum(array_column($slots,'minutes'));
+            if($category['slug']==='acto')$this->validateActWorkday($slots,$owner);
             $reason=trim($input['justification']??''); $exception=trim($input['exception_reason']??'');
             ensure(mb_strlen($reason)>=10 && mb_strlen($reason)<=5000,'La justificación debe contener entre 10 y 5.000 caracteres.');
             ensure(mb_strlen($exception)<=3000,'La justificación de excepción es demasiado extensa.');
@@ -103,6 +104,7 @@ final class Workflow {
             }
             $snapshotData=array_intersect_key($owner,array_flip(['name','identification','job_title','code','grade','department','appointment_type','job_category','high_rank']));
             $snapshotData['ordinary_quota_minutes']=ordinaryQuotaLimit($owner);
+            if($category['slug']==='acto')$snapshotData['act_workday']=['date'=>$slots[0]['date'],'periods'=>$this->calendar->periods($slots[0]['date'])];
             if($category['slug']==='jurado') $snapshotData['jury_role']=$input['jury_role'];
             if($electoral!==null) $snapshotData['electoral_check']=ElectoralCertificate::validate($electoral,$owner['identification'],$slots,$clock->format('Y-m-d'));
             if ($old) {
@@ -122,8 +124,11 @@ final class Workflow {
             foreach ($slots as $s) insert('request_slots',$s+['request_id'=>$id]);
             if ($category['slug']==='acto') {
                 $allocated=0; $seen=[];
+                ensure(is_array($input['allocations']??[]),'La selección de actos no es válida.');
                 foreach ($input['allocations']??[] as $a) {
-                    if (empty($a['id']) || (float)($a['hours']??0)<=0) continue;
+                    ensure(is_array($a),'La selección de actos no es válida.');
+                    $hours=trim((string)($a['hours']??''));if($hours===''||(is_numeric($hours)&&(float)$hours===0.0))continue;
+                    ensure(!empty($a['id']),'Seleccione el acto para las horas indicadas.');
                     $amount=self::hourInput((string)$a['hours']);
                     $act=row("SELECT * FROM acts WHERE id=? AND user_id=? AND status='approved'",[(int)$a['id'],$owner['id']]);
                     ensure($act!==null,'Seleccione un acto aprobado de su propiedad.');
@@ -150,6 +155,21 @@ final class Workflow {
         ensure(is_numeric($hours) && (float)$hours>0 && (float)$hours<=100000,'Ingrese un total de horas positivo y válido.');
         $raw=(float)$hours*60; ensure(round($raw)>0 && abs($raw-round($raw))<0.001,'Las horas deben equivaler a minutos enteros positivos.');
         return (int)round($raw);
+    }
+    public function validateActWorkday(array $slots,array $person,?array $periods=null):void {
+        ensure($slots!==[]&&count(array_unique(array_column($slots,'date')))===1,'El compensatorio por acto administrativo debe disfrutarse en una sola fecha laboral.');
+        $limit=intdiv(ordinaryQuotaLimit($person),3);
+        ensure(array_sum(array_column($slots,'minutes'))<=$limit,'La suma de horas de los actos no puede superar '.hours($limit).' en una jornada diaria.');
+        $calendar=new WorkCalendar(isOfficialWorker($person));$periods??=$calendar->periods($slots[0]['date']);
+        ensure($periods!==[],'La fecha del compensatorio no tiene jornada laboral.');
+        usort($slots,fn($a,$b)=>strcmp($a['start_time'],$b['start_time']));$previousEnd=null;
+        foreach($slots as $slot){
+            $a=$slot['start_time'];$b=$slot['end_time'];
+            ensure($a>=$periods[0][0]&&$b<=$periods[count($periods)-1][1]&&$b>$a,'El disfrute debe estar dentro de la jornada laboral aplicable.');
+            ensure($previousEnd===null||$a>=$previousEnd,'Las franjas del compensatorio no pueden superponerse.');$previousEnd=$b;
+            $minutes=0;foreach($periods as [$from,$to])if(max($a,$from)<min($b,$to))$minutes+=(int)((strtotime('2000-01-01 '.min($b,$to))-strtotime('2000-01-01 '.max($a,$from)))/60);
+            ensure($minutes>0&&$minutes===(int)$slot['minutes'],'El tiempo solicitado no coincide con las franjas de la jornada laboral.');
+        }
     }
     public function act(array $u,array $input,array $files): int {
         requirePermission($u,'act.create');
@@ -267,6 +287,11 @@ final class Workflow {
             foreach (rows('SELECT * FROM request_slots WHERE request_id=?',[$id]) as $slot) foreach($this->slotSemesters($slot) as $semester=>$minutes) ensure($this->quota((int)$request['user_id'],$semester)<=$quotaLimit,'La solicitud excede el cupo semestral de Ordinario-Remunerado.');
         }
         if ($category['slug']==='acto') {
+            $snapshot=json_decode($request['snapshot'],true,512,JSON_THROW_ON_ERROR);
+            $actSlots=rows('SELECT * FROM request_slots WHERE request_id=? ORDER BY date,start_time',[$id]);
+            if(isset($snapshot['act_workday']['date']))ensure(($actSlots[0]['date']??'')===$snapshot['act_workday']['date'],'La fecha no coincide con la jornada guardada al registrar la solicitud.');
+            $this->validateActWorkday($actSlots,$snapshot,$snapshot['act_workday']['periods']??null);
+            ensure(array_sum(array_column($actSlots,'minutes'))===(int)$request['total_minutes'],'La duración del compensatorio no coincide con sus franjas.');
             $allocations=rows('SELECT a.*,x.status act_status,x.issued_on,x.expires_on,x.granted_minutes,x.user_id act_owner,x.number FROM allocations a JOIN acts x ON x.id=a.act_id WHERE a.request_id=?',[$id]);
             ensure(array_sum(array_column($allocations,'minutes'))===(int)$request['total_minutes'],'La reserva de los actos no coincide con el tiempo solicitado.');
             $last=row('SELECT MAX(COALESCE(end_at,CONCAT(date,\' \',end_time,\':00\'))) last_end FROM request_slots WHERE request_id=?',[$id])['last_end'];
