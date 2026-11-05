@@ -19,8 +19,8 @@ $r=http('page=mail_templates');ok(substr_count($r['body'],'name="template_key"')
 $fields=['csrf'=>$csrf,'action'=>'mail_template_save','template_key'=>'request_approved','subject'=>'Aprobación personalizada {radicado}','message'=>'Texto de prueba {radicado}'];
 $r=http('page=mail_templates',$fields,true);ok($r['code']===302&&str_contains(http('page=mail_templates')['body'],'Aprobación personalizada'),'Guarda plantilla desde formulario HTTP');
 $bad=$fields;$bad['csrf']='incorrecto';$bad['subject']='No debe guardarse';$r=http('page=mail_templates',$bad,true);ok(str_contains($r['body'],'expiró')&&!str_contains(http('page=mail_templates')['body'],'value="No debe guardarse"'),'Protege la edición con CSRF');
-$csrf=login('qa1');ok(str_contains(http('page=outbox')['body'],'requiere un administrador'),'Funcionario no puede consultar la cola');
-ok(str_contains(http('page=mail_templates')['body'],'requiere un administrador'),'Funcionario no ve las plantillas por URL directa');
-$fields['csrf']=$csrf;$r=http('page=mail_templates',$fields,true);ok(str_contains($r['body'],'requiere un administrador'),'Funcionario no puede guardar plantillas por POST');
-$r=http('page=outbox',['csrf'=>$csrf,'action'=>'mail_test','test_recipient'=>'prueba@correo-pruebas.co'],true);ok(str_contains($r['body'],'requiere un administrador'),'Funcionario no puede solicitar pruebas');
+$csrf=login('qa1');ok(str_contains(http('page=outbox')['body'],'No tiene permiso'),'Funcionario no puede consultar la cola');
+ok(str_contains(http('page=mail_templates')['body'],'No tiene permiso'),'Funcionario no ve las plantillas por URL directa');
+$fields['csrf']=$csrf;$r=http('page=mail_templates',$fields,true);ok(str_contains($r['body'],'No tiene permiso'),'Funcionario no puede guardar plantillas por POST');
+$r=http('page=outbox',['csrf'=>$csrf,'action'=>'mail_test','test_recipient'=>'prueba@correo-pruebas.co'],true);ok(str_contains($r['body'],'No tiene permiso'),'Funcionario no puede solicitar pruebas');
 echo $checks." comprobaciones HTTP de correo correctas, sin envíos reales.\n";

@@ -176,7 +176,7 @@ if ($page!=='login') {
                 $bytes=requestPdf($r); header('Content-Type: application/pdf'); header('Content-Disposition: attachment; filename="TH-'.(int)$r['id'].'.pdf"'); header('Content-Length: '.strlen($bytes)); echo $bytes; exit;
             }
             $a=row('SELECT * FROM attachments WHERE id=?',[(int)($_GET['id']??0)]); ensure($a!==null,'Soporte no encontrado.');
-            $allowed=(int)$a['user_id']===(int)$u['id'] || can($u,'data.requests_all') || ($a['act_id'] && can($u,'data.acts_all'));
+            $allowed=(int)$a['user_id']===(int)$u['id'] || ($a['act_id'] && can($u,'data.acts_all'));
             if ($a['request_id']) $allowed=canReadRequest($u,row('SELECT * FROM requests WHERE id=?',[$a['request_id']]));
             if ($a['act_id'] && !$allowed) foreach (rows('SELECT r.* FROM requests r JOIN allocations l ON l.request_id=r.id WHERE l.act_id=?',[$a['act_id']]) as $r) if(canReadRequest($u,$r)) $allowed=true;
             ensure($allowed,'No tiene acceso a este soporte.');

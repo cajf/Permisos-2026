@@ -10,7 +10,7 @@ if(!str_contains(http('page=login')['headers'],'X-TH-Test-Environment: isolated'
 function listingCount(string $html,string $path):int{$dom=new DOMDocument();libxml_use_internal_errors(true);$dom->loadHTML($html);return (new DOMXPath($dom))->query($path)->length;}
 login('qa5');
 foreach(['users','jobs','designations'] as $page){$r=http('page='.$page);ok($r['code']===200&&!str_contains($r['body'],'Fatal error')&&listingCount($r['body'],'//table/tbody/tr')===10,'Diez registros por HTTP: '.$page);}
-$users=http('page=users')['body'];ok(listingCount($users,"//select[@name='q_job']/option")>12&&listingCount($users,"//select[@name='q_role']/option")===7,'Directorio presenta listas de cargos y roles');
+$users=http('page=users')['body'];ok(listingCount($users,"//select[@name='q_job']/option")>12&&listingCount($users,"//select[@name='q_role']/option")===8,'Directorio presenta listas de cargos y roles');
 foreach(['q_name=subsecretario','q_username=qa1','q_identification=PRUEBA-1','q_job=Jefe','q_role=payroll'] as $filter)ok(listingCount(http('page=users&'.$filter)['body'],'//table/tbody/tr')===1,'Filtro HTTP del directorio: '.$filter);
 ok(listingCount(http('page=users&list_page=2')['body'],'//table/tbody/tr')===10&&listingCount(http('page=users&list_page=3')['body'],'//table/tbody/tr')===2,'Navegación de las tres páginas del directorio');
 $jobs=http('page=jobs&q_job=listado%2001&q_code=001&q_grade=09')['body'];ok(listingCount($jobs,'//table/tbody/tr')===1&&str_contains($jobs,'Profesional de listado 01'),'Filtros combinados del catálogo');
@@ -24,5 +24,5 @@ ok(listingCount(http('page=acts&q_identification=PRUEBA-8')['body'],'//article')
 login('qa1');$own=http('page=acts&q_number=RES-001&q_name=Otro&q_identification=PRUEBA-8')['body'];
 ok(listingCount($own,'//article')===1&&listingCount($own,"//input[@name='q_name']")===0&&listingCount($own,"//input[@name='q_identification']")===0,'Funcionario solo dispone del filtro de resolución y conserva sus actos propios');
 ok(listingCount($own,"//form[@class='review-act']")===0,'Funcionario no recibe acciones de aprobación de actos');
-foreach(['users','jobs','designations'] as $page)ok(str_contains(http('page='.$page)['body'],'requiere un administrador'),'Acceso administrativo restringido: '.$page);
+foreach(['users','jobs','designations'] as $page)ok(str_contains(http('page='.$page)['body'],'No tiene permiso'),'Acceso administrativo restringido: '.$page);
 echo $checks." comprobaciones HTTP de listados correctas.\n";
