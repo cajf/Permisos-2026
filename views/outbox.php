@@ -1,4 +1,4 @@
-<?php authorizeAdmin($u);$mailIssues=notificationMailIssues();$mailConfig=notificationMailConfig(); ?>
+<?php requirePermission($u,'view.outbox');$mailIssues=notificationMailIssues();$mailConfig=notificationMailConfig(); ?>
 <p class="page-intro">Las notificaciones se conservan en la cola. La API de Brevo se activa con un remitente verificado y variables privadas del alojamiento. Aceptado por el proveedor no confirma recepción en la bandeja del destinatario.</p>
 <?php if($mailIssues): ?><div class="alert warning"><strong>Envío por API pendiente de configurar o activar.</strong><ul><?php foreach($mailIssues as $issue): ?><li><?=e($issue)?></li><?php endforeach; ?></ul><p>No se está enviando ningún correo automáticamente.</p></div><?php else: ?><div class="alert success">API Brevo configurada. Remitente: <?=e($mailConfig['from'])?>. Se procesan únicamente mensajes registrados desde <?=e($mailConfig['start_at'])?> (Bogotá). Límite local: <?=(int)$mailConfig['daily_limit']?> intentos por día.</div><?php endif; ?>
 <p><a class="button secondary" href="/?page=mail_templates">Editar plantillas de correo</a></p>

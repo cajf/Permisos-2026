@@ -3,7 +3,8 @@ declare(strict_types=1);
 
 function canAccessAnalytics(array $actor): bool {
     $current=row('SELECT * FROM users WHERE id=? AND active=1',[$actor['id']??0]);
-    if(!$current || !hasRole($current,'subsecretary')) return false;
+    if(!$current || !can($current,'view.analytics')) return false;
+    if(isSuperadmin($current) || !hasRole($current,'subsecretary')) return true;
     $assignment=designation('subsecretary');
     $principal=$assignment?(int)$assignment['user_id']:(int)setting('subsecretary_id');
     return $principal===(int)$current['id'];

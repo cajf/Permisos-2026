@@ -1,5 +1,5 @@
 <?php
-authorizeAdmin($u);
+requirePermission($u,'view.designations');
 $people=rows('SELECT * FROM users WHERE active=1 ORDER BY name');
 $departments=rows('SELECT * FROM departments ORDER BY name');
 $listing=searchDesignationHistory($u,$_GET);$history=$listing['items'];

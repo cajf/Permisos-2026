@@ -66,7 +66,7 @@ function csrf(): string { return '<input type="hidden" name="csrf" value="'.e($_
 function authorizeAdmin(array $u): void { ensure(hasRole($u,'admin'),'Esta acción requiere un administrador de Talento Humano.'); }
 function validDate(string $s): bool { $d=DateTimeImmutable::createFromFormat('!Y-m-d',$s); return $d && $d->format('Y-m-d')===$s; }
 function statusLabel(string $s): string { return ['pending'=>'En aprobación','approved'=>'Aprobada','returned'=>'Devuelta para corregir','rejected'=>'Rechazada','cancel_pending'=>'Cancelación en revisión','cancelled'=>'Cancelada','waiting'=>'Pendiente','skipped'=>'Sin efecto','released'=>'Liberado','reserved'=>'Reservado','consumed'=>'Descontado','sent'=>'Enviado','sending'=>'Enviando','failed'=>'Error de envío'][$s]??$s; }
-function roleLabel(string $role): string { return ['manager'=>'Jefe inmediato','subsecretary'=>'Subsecretario','mayor'=>'Alcalde','admin'=>'Administrador de Talento Humano','payroll'=>'Nómina'][$role]??$role; }
+function roleLabel(string $role): string { return systemRoles()[$role]??$role; }
 function familyLabel(string $s): string { return ['permiso'=>'Permiso','compensatorio'=>'Compensatorio','remunerada'=>'Licencia remunerada','no_remunerada'=>'Licencia no remunerada'][$s]??$s; }
 require_once __DIR__.'/Calendar.php';
 require_once __DIR__.'/Workflow.php';
@@ -78,3 +78,4 @@ require_once __DIR__.'/Analytics.php';
 require_once __DIR__ . '/Listings.php';
 require_once __DIR__ . '/NotificationMail.php';
 require_once __DIR__ . '/MailTemplates.php';
+require_once __DIR__ . '/Permissions.php';

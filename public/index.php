@@ -61,6 +61,7 @@ try {
             session_regenerate_id(true); event((int)$u['id'],'Contraseña actualizada','Cambio realizado por el titular'); $_SESSION['flash']='Contraseña actualizada.'; redirect('/');
         }
         ensure(!(int)$u['force_password'],'Debe cambiar su contraseña antes de continuar.');
+        authorizeAction($u,$action,$_POST);
         $destination='/?page='.$page;
         switch ($action) {
             case 'submit':
@@ -81,13 +82,13 @@ try {
             case 'job_grade': saveJobGrade($u,$_POST); $destination='/?page=jobs'; break;
             case 'designation': saveDesignation($u,$_POST); $destination='/?page=designations'; break;
             case 'reset_password':
-                authorizeAdmin($u); validatePassword($_POST['initial_password']??'');
-                ensure(row('SELECT id FROM users WHERE id=?',[(int)$_POST['id']])!==null,'Funcionario no encontrado.');
+                 validatePassword($_POST['initial_password']??'');
+                $targetUser=row('SELECT * FROM users WHERE id=?',[(int)$_POST['id']]);ensure($targetUser!==null,'Funcionario no encontrado.');ensure(!isSuperadmin($targetUser)||isSuperadmin($u),'Solo un superadministrador puede restablecer esa cuenta.');
                 run('UPDATE users SET password=?,force_password=1,failures=0,locked_until=NULL WHERE id=?',[password_hash($_POST['initial_password'],PASSWORD_DEFAULT),(int)$_POST['id']]);
                 event((int)$u['id'],'Contraseña restablecida','Funcionario '.(int)$_POST['id']); $destination='/?page=users'; break;
-            case 'department': authorizeAdmin($u); ensure(trim($_POST['name']??'')!=='','Indique el nombre de la dependencia.'); insert('departments',['name'=>trim($_POST['name'])]); $destination='/?page=users'; break;
+            case 'department':  ensure(trim($_POST['name']??'')!=='','Indique el nombre de la dependencia.'); insert('departments',['name'=>trim($_POST['name'])]); $destination='/?page=users'; break;
             case 'settings':
-                authorizeAdmin($u);
+
                 atomic(function() use($u,$wf) {
                     foreach (['mayor'] as $role) foreach (['_id','_alternate_id'] as $suffix) {
                         $id=(int)($_POST[$role.$suffix]??0);
@@ -99,12 +100,12 @@ try {
                 }); $destination='/?page=settings'; break;
             case 'schedule': saveSchedule($u,$_POST); $destination='/?page=calendar'; break;
             case 'holiday':
-                authorizeAdmin($u); ensure(validDate($_POST['date']??'') && trim($_POST['name']??'')!=='','Indique fecha y nombre del día no laborable.');
+                 ensure(validDate($_POST['date']??'') && trim($_POST['name']??'')!=='','Indique fecha y nombre del día no laborable.');
                 ensure($_POST['date']>=date('Y-m-d'),'No se modifican festivos pasados.');
                 run('INSERT INTO holidays(date,name) VALUES(?,?) ON DUPLICATE KEY UPDATE name=?',[$_POST['date'],trim($_POST['name']),trim($_POST['name'])]); event((int)$u['id'],'Calendario actualizado',$_POST['date'].' · '.$_POST['name']); $destination='/?page=calendar'; break;
-            case 'delete_holiday': authorizeAdmin($u); ensure(($_POST['date']??'')>=date('Y-m-d'),'No se modifican festivos pasados.'); run('DELETE FROM holidays WHERE date=?',[$_POST['date']]); event((int)$u['id'],'Festivo retirado',$_POST['date']); $destination='/?page=calendar'; break;
+            case 'delete_holiday':  ensure(($_POST['date']??'')>=date('Y-m-d'),'No se modifican festivos pasados.'); run('DELETE FROM holidays WHERE date=?',[$_POST['date']]); event((int)$u['id'],'Festivo retirado',$_POST['date']); $destination='/?page=calendar'; break;
             case 'policy':
-                authorizeAdmin($u);
+
                 $supportsRequired=isset($_POST['supports_required'])?1:0;
                 $supports=trim($_POST['supports']??'');
                 ensure(!$supportsRequired || $supports!=='','Describa los soportes requeridos.');
@@ -116,22 +117,23 @@ try {
                     event((int)$u['id'],'Matriz actualizada',$c['name'].' · Soporte '.($supportsRequired?'obligatorio':'opcional'));
                 }); $destination='/?page=policies'; break;
             case 'import_preview':
-                authorizeAdmin($u); $f=$_FILES['excel']??[];
+                 $f=$_FILES['excel']??[];
                 ensure(($f['error']??1)===UPLOAD_ERR_OK && is_uploaded_file($f['tmp_name']) && $f['size']<=5*1024*1024,'Adjunte un XLSX o CSV de hasta 5 MB.');
                 $_SESSION['import']=readImport($f['tmp_name'],strtolower(pathinfo($f['name'],PATHINFO_EXTENSION))); $destination='/?page=import'; break;
             case 'import_commit':
-                authorizeAdmin($u); ensure(!empty($_SESSION['import']),'Prepare primero la importación.');
+                 ensure(!empty($_SESSION['import']),'Prepare primero la importación.');
                 $_SESSION['import_passwords']=commitImport($u,$_SESSION['import']); unset($_SESSION['import']); $destination='/?page=import'; break;
             case 'mail_template_save':
                 saveMailTemplate($u,(string)($_POST['template_key']??''),(string)($_POST['subject']??''),(string)($_POST['message']??''));
                 $_SESSION['flash']='Plantilla guardada. Se aplicará a las nuevas notificaciones de este evento.';redirect('/?page=mail_templates');
+            case 'permissions_save': saveRolePermissions($u,$_POST); $destination='/?page=permissions&role='.rawurlencode((string)$_POST['role']);break;
             case 'mail_test':
-                authorizeAdmin($u);ensure(!notificationMailIssues(),'Configure y active la API antes de solicitar una prueba.');
+                ensure(!notificationMailIssues(),'Configure y active la API antes de solicitar una prueba.');
                 $recipient=trim((string)($_POST['test_recipient']??''));ensure(notificationMailbox($recipient),'Indique una dirección real autorizada para recibir la prueba.');
                 insert('outbox',['recipient'=>$recipient,'subject'=>'Prueba de notificaciones · Permisos Bucaramanga','body'=>'Prueba de conexión solicitada por el administrador.','created_at'=>now()]);
                 event((int)$u['id'],'Prueba de correo en cola','Prueba solicitada por el administrador.');$destination='/?page=outbox';break;
             case 'mail_process':
-                authorizeAdmin($u);ensure(!notificationMailIssues(),'Configure y active la API antes de procesar la cola.');
+                ensure(!notificationMailIssues(),'Configure y active la API antes de procesar la cola.');
                 $mailResult=processNotificationMail(3);event((int)$u['id'],'Procesamiento de correo',json_encode($mailResult));
                 $_SESSION['flash']='Lote procesado: '.(int)$mailResult['accepted'].' aceptados por Brevo. Consulte estados y errores.';redirect('/?page=outbox');
             default: throw new DomainException('Acción desconocida.');
@@ -144,6 +146,7 @@ catch (Throwable $ex) { error_log((string)$ex); $error=$ex instanceof PDOExcepti
 if ($page!=='login') {
     $u=user(); if ((int)$u['force_password'] && $page!=='password') redirect('/?page=password');
     try {
+        authorizeRoute($u,$page);
         if(in_array($page,['analytics','analytics_data','analytics_export'],true)) {
             header('Cache-Control: no-store, private');header('Vary: Cookie');
             if(!canAccessAnalytics($u)) {http_response_code(403);if($page==='analytics_data'){header('Content-Type: application/json; charset=utf-8');echo json_encode(['error'=>'Acceso exclusivo del subsecretario titular vigente.']);exit;} $error='Acceso exclusivo del subsecretario titular vigente.';$page='dashboard';}
@@ -173,7 +176,7 @@ if ($page!=='login') {
                 $bytes=requestPdf($r); header('Content-Type: application/pdf'); header('Content-Disposition: attachment; filename="TH-'.(int)$r['id'].'.pdf"'); header('Content-Length: '.strlen($bytes)); echo $bytes; exit;
             }
             $a=row('SELECT * FROM attachments WHERE id=?',[(int)($_GET['id']??0)]); ensure($a!==null,'Soporte no encontrado.');
-            $allowed=(int)$a['user_id']===(int)$u['id'] || hasRole($u,'admin') || ($a['act_id'] && hasRole($u,'payroll'));
+            $allowed=(int)$a['user_id']===(int)$u['id'] || can($u,'data.requests_all') || ($a['act_id'] && can($u,'data.acts_all'));
             if ($a['request_id']) $allowed=canReadRequest($u,row('SELECT * FROM requests WHERE id=?',[$a['request_id']]));
             if ($a['act_id'] && !$allowed) foreach (rows('SELECT r.* FROM requests r JOIN allocations l ON l.request_id=r.id WHERE l.act_id=?',[$a['act_id']]) as $r) if(canReadRequest($u,$r)) $allowed=true;
             ensure($allowed,'No tiene acceso a este soporte.');
@@ -181,15 +184,15 @@ if ($page!=='login') {
             header('Content-Type: '.$a['mime']); header("Content-Disposition: attachment; filename=\"soporte\"; filename*=UTF-8''".rawurlencode($a['original_name'])); readfile($attachmentFile); exit;
         }
         if ($page==='template') {
-            authorizeAdmin($u); header('Content-Type: text/csv; charset=utf-8'); header('Content-Disposition: attachment; filename="plantilla-funcionarios.csv"');
+             header('Content-Type: text/csv; charset=utf-8'); header('Content-Disposition: attachment; filename="plantilla-funcionarios.csv"');
             echo "\xEF\xBB\xBFcedula;nombre;usuario;correo;cargo;codigo;grado;vinculacion;dependencia;cedula_jefe;alto_rango;fecha_nacimiento\r\n"; exit;
         }
         if ($page==='import_passwords') {
-            authorizeAdmin($u); header('Content-Type: text/csv; charset=utf-8'); header('Content-Disposition: attachment; filename="accesos-iniciales.csv"'); $out=fopen('php://output','w');
+             header('Content-Type: text/csv; charset=utf-8'); header('Content-Disposition: attachment; filename="accesos-iniciales.csv"'); $out=fopen('php://output','w');
             fputcsv($out,['usuario','contrasena_temporal'],';','"',''); foreach ($_SESSION['import_passwords']??[] as $p) fputcsv($out,$p,';','"',''); fclose($out); exit;
         }
         if ($page==='export') {
-            authorizeAdmin($u); $from=$_GET['from']??date('Y-01-01'); $to=$_GET['to']??date('Y-12-31'); ensure(validDate($from)&&validDate($to)&&$from<=$to,'Revise las fechas del reporte.');
+             $from=$_GET['from']??date('Y-01-01'); $to=$_GET['to']??date('Y-12-31'); ensure(validDate($from)&&validDate($to)&&$from<=$to,'Revise las fechas del reporte.');
             header('Content-Type: text/csv; charset=utf-8'); header('Content-Disposition: attachment; filename="solicitudes.csv"'); echo "\xEF\xBB\xBF"; $out=fopen('php://output','w');
             fputcsv($out,['radicado','funcionario','cedula','dependencia','tipo','estado','minutos','fecha_solicitada','inicio','fin','registro'],';','"','');
             foreach (rows('SELECT r.*,u.name,u.identification,d.name department,c.name category,s.date,s.start_time,s.end_time,s.minutes FROM requests r JOIN users u ON u.id=r.user_id JOIN departments d ON d.id=u.department_id JOIN categories c ON c.id=r.category_id JOIN request_slots s ON s.request_id=r.id WHERE s.date BETWEEN ? AND ? ORDER BY r.id,s.date',[$from,$to]) as $r) {
@@ -197,7 +200,7 @@ if ($page!=='login') {
                 $values=array_map(fn($v)=>preg_match('/^[=+\-@\t\r]/',(string)$v)?"'".$v:$v,$values); fputcsv($out,$values,';','"','');
             } fclose($out); exit;
         }
-    } catch (DomainException $ex) { http_response_code(403); $error=$ex->getMessage(); $page='dashboard'; }
-    catch (Throwable $ex) { error_log((string)$ex); $error='No se pudo generar el archivo. Contacte al administrador.'; $page='dashboard'; }
+    } catch (DomainException $ex) { http_response_code(403); $error=$ex->getMessage(); $page='access_denied'; }
+    catch (Throwable $ex) { error_log((string)$ex); $error='No se pudo generar el archivo. Contacte al administrador.'; $page='access_denied'; }
 }
 require ROOT.'/views/layout.php';

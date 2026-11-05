@@ -6,7 +6,7 @@ function designation(string $role,?int $department=null,?string $date=null): ?ar
     return row('SELECT * FROM designations WHERE role=? AND COALESCE(department_id,0)=CAST(? AS SIGNED) AND start_date<=? AND (end_date IS NULL OR end_date>=?) ORDER BY start_date DESC LIMIT 1',[$role,$department??0,$date,$date]);
 }
 function saveDesignation(array $actor,array $data): void {
-    authorizeAdmin($actor);
+    requirePermission($actor,'designations.edit');
     $role=$data['role']??'';$start=$data['start_date']??'';
     ensure(in_array($role,['manager','subsecretary'],true),'Seleccione el tipo de designación.');
     ensure(validDate($start) && $start>=date('Y-m-d'),'La nueva designación debe comenzar hoy o en una fecha futura.');
@@ -55,13 +55,13 @@ function captureBalances(int $user): void {
 }
 function balanceScope(array $viewer,string $date): array {
     ensure(validDate($date) && $date<=date('Y-m-d'),'Seleccione una fecha de corte válida, hasta hoy.');
-    if (hasRole($viewer,'admin') || hasRole($viewer,'subsecretary')) return ['all'=>true,'departments'=>[]];
+    if (can($viewer,'data.balances_all')) return ['all'=>true,'departments'=>[]];
     $departments=array_map('intval',array_column(rows("SELECT DISTINCT department_id FROM designations WHERE role='manager' AND (user_id=? OR alternate_id=?) AND start_date<=? AND (end_date IS NULL OR end_date>=?)",[$viewer['id'],$viewer['id'],$date,$date]),'department_id'));
     return ['all'=>false,'departments'=>$departments];
 }
 /** Consulta explícita y paginada; filtra en MySQL antes de cargar los saldos. */
 function canFilterBalanceDepartment(array $viewer): bool {
-    return hasRole($viewer,'admin') || hasRole($viewer,'subsecretary') || hasRole($viewer,'manager') || row("SELECT id FROM designations WHERE role='manager' AND (user_id=? OR alternate_id=?) LIMIT 1",[$viewer['id'],$viewer['id']])!==null;
+    return can($viewer,'data.balances_filter');
 }
 function searchBalanceSnapshots(array $viewer,array $input): array {
     $from=trim((string)($input['from']??''));$to=trim((string)($input['to']??''));

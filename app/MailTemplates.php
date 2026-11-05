@@ -22,7 +22,7 @@ function mailTemplate(string $key): array {
     return is_array($saved)&&is_string($saved['subject']??null)&&is_string($saved['text']??null)?array_replace($defaults[$key],$saved):$defaults[$key];
 }
 function saveMailTemplate(array $actor,string $key,string $subject,string $text): void {
-    authorizeAdmin($actor);$variables=mailTemplateVariables($key);$subject=trim($subject);$text=trim($text);
+    requirePermission($actor,'mail_templates.edit');$variables=mailTemplateVariables($key);$subject=trim($subject);$text=trim($text);
     ensure($subject!==''&&mb_strlen($subject)<=180&&!preg_match('/[\r\n\x00-\x1F\x7F]/u',$subject),'El asunto debe tener entre 1 y 180 caracteres, sin saltos de línea ni caracteres de control.');
     ensure($text!==''&&mb_strlen($text)<=4000&&!preg_match('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/u',$text),'El mensaje debe tener entre 1 y 4.000 caracteres de texto válido.');
     preg_match_all('/\{[^{}]*\}/u',$subject."\n".$text,$matches);

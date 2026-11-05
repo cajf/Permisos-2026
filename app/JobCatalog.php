@@ -11,7 +11,7 @@ function resolveJob(array $data): array {
     return ['job_title'=>$entry['title'],'code'=>$entry['code'],'grade'=>$entry['grade']];
 }
 function saveJob(array $actor,array $data): void {
-    authorizeAdmin($actor);
+    requirePermission($actor,'jobs.edit');
     atomic(function() use($actor,$data) {
         $id=(int)($data['job_id']??0);$title=trim($data['title']??'');$code=trim($data['code']??'');$grade=trim($data['grade']??'');
         ensure($title!=='' && mb_strlen($title)<=180,'Indique el nombre del cargo (hasta 180 caracteres).');
@@ -31,7 +31,7 @@ function saveJob(array $actor,array $data): void {
     });
 }
 function saveJobGrade(array $actor,array $data): void {
-    authorizeAdmin($actor);
+    requirePermission($actor,'jobs.edit');
     atomic(function() use($actor,$data) {
         $id=(int)($data['job_id']??0);$grade=trim($data['grade']??'');
         ensure(row('SELECT id FROM jobs WHERE id=?',[$id])!==null,'Seleccione un cargo existente.');

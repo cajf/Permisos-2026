@@ -2,17 +2,22 @@
 declare(strict_types=1);
 
 function saveUser(array $actor,array $data,?int $id=null): void {
-    authorizeAdmin($actor);
+    requirePermission($actor,'users.edit');
     atomic(function() use($actor,$data,$id) {
         $existing=$id?row('SELECT * FROM users WHERE id=?',[$id]):null;
         if ($id) ensure($existing!==null,'Funcionario no encontrado.');
+        ensure(!$existing || !isSuperadmin($existing) || isSuperadmin($actor),'Solo un superadministrador puede modificar la cuenta de otro superadministrador.');
         $data=array_replace($data,resolveJob($data));
         if (!$existing) ensure($data['code']!=='' && $data['grade']!=='','Complete el código y los grados del cargo antes de asignarlo a un nuevo funcionario.');
         foreach (['name','identification','username','email','job_title'] as $field) ensure(trim($data[$field]??'')!=='','Complete los campos obligatorios del funcionario.');
         ensure(filter_var($data['email'],FILTER_VALIDATE_EMAIL)!==false,'El correo no es válido.');
         ensure(preg_match('/^[a-zA-Z0-9._@-]{3,80}$/D',$data['username'])===1,'El usuario admite de 3 a 80 letras, números, puntos, @, guiones y guiones bajos.');
         ensure(row('SELECT id FROM departments WHERE id=?',[(int)$data['department_id']])!==null,'Seleccione una dependencia válida.');
-        $newRoles=array_values(array_intersect($data['roles']??[],['admin','manager','subsecretary','mayor','payroll']));
+        ensure(is_array($data['roles']??[]),'Los roles no son válidos.');
+        $newRoles=array_values(array_intersect($data['roles']??[],['admin','manager','subsecretary','mayor','payroll','superadmin']));
+        ensure(!in_array('superadmin',$newRoles,true)||isSuperadmin($actor),'Solo un superadministrador puede asignar ese rol.');
+        if(!can($actor,'users.roles'))$newRoles=$existing?roles($existing):[];
+        if($existing && isSuperadmin($existing) && (!in_array('superadmin',$newRoles,true)||!(int)($data['active']??1)))ensure((int)row("SELECT COUNT(*) n FROM users WHERE active=1 AND id<>? AND JSON_CONTAINS(roles,?)",[$id,json_encode('superadmin')])['n']>0,'Debe conservar al menos un superadministrador activo.');
         if ($existing) {
             $pendingRoles=array_column(rows("SELECT DISTINCT a.role FROM approvals a JOIN requests r ON r.id=a.request_id WHERE a.assigned_user_id=? AND a.status='waiting' AND r.status='pending' AND a.revision=r.revision",[$id]),'role');
             if (row("SELECT id FROM requests WHERE cancellation_assignee_id=? AND status='cancel_pending' LIMIT 1",[$id])) $pendingRoles[]='subsecretary';
@@ -22,7 +27,7 @@ function saveUser(array $actor,array $data,?int $id=null): void {
         $birth=trim($data['birth_date']??($existing['birth_date']??''));
         ensure($birth==='' || (validDate($birth) && $birth<date('Y-m-d')),'La fecha de nacimiento debe ser válida y anterior a hoy.');
         ensure(in_array($data['high_rank']??'',['','Asesor de Despacho','Secretario de Despacho','Jefe de Oficina'],true),'Clasificación de alto rango no válida.');
-        if ($id===(int)$actor['id']) ensure(in_array('admin',$newRoles,true) && (int)($data['active']??0)===1,'No puede retirar su propio acceso de administrador.');
+        if ($id===(int)$actor['id'] && hasRole($actor,'admin')) ensure((in_array('admin',$newRoles,true)||in_array('superadmin',$newRoles,true)) && (int)($data['active']??0)===1,'No puede retirar su propio acceso de administrador.');
         $manager=(int)($existing['manager_id']??0); $deputy=(int)($existing['deputy_manager_id']??0);
         $values=[trim($data['name']),trim($data['identification']),trim($data['username']),trim($data['email']),trim($data['job_title']),trim($data['code']??''),trim($data['grade']??''),$data['appointment_type']??'Carrera administrativa',(int)$data['department_id'],$manager?:null,$deputy?:null,$data['high_rank']??'',json_encode($newRoles),(int)($data['active']??1)];
         if ($id) run('UPDATE users SET name=?,identification=?,username=?,email=?,job_title=?,code=?,grade=?,appointment_type=?,department_id=?,manager_id=?,deputy_manager_id=?,high_rank=?,roles=?,active=? WHERE id=?',[...$values,$id]);
@@ -65,7 +70,7 @@ function readImport(string $path,string $extension): array {
     ensure(count($data)>0,'No se encontraron funcionarios.'); return $data;
 }
 function commitImport(array $actor,array $data): array {
-    authorizeAdmin($actor);
+    requirePermission($actor,'import.execute');
     return atomic(function() use($actor,$data) {
         $passwords=[]; $ids=[]; $seen=[];
         foreach ($data as $i=>$r) {
@@ -79,6 +84,7 @@ function commitImport(array $actor,array $data): array {
             $rank=$r['alto_rango']??''; ensure(in_array($rank,['','Asesor de Despacho','Secretario de Despacho','Jefe de Oficina'],true),'Alto rango no válido en la fila '.($i+2).'.');
             run('INSERT INTO departments(name) VALUES(?) ON DUPLICATE KEY UPDATE name=name',[$r['dependencia']]); $dep=row('SELECT id FROM departments WHERE name=?',[$r['dependencia']]);
             $old=row('SELECT * FROM users WHERE identification=?',[$r['cedula']]);
+            ensure(!$old || !isSuperadmin($old) || isSuperadmin($actor),'La importación no puede modificar una cuenta de superadministrador.');
             $fields=['name'=>$r['nombre'],'username'=>$r['usuario'],'email'=>$r['correo'],'job_title'=>$r['cargo'],'code'=>$r['codigo']??'','grade'=>$r['grado']??'','department_id'=>$dep['id'],'appointment_type'=>$r['vinculacion']??'Carrera administrativa','high_rank'=>$rank];
             if ($old) { run('UPDATE users SET name=?,username=?,email=?,job_title=?,code=?,grade=?,department_id=?,appointment_type=?,high_rank=? WHERE id=?',[...array_values($fields),$old['id']]); $ids[$r['cedula']]=$old['id']; }
             else { $pass='Inicio!'.bin2hex(random_bytes(6)); $ids[$r['cedula']]=insert('users',$fields+['identification'=>$r['cedula'],'password'=>password_hash($pass,PASSWORD_DEFAULT)]); $passwords[]=[$r['usuario'],$pass]; }
@@ -99,7 +105,7 @@ function commitImport(array $actor,array $data): array {
     });
 }
 function saveSchedule(array $actor,array $data): void {
-    authorizeAdmin($actor); $a=$data['start_date']??''; $b=$data['end_date']??'';
+    requirePermission($actor,'calendar.edit'); $a=$data['start_date']??''; $b=$data['end_date']??'';
     ensure(validDate($a)&&validDate($b)&&$a<=$b,'Revise la vigencia del horario.');
     ensure($a>=date('Y-m-d'),'Los horarios temporales solo pueden comenzar hoy o en el futuro.');
     $periods=[];

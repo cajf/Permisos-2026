@@ -14,9 +14,9 @@ function listingRows(string $sql,array $params,array $input): array {
     $items=rows($sql.' LIMIT 11 OFFSET '.(($page-1)*10),$params);
     return ['items'=>array_slice($items,0,10),'more'=>count($items)>10,'page'=>$page];
 }
-function listingRoles(): array {return ['employee'=>'Funcionario sin roles adicionales','admin'=>'Administrador de Talento Humano','manager'=>'Jefe inmediato','subsecretary'=>'Subsecretario','mayor'=>'Alcalde','payroll'=>'Nómina'];}
+function listingRoles(): array {return ['superadmin'=>'Superadministrador','employee'=>'Funcionario sin roles adicionales','admin'=>'Administrador de Talento Humano','manager'=>'Jefe inmediato','subsecretary'=>'Subsecretario','mayor'=>'Alcalde','payroll'=>'Nómina'];}
 function searchUserDirectory(array $actor,array $input): array {
-    authorizeAdmin($actor);$where=['1=1'];$params=[];
+    requirePermission($actor,'view.users');$where=['1=1'];$params=[];
     foreach(['q_name'=>'u.name','q_username'=>'u.username','q_identification'=>'u.identification'] as $key=>$column)listingMatch($where,$params,$column,listingText($input,$key));
     $job=listingText($input,'q_job');if($job!==''){$where[]='u.job_title=?';$params[]=$job;}
     $role=listingText($input,'q_role');if($role!==''){
@@ -26,13 +26,13 @@ function searchUserDirectory(array $actor,array $input): array {
     return listingRows('SELECT u.*,d.name department FROM users u JOIN departments d ON d.id=u.department_id WHERE '.implode(' AND ',$where).' ORDER BY u.name,u.id',$params,$input);
 }
 function searchJobDirectory(array $actor,array $input): array {
-    authorizeAdmin($actor);$where=['1=1'];$params=[];
+    requirePermission($actor,'view.jobs');$where=['1=1'];$params=[];
     foreach(['q_job'=>'j.title','q_code'=>'j.code'] as $key=>$column)listingMatch($where,$params,$column,listingText($input,$key));
     $grade=listingText($input,'q_grade');if($grade!==''){$where[]="EXISTS(SELECT 1 FROM job_grades g WHERE g.job_id=j.id AND g.grade COLLATE utf8mb4_0900_ai_ci LIKE CONVERT(? USING utf8mb4) COLLATE utf8mb4_0900_ai_ci ESCAPE '=')";$params[]=listingLike($grade);}
     return listingRows('SELECT j.* FROM jobs j WHERE '.implode(' AND ',$where).' ORDER BY j.title,j.id',$params,$input);
 }
 function searchDesignationHistory(array $actor,array $input): array {
-    authorizeAdmin($actor);$where=['1=1'];$params=[];$role=listingText($input,'q_role');
+    requirePermission($actor,'view.designations');$where=['1=1'];$params=[];$role=listingText($input,'q_role');
     if($role!==''){ensure(in_array($role,['manager','subsecretary'],true),'Seleccione un rol de designación válido.');$where[]='a.role=?';$params[]=$role;}
     $name=listingText($input,'q_name');if($name!==''){$where[]="(u.name COLLATE utf8mb4_0900_ai_ci LIKE CONVERT(? USING utf8mb4) COLLATE utf8mb4_0900_ai_ci ESCAPE '=' OR v.name COLLATE utf8mb4_0900_ai_ci LIKE CONVERT(? USING utf8mb4) COLLATE utf8mb4_0900_ai_ci ESCAPE '=')";array_push($params,listingLike($name),listingLike($name));}
     $from=listingText($input,'q_from');$to=listingText($input,'q_to');
@@ -42,7 +42,7 @@ function searchDesignationHistory(array $actor,array $input): array {
     return listingRows('SELECT a.*,u.name principal,v.name alternate,d.name department,c.name creator FROM designations a JOIN users u ON u.id=a.user_id LEFT JOIN users v ON v.id=a.alternate_id LEFT JOIN departments d ON d.id=a.department_id JOIN users c ON c.id=a.created_by WHERE '.implode(' AND ',$where).' ORDER BY a.start_date DESC,a.id DESC',$params,$input);
 }
 function searchRegisteredActs(array $actor,array $input): array {
-    $institutional=hasRole($actor,'admin')||hasRole($actor,'payroll');$where=['1=1'];$params=[];
+    $institutional=can($actor,'data.acts_all');$where=['1=1'];$params=[];
     if(!$institutional){$where[]='a.user_id=?';$params[]=$actor['id'];}
     listingMatch($where,$params,'a.number',listingText($input,'q_number'));
     if($institutional)foreach(['q_name'=>'u.name','q_identification'=>'u.identification'] as $key=>$column)listingMatch($where,$params,$column,listingText($input,$key));

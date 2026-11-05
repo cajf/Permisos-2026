@@ -5,7 +5,7 @@
         <div><span class="eyebrow"><?=e(familyLabel($c['family']))?></span><h2><?=e($c['name'])?></h2></div>
         <span class="badge <?=(int)$c['policy_confirmed']?'badge-approved':'badge-returned'?>"><?=(int)$c['policy_confirmed']?'Regla configurada':'Validación pendiente'?></span>
     </div>
-    <?php if(hasRole($u,'admin')): ?>
+    <?php if(can($u,'policies.edit')): ?>
     <form method="post" data-policy-form>
         <?=csrf()?><input type="hidden" name="action" value="policy"><input type="hidden" name="id" value="<?=(int)$c['id']?>">
         <label class="check-label"><input type="checkbox" name="supports_required" value="1" <?=(int)$c['supports_required']?'checked':''?>> Exigir al menos un soporte</label>

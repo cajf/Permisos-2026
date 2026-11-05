@@ -1,4 +1,4 @@
-<?php authorizeAdmin($u); ?>
+<?php requirePermission($u,'view.mail_templates'); ?>
 <p class="page-intro">Personalice los asuntos y mensajes que recibe el solicitante. Los cambios se aplican a las nuevas notificaciones; los correos que ya están en cola conservan su texto.</p>
 <div class="alert warning">Escriba texto plano. No incluya contraseñas, cédulas, información médica ni motivos privados. Las observaciones del aprobador se consultan dentro de la aplicación y no se agregan automáticamente al correo.</div>
 <p><a class="button secondary" href="/?page=outbox">Ver cola de correos</a></p>

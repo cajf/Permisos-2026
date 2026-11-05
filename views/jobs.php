@@ -1,5 +1,5 @@
 <?php
-authorizeAdmin($u);
+requirePermission($u,'view.jobs');
 $listing=searchJobDirectory($u,$_GET);$jobs=$listing['items'];$allJobs=rows('SELECT id,title,code FROM jobs ORDER BY title,id');
 $editing=!empty($_GET['id'])?row('SELECT * FROM jobs WHERE id=?',[(int)$_GET['id']]):null;
 $data=($_SERVER['REQUEST_METHOD']==='POST' && ($_POST['action']??'')==='job')?$_POST:($editing??[]);

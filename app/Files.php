@@ -66,7 +66,7 @@ function attachmentPath(array $attachment,?PDO $pdo=null,?string $directory=null
     return $path;
 }
 function canReadRequest(array $u,array $r): bool {
-    return (int)$r['user_id']===(int)$u['id'] || hasRole($u,'admin') || (int)($r['cancellation_assignee_id']??0)===(int)$u['id'] || row('SELECT id FROM approvals WHERE request_id=? AND (assigned_user_id=? OR acted_by=?)',[$r['id'],$u['id'],$u['id']])!==null;
+    return (int)$r['user_id']===(int)$u['id'] || can($u,'data.requests_all') || (int)($r['cancellation_assignee_id']??0)===(int)$u['id'] || row('SELECT id FROM approvals WHERE request_id=? AND (assigned_user_id=? OR acted_by=?)',[$r['id'],$u['id'],$u['id']])!==null;
 }
 function requestPdf(array $r): string {
     $c=row('SELECT * FROM categories WHERE id=?',[$r['category_id']]);

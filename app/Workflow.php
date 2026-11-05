@@ -49,6 +49,7 @@ final class Workflow {
         return $result;
     }
     public function submit(array $owner,array $input,array $files=[],?int $id=null,?DateTimeImmutable $clock=null): int {
+        requirePermission($owner,'request.submit');
         $clock??=new DateTimeImmutable();
         $electoral=ElectoralCertificate::prepare($owner,$input,$files,$id);
         return atomic(function() use($owner,$input,$files,$id,$clock,$electoral) {
@@ -149,6 +150,7 @@ final class Workflow {
         return (int)round($raw);
     }
     public function act(array $u,array $input,array $files): int {
+        requirePermission($u,'act.create');
         return atomic(function() use($u,$input,$files) {
             $number=trim($input['number']??''); $issued=$input['issued_on']??''; $expires=$input['expires_on']??'';
             ensure($number!=='' && mb_strlen($number)<=120,'Indique el número del acto (hasta 120 caracteres).');
@@ -162,8 +164,9 @@ final class Workflow {
         });
     }
     public function reviewAct(array $admin,int $id,string $decision,string $comment): void {
+        authorizeAction($admin,'review_act',['decision'=>$decision]);
         $current=row('SELECT * FROM users WHERE id=? AND active=1',[$admin['id']]);
-        ensure($current!==null && hasRole($current,'payroll'),'La validación de actos administrativos requiere el rol de Nómina.');
+        ensure($current!==null && (hasRole($current,'payroll')||isSuperadmin($current)),'La validación de actos administrativos requiere el rol de Nómina.');
         atomic(function() use($admin,$id,$decision,$comment) {
             $act=row('SELECT * FROM acts WHERE id=?',[$id]);
             ensure($act && $act['status']==='pending','El acto ya fue revisado o no existe.');
@@ -181,6 +184,7 @@ final class Workflow {
         $this->reviewStep($actor,$id,$decision,$comment,null,$exceptionReason,$electoralReview);
     }
     private function reviewStep(array $actor,int $id,string $decision,string $comment,?int $bulkApprovalId=null,string $exceptionReason='',string $electoralReview=''): void {
+        authorizeAction($actor,'review',['decision'=>$decision]);
         atomic(function() use($actor,$id,$decision,$comment,$bulkApprovalId,$exceptionReason,$electoralReview) {
             $r=row('SELECT * FROM requests WHERE id=?',[$id]);
             ensure($r && $r['status']==='pending','La solicitud no está pendiente de aprobación.');
@@ -272,6 +276,7 @@ final class Workflow {
         return $state==='ongoing';
     }
     public function approveMany(array $actor,array $approvalIds,string $comment='',array $exceptionReasons=[],array $electoralReviews=[]): array {
+        authorizeAction($actor,'approve_bulk');
         ensure(hasRole($actor,'manager') || hasRole($actor,'subsecretary'),'La aprobación masiva requiere rol de jefe inmediato o subsecretario.');
         ensure(count($approvalIds)>0 && count($approvalIds)<=100,'Seleccione entre una y 100 solicitudes.');
         $ids=[];
@@ -305,6 +310,7 @@ final class Workflow {
         return $result;
     }
     public function cancel(array $actor,int $id,string $reason): void {
+        requirePermission($actor,'request.cancel');
         atomic(function() use($actor,$id,$reason) {
             $r=row('SELECT * FROM requests WHERE id=?',[$id]);
             ensure($r && (int)$r['user_id']===(int)$actor['id'],'No puede cancelar esta solicitud.');
@@ -324,6 +330,7 @@ final class Workflow {
         });
     }
     public function reviewCancellation(array $actor,int $id,bool $approve,string $comment,?DateTimeImmutable $clock=null): void {
+        requirePermission($actor,'request.cancel_review');
         $clock??=new DateTimeImmutable();
         atomic(function() use($actor,$id,$approve,$comment,$clock) {
             $r=row('SELECT * FROM requests WHERE id=?',[$id]);
