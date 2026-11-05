@@ -1,0 +1,26 @@
+<?php
+declare(strict_types=1);
+require __DIR__.'/mail-run.php';
+$calendar=new WorkCalendar(true);$standard=new WorkCalendar();
+foreach(['2026-12-01','2026-12-04'] as $date){check($calendar->periods($date)===[['07:00','15:00']],'Jornada continua de trabajador oficial '.$date);check($calendar->minutes($date,'07:00','15:00')===480,'Día de ocho horas '.$date);}
+check($calendar->minutes('2026-12-01','12:00','13:00')===60,'La jornada continua cuenta el mediodía');
+check($calendar->periods('2026-12-05')===[]&&$calendar->periods('2026-12-08')===[],'Excluye sábado y festivo');
+check($standard->minutes('2026-12-01','07:30','17:00')===510,'Las otras vinculaciones conservan 8,5 horas');
+run("UPDATE requests SET status='rejected' WHERE user_id=1");run("UPDATE users SET appointment_type='Trabajador oficial',birth_date='1990-05-01' WHERE id=1");
+check(ordinaryQuotaLimit(person(1))===1440&&ordinaryQuotaLimit(person(2))===1530,'Cupos semestrales de 24 y 25,5 horas según vinculación');
+$full=fn($date)=>['date'=>$date,'mode'=>'full'];
+$request=testSubmit(1,'ordinario',[$full('2026-12-01'),$full('2026-12-02'),$full('2026-12-03')]);
+check((int)row('SELECT total_minutes FROM requests WHERE id=?',[$request])['total_minutes']===1440,'Tres jornadas completas consumen 24 horas');
+refuses(fn()=>testSubmit(1,'ordinario',[slot('2026-12-04','07:00','07:01')]),'Bloquea solicitudes que exceden 24 horas');
+$wf->review(person(2),$request,'approved','');$wf->review(person(3),$request,'approved','');
+check(row('SELECT status FROM requests WHERE id=?',[$request])['status']==='approved','Aprobaciones validan el cupo de trabajador oficial');
+$birthday=testSubmit(1,'cumpleanos',[$full('2026-12-09')]);check((int)row('SELECT total_minutes FROM requests WHERE id=?',[$birthday])['total_minutes']===480,'Compensatorio de un día usa ocho horas');
+captureBalances(1);$balance=json_decode(row('SELECT data FROM balance_snapshots WHERE user_id=1 ORDER BY id DESC LIMIT 1')['data'],true);check($balance['quotas']['2026-2']===0,'Saldo semestral agotado después de 24 horas');
+$periods=array_fill(1,5,[['06:00','14:00']]);$data=['name'=>'Horario oficial temporal','schedule_group'=>'official_worker','start_date'=>'2026-12-01','end_date'=>'2026-12-04','periods'=>$periods];
+saveSchedule(person(5),$data);check($calendar->periods('2026-12-01')===[['06:00','14:00']],'Aplica la vigencia temporal al trabajador oficial');
+check($calendar->periods('2026-12-07')===[['07:00','15:00']],'Restaura la jornada base al vencer el temporal');
+check($standard->periods('2026-12-01')===[['07:30','12:00'],['13:00','17:00']],'Temporal oficial no cambia otras vinculaciones');
+refuses(fn()=>saveSchedule(person(5),$data),'Evita vigencias superpuestas del mismo grupo');
+$data['schedule_group']='regular';saveSchedule(person(5),$data);check($standard->periods('2026-12-01')===[['06:00','14:00']],'Admite vigencias coincidentes para grupos distintos');
+check((int)row('SELECT total_minutes FROM requests WHERE id=?',[$request])['total_minutes']===1440&&row('SELECT start_time FROM request_slots WHERE request_id=? ORDER BY date LIMIT 1',[$request])['start_time']==='07:00','Conserva minutos y franjas de solicitudes existentes');
+echo $checks." comprobaciones correctas, sin envíos reales.\n";

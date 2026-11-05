@@ -167,6 +167,7 @@ if ($page!=='login') {
         if ($page==='estimate') {
             header('Content-Type: application/json; charset=utf-8');
             ensure(empty($_GET['slot']),'Actualice el formulario: use la jornada laboral configurada.');
+            $wf->calendar=new WorkCalendar(isOfficialWorker($u));
             $date=$_GET['date']??''; $p=$wf->calendar->periods($date); $a=$_GET['start']??($p[0][0]??''); $b=$_GET['end']??($p[count($p)-1][1]??'');
             echo json_encode(['periods'=>$p,'minutes'=>$p?$wf->calendar->minutes($date,$a,$b):0],JSON_UNESCAPED_UNICODE); exit;
         }

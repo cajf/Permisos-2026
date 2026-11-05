@@ -13,7 +13,7 @@
         <div class="form-grid">
             <label>Documentos de soporte<textarea name="supports" <?=(int)$c['supports_required']?'required':''?> rows="3"><?=e($c['supports'])?></textarea></label>
             <label>Condiciones y frecuencia<textarea name="notes" rows="3"><?=e($c['notes'])?></textarea></label>
-            <label>Máximo de horas por solicitud<input name="max_hours" type="number" step="0.05" min="0.05" value="<?=$c['max_minutes']!==null?e($c['max_minutes']/60):''?>" <?=in_array($c['slug'],['ordinario','cumpleanos'],true)?'disabled':''?>><small><?=$c['slug']==='ordinario'?'El cupo semestral fijo es de 25 h 30 min.':($c['slug']==='cumpleanos'?'Una jornada completa por vigencia; no admite límite alternativo en horas.':'Vacío: sin límite numérico configurado.')?></small></label>
+            <label>Máximo de horas por solicitud<input name="max_hours" type="number" step="0.05" min="0.05" value="<?=$c['max_minutes']!==null?e($c['max_minutes']/60):''?>" <?=in_array($c['slug'],['ordinario','cumpleanos'],true)?'disabled':''?>><small><?=$c['slug']==='ordinario'?'El cupo semestral es de 24 horas para trabajador oficial y 25 h 30 min para las demás vinculaciones.':($c['slug']==='cumpleanos'?'Una jornada completa por vigencia; no admite límite alternativo en horas.':'Vacío: sin límite numérico configurado.')?></small></label>
             <label class="check-label"><input type="checkbox" name="policy_confirmed" <?=(int)$c['policy_confirmed']?'checked':''?>> Regla revisada por Talento Humano</label>
         </div>
         <button class="button secondary small">Guardar regla</button>

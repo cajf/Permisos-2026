@@ -106,6 +106,7 @@ function commitImport(array $actor,array $data): array {
 }
 function saveSchedule(array $actor,array $data): void {
     requirePermission($actor,'calendar.edit'); $a=$data['start_date']??''; $b=$data['end_date']??'';
+    $group=(string)($data['schedule_group']??'regular');ensure(in_array($group,['regular','official_worker'],true),'Seleccione una jornada válida.');
     ensure(validDate($a)&&validDate($b)&&$a<=$b,'Revise la vigencia del horario.');
     ensure($a>=date('Y-m-d'),'Los horarios temporales solo pueden comenzar hoy o en el futuro.');
     $periods=[];
@@ -115,7 +116,14 @@ function saveSchedule(array $actor,array $data): void {
             if ($p) ensure($start>=$p[count($p)-1][1],'Las franjas deben estar ordenadas y no superponerse.'); $p[]=[$start,$end];
         } ensure(count($p)>0,'Cada día de lunes a viernes debe tener al menos una franja.'); $periods[(string)$d]=$p;
     }
-    atomic(function() use($actor,$a,$b,$periods,$data) {
+    atomic(function() use($actor,$a,$b,$periods,$data,$group) {
+        if($group==='official_worker'){
+            $schedules=json_decode(setting('official_worker_schedules','[]'),true,512,JSON_THROW_ON_ERROR);
+            foreach($schedules as $schedule)ensure($schedule['start_date']>$b||$schedule['end_date']<$a,'Ya existe un horario temporal de trabajador oficial que coincide con esas fechas.');
+            $schedules[]=['name'=>trim($data['name']??'Horario temporal'),'start_date'=>$a,'end_date'=>$b,'periods'=>$periods,'created_by'=>(int)$actor['id'],'created_at'=>now()];
+            setSetting('official_worker_schedules',json_encode($schedules,JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR));
+            event((int)$actor['id'],'Horario temporal de trabajador oficial registrado',"$a a $b. Las solicitudes existentes conservan sus franjas y minutos.");return;
+        }
         ensure(!row('SELECT id FROM schedules WHERE start_date<=? AND end_date>=?',[$b,$a]),'Ya existe un horario temporal que coincide con esas fechas.');
         insert('schedules',['name'=>trim($data['name']??'Horario temporal'),'start_date'=>$a,'end_date'=>$b,'periods'=>json_encode($periods),'created_by'=>$actor['id']]);
         event((int)$actor['id'],'Horario temporal registrado',"$a a $b. Las solicitudes existentes conservan sus minutos y franjas originales.");

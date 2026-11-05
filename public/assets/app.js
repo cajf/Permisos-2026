@@ -95,3 +95,10 @@ if(balanceForm){
  const validateYear=()=>end.setCustomValidity(start.value&&end.value&&start.value.slice(0,4)!==end.value.slice(0,4)?'La fecha de inicio y la fecha final deben pertenecer al mismo año.':'');
  start.addEventListener('change',validateYear);end.addEventListener('change',validateYear);validateYear();
 }
+document.querySelector('[name="schedule_group"]')?.addEventListener('change',function(){
+ const worker=this.value==='official_worker';
+ for(let day=1;day<=5;day++)for(let i=0;i<3;i++)for(let side=0;side<2;side++){
+  const field=this.form.elements.namedItem(`periods[${day}][${i}][${side}]`);
+  if(field)field.value=worker?(i===0?(side===0?'07:00':'15:00'):''):(i===0?(side===0?(day===5?'07:00':'07:30'):'12:00'):i===1?(side===0?(day===5?'12:30':'13:00'):(day===5?'16:00':'17:00')):'');
+ }
+});

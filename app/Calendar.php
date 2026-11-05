@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 final class WorkCalendar {
+    public function __construct(public readonly bool $officialWorker=false) {}
     public function isBusinessDay(string $date): bool {
         ensure(validDate($date),'La fecha no es válida.');
         return (int)(new DateTimeImmutable($date))->format('N')<=5 && row('SELECT date FROM holidays WHERE date=?',[$date])===null;
@@ -10,6 +11,10 @@ final class WorkCalendar {
         ensure(validDate($date),'La fecha no es válida.');
         $weekday=(int)(new DateTimeImmutable($date))->format('N');
         if (!$this->isBusinessDay($date)) return [];
+        if($this->officialWorker){
+            foreach(array_reverse(json_decode(setting('official_worker_schedules','[]'),true,512,JSON_THROW_ON_ERROR)) as $schedule)if($schedule['start_date']<=$date&&$schedule['end_date']>=$date)return $schedule['periods'][(string)$weekday]??[];
+            return [['07:00','15:00']];
+        }
         $override=row('SELECT * FROM schedules WHERE start_date<=? AND end_date>=? ORDER BY id DESC LIMIT 1',[$date,$date]);
         if ($override) return json_decode($override['periods'],true,512,JSON_THROW_ON_ERROR)[(string)$weekday]??[];
         return $weekday===5 ? [['07:00','12:00'],['12:30','16:00']] : [['07:30','12:00'],['13:00','17:00']];
@@ -78,3 +83,5 @@ final class WorkCalendar {
         return $slots;
     }
 }
+function isOfficialWorker(array $person):bool {return ($person['appointment_type']??'')==='Trabajador oficial';}
+function ordinaryQuotaLimit(array $person):int {return isOfficialWorker($person)?1440:1530;}

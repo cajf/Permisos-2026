@@ -50,6 +50,7 @@ final class Workflow {
     }
     public function submit(array $owner,array $input,array $files=[],?int $id=null,?DateTimeImmutable $clock=null): int {
         requirePermission($owner,'request.submit');
+        $this->calendar=new WorkCalendar(isOfficialWorker($owner));
         $clock??=new DateTimeImmutable();
         $electoral=ElectoralCertificate::prepare($owner,$input,$files,$id);
         return atomic(function() use($owner,$input,$files,$id,$clock,$electoral) {
@@ -80,7 +81,7 @@ final class Workflow {
             }
             if ($category['slug']==='ordinario') foreach ($semesters as $semester=>$minutes) {
                 ensure(substr($semester,0,4)===$clock->format('Y'),'El Ordinario-Remunerado debe disfrutarse en el año en curso.');
-                ensure($this->quota((int)$owner['id'],$semester,$id)+$minutes<=1530,'La solicitud excede el cupo de 25 h 30 min del semestre '.$semester.'.');
+                ensure($this->quota((int)$owner['id'],$semester,$id)+$minutes<=ordinaryQuotaLimit($owner),'La solicitud excede el cupo de '.hours(ordinaryQuotaLimit($owner)).' del semestre '.$semester.'.');
             }
             $birthdayYear=null;
             if ($category['slug']==='cumpleanos') {
@@ -101,6 +102,7 @@ final class Workflow {
                 ensure(count($slots)===1 && (int)$slots[0]['is_full_day']===1,'Clavero o jurado permite una única jornada completa de disfrute. Seleccione Día completo.');
             }
             $snapshotData=array_intersect_key($owner,array_flip(['name','identification','job_title','code','grade','department','appointment_type','high_rank']));
+            $snapshotData['ordinary_quota_minutes']=ordinaryQuotaLimit($owner);
             if($category['slug']==='jurado') $snapshotData['jury_role']=$input['jury_role'];
             if($electoral!==null) $snapshotData['electoral_check']=ElectoralCertificate::validate($electoral,$owner['identification'],$slots,$clock->format('Y-m-d'));
             if ($old) {
@@ -261,7 +263,8 @@ final class Workflow {
         if ((int)$category['supports_required']===1) ensure(row('SELECT id FROM attachments WHERE request_id=? LIMIT 1',[$id])!==null,'Falta el soporte obligatorio. Devuelva la solicitud para adjuntarlo.');
         if ($category['slug']!=='cumpleanos' && $category['max_minutes']!==null && (int)$category['policy_confirmed']===1) ensure((int)$request['total_minutes']<=(int)$category['max_minutes'],'La duración supera el límite vigente del tipo de solicitud.');
         if ($category['slug']==='ordinario') {
-            foreach (rows('SELECT * FROM request_slots WHERE request_id=?',[$id]) as $slot) foreach($this->slotSemesters($slot) as $semester=>$minutes) ensure($this->quota((int)$request['user_id'],$semester)<=1530,'La solicitud excede el cupo semestral de Ordinario-Remunerado.');
+            $quotaSnapshot=json_decode($request['snapshot'],true);$quotaLimit=(int)($quotaSnapshot['ordinary_quota_minutes']??ordinaryQuotaLimit($quotaSnapshot));
+            foreach (rows('SELECT * FROM request_slots WHERE request_id=?',[$id]) as $slot) foreach($this->slotSemesters($slot) as $semester=>$minutes) ensure($this->quota((int)$request['user_id'],$semester)<=$quotaLimit,'La solicitud excede el cupo semestral de Ordinario-Remunerado.');
         }
         if ($category['slug']==='acto') {
             $allocations=rows('SELECT a.*,x.status act_status,x.issued_on,x.expires_on,x.granted_minutes,x.user_id act_owner,x.number FROM allocations a JOIN acts x ON x.id=a.act_id WHERE a.request_id=?',[$id]);

@@ -13,6 +13,8 @@ if ($LASTEXITCODE -ne 0) { throw 'Fallaron las pruebas de consulta de saldos.' }
 & (Join-Path $PSScriptRoot 'run-listings.ps1')
 & (Join-Path $PSScriptRoot 'run-mail.ps1')
 & (Join-Path $PSScriptRoot 'run-permissions.ps1')
+& $testPhp -c $testIni tests/official-workers.php
+if ($LASTEXITCODE -ne 0) { throw 'Fallaron las pruebas de trabajador oficial.' }
 & $testPhp -c $testIni -d display_errors=1 tests/catalog-migration.php
 if ($LASTEXITCODE -ne 0) { throw 'Falló la migración aislada del catálogo.' }
 $testResult = Get-Content -LiteralPath '.work\test-result.json' -Raw | ConvertFrom-Json

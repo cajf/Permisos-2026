@@ -1,0 +1,9 @@
+# Jornada del trabajador oficial
+
+La vinculación **Trabajador oficial** utiliza lunes a viernes de 07:00 a 15:00 en jornada continua: 480 minutos por día. Se excluyen fines de semana y festivos. El permiso Ordinario-Remunerado dispone de 1.440 minutos (24 horas) por semestre; las fracciones de hasta dos horas también consumen este cupo. Las demás vinculaciones conservan la jornada de 510 minutos y el cupo de 1.530 minutos.
+
+Nueva solicitud y su estimación de duración identifican la vinculación del usuario autenticado; no se acepta que el solicitante elija otro grupo desde el formulario. Día completo abarca toda la jornada vigente, incluido el mediodía cuando es continua. Los permisos, licencias y compensatorios utilizan estas franjas; se mantienen los límites y soportes configurados para cada tipo.
+
+En **Calendario laboral > Registrar horario temporal**, el responsable autorizado selecciona **Trabajador oficial (8 horas)**. El formulario propone una franja de 07:00 a 15:00 y deja las otras vacías. Puede ajustar las franjas reales y registrar fecha inicial y final. No pueden cruzarse dos vigencias del mismo grupo; sí pueden coexistir una vigencia oficial y otra de las demás vinculaciones. Al terminar la vigencia se restaura la jornada base. Las extensiones no incrementan el cupo semestral fijo de 24 horas.
+
+Los horarios temporales oficiales se almacenan en `settings.official_worker_schedules`, con usuario, fecha y hora. Los horarios anteriores de `schedules` aplican a las demás vinculaciones. No se requiere alterar el esquema MySQL. Las solicitudes guardan sus franjas y minutos, y las nuevas conservan también el cupo aplicable en su instantánea. Las aprobaciones no recalculan minutos históricos con un horario nuevo. Los saldos nuevos reflejan el cupo correspondiente a la vinculación actual; las instantáneas históricas se conservan.
