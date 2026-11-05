@@ -1,18 +1,23 @@
 'use strict';
 const jobSelect=document.querySelector('#user-job');
 if(jobSelect){
- const code=document.querySelector('#user-job-code'),grade=document.querySelector('#user-job-grade');
- const options=[...grade.querySelectorAll('option[data-job]')].map(option=>option.cloneNode(true));
+ const code=document.querySelector('#user-job-code'),grade=document.querySelector('#user-job-grade'),category=document.querySelector('#user-job-category'),appointment=document.querySelector('#user-appointment');
+ const options=[...grade.querySelectorAll('option[data-job]')].map(o=>o.cloneNode(true)),jobs=[...jobSelect.options].slice(1).map(o=>o.cloneNode(true));
  function updateJob(keep=false){
-  const previous=keep?grade.value:null;code.value=jobSelect.selectedOptions[0]?.dataset.code||'';
+  const previous=keep?grade.value:null,official=appointment.value==='Trabajador oficial',job=jobSelect.selectedOptions[0];
+  code.value=official?'':(job?.dataset.code||'');category.value=official?(job?.dataset.category||''):'';
+  code.closest('label').hidden=official;grade.closest('label').hidden=official;category.closest('label').hidden=!official;
   grade.replaceChildren(new Option('Selecciona un grado',''));
-  options.filter(option=>option.dataset.job===jobSelect.value).forEach(option=>grade.add(option.cloneNode(true)));
-  if(previous!==null && [...grade.options].some(option=>option.value===previous))grade.value=previous;
-  grade.disabled=!jobSelect.value;
-  grade.required=!(grade.dataset.legacyJob===jobSelect.value && grade.dataset.legacyBlank==='1');
+  if(!official)options.filter(o=>o.dataset.job===jobSelect.value).forEach(o=>grade.add(o.cloneNode(true)));
+  if(previous!==null&&[...grade.options].some(o=>o.value===previous))grade.value=previous;
+  grade.disabled=official||!jobSelect.value;grade.required=!official&&!(grade.dataset.legacyJob===jobSelect.value&&grade.dataset.legacyBlank==='1');
  }
- jobSelect.addEventListener('change',()=>updateJob());updateJob(true);
+ function updateGroup(keep=false){const selected=keep?jobSelect.value:'',group=appointment.value==='Trabajador oficial'?'official_worker':'regular';jobSelect.replaceChildren(new Option('Selecciona un cargo',''));jobs.filter(o=>o.dataset.group===group).forEach(o=>jobSelect.add(o.cloneNode(true)));jobSelect.value=selected;updateJob(keep);}
+ jobSelect.addEventListener('change',()=>updateJob());appointment.addEventListener('change',()=>updateGroup());updateGroup(true);
 }
+const catalogForm=document.querySelector('#job-catalog-form');
+if(catalogForm){const group=catalogForm.elements.employment_group;const update=()=>{const official=group.value==='official_worker';for(const name of ['code','grade']){const f=catalogForm.elements[name];if(f){f.closest('label').hidden=official;f.disabled=official;f.required=!official&&(name==='code'||catalogForm.dataset.needGrade==='1');}}const category=catalogForm.elements.official_category_id;category.closest('label').hidden=!official;category.disabled=!official;category.required=official;};group.addEventListener('change',update);update();}
+
 document.querySelector('.mobile-menu')?.addEventListener('click',e=>{const open=document.body.classList.toggle('menu-open');e.currentTarget.setAttribute('aria-expanded',String(open));});
 document.querySelectorAll('form[data-confirm]').forEach(form=>form.addEventListener('submit',e=>{if(!confirm(form.dataset.confirm))e.preventDefault();}));
 document.querySelectorAll('form[data-policy-form]').forEach(policy=>{

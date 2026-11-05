@@ -77,6 +77,7 @@ function requestPdf(array $r): string {
     $pdf->AddPage();
     $html='<h1>Alcaldía de Bucaramanga</h1><h2>Solicitud '.sprintf('TH-%06d',$r['id']).'</h2><p>Gestión del Talento Humano · F-GAT-8100-238,37-183</p>';
     $data=['Estado'=>statusLabel($r['status']),'Tipo'=>familyLabel($c['family']).' · '.$c['name'],'Funcionario'=>$snap['name'],'Cédula'=>$snap['identification'],'Cargo'=>$snap['job_title'],'Código / grado'=>$snap['code'].' / '.$snap['grade'],'Dependencia'=>$snap['department'],'Fecha de registro'=>$r['created_at'].' (America/Bogota)','Duración'=>hours((int)$r['total_minutes']),'Justificación'=>$r['justification'],'Excepción de anticipación'=>$r['exception_reason'],'Parentesco'=>$r['relationship']];
+    if(isOfficialWorker($snap)&&array_key_exists('job_category',$snap)){unset($data['Código / grado']);$data['Categoría']=$snap['job_category']??'Sin categoría registrada';}
     $html.='<table cellpadding="6" border="1">'; foreach ($data as $k=>$v) $html.='<tr><td width="32%"><b>'.e($k).'</b></td><td width="68%">'.nl2br(e($v)).'</td></tr>'; $html.='</table><h3>Fechas y horarios</h3>';
     if(($c['slug']==='sufragar' || ($c['slug']==='jurado' && ($snap['jury_role']??'')!=='clavero'))) $html.='<h3>Validación del certificado electoral</h3><p>'.e(ElectoralCertificate::summary(ElectoralCertificate::report($r)??['status'=>'manual'])).'</p><p>El OCR no comprueba autenticidad ante la Registraduría.</p>';
     if ($r['birthday_year']) $html.='<p>Beneficio de cumpleaños de la vigencia '.(int)$r['birthday_year'].'.</p>';

@@ -101,7 +101,7 @@ final class Workflow {
                 ensure(in_array($input['jury_role']??'', ['jurado','clavero'],true),'Seleccione si solicita por clavero o por jurado.');
                 ensure(count($slots)===1 && (int)$slots[0]['is_full_day']===1,'Clavero o jurado permite una única jornada completa de disfrute. Seleccione Día completo.');
             }
-            $snapshotData=array_intersect_key($owner,array_flip(['name','identification','job_title','code','grade','department','appointment_type','high_rank']));
+            $snapshotData=array_intersect_key($owner,array_flip(['name','identification','job_title','code','grade','department','appointment_type','job_category','high_rank']));
             $snapshotData['ordinary_quota_minutes']=ordinaryQuotaLimit($owner);
             if($category['slug']==='jurado') $snapshotData['jury_role']=$input['jury_role'];
             if($electoral!==null) $snapshotData['electoral_check']=ElectoralCertificate::validate($electoral,$owner['identification'],$slots,$clock->format('Y-m-d'));

@@ -78,6 +78,7 @@ try {
             case 'act': $wf->act($u,$_POST,validateUploads($_FILES['supports']??[])); $destination='/?page=acts'; break;
             case 'review_act': $wf->reviewAct($u,(int)$_POST['id'],$_POST['decision']??'',trim($_POST['comment']??'')); $destination='/?page=acts'; break;
             case 'user': saveUser($u,$_POST,empty($_POST['id'])?null:(int)$_POST['id']); $destination='/?page=users'; break;
+            case 'official_job_category': saveOfficialJobCategory($u,$_POST);$destination='/?page=jobs';break;
             case 'job': saveJob($u,$_POST); $destination='/?page=jobs'; break;
             case 'job_grade': saveJobGrade($u,$_POST); $destination='/?page=jobs'; break;
             case 'designation': saveDesignation($u,$_POST); $destination='/?page=designations'; break;

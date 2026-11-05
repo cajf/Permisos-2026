@@ -29,7 +29,9 @@ function searchJobDirectory(array $actor,array $input): array {
     requirePermission($actor,'view.jobs');$where=['1=1'];$params=[];
     foreach(['q_job'=>'j.title','q_code'=>'j.code'] as $key=>$column)listingMatch($where,$params,$column,listingText($input,$key));
     $grade=listingText($input,'q_grade');if($grade!==''){$where[]="EXISTS(SELECT 1 FROM job_grades g WHERE g.job_id=j.id AND g.grade COLLATE utf8mb4_0900_ai_ci LIKE CONVERT(? USING utf8mb4) COLLATE utf8mb4_0900_ai_ci ESCAPE '=')";$params[]=listingLike($grade);}
-    return listingRows('SELECT j.* FROM jobs j WHERE '.implode(' AND ',$where).' ORDER BY j.title,j.id',$params,$input);
+    $group=listingText($input,'q_group');if($group!==''){ensure(in_array($group,['regular','official_worker'],true),'Grupo no válido.');$where[]='j.employment_group=?';$params[]=$group;}
+    $category=listingText($input,'q_category');listingMatch($where,$params,'c.name',$category);
+    return listingRows('SELECT j.*,c.name job_category FROM jobs j LEFT JOIN official_job_categories c ON c.id=j.official_category_id WHERE '.implode(' AND ',$where).' ORDER BY j.title,j.id',$params,$input);
 }
 function searchDesignationHistory(array $actor,array $input): array {
     requirePermission($actor,'view.designations');$where=['1=1'];$params=[];$role=listingText($input,'q_role');

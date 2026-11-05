@@ -8,7 +8,7 @@ function saveUser(array $actor,array $data,?int $id=null): void {
         if ($id) ensure($existing!==null,'Funcionario no encontrado.');
         ensure(!$existing || !isSuperadmin($existing) || isSuperadmin($actor),'Solo un superadministrador puede modificar la cuenta de otro superadministrador.');
         $data=array_replace($data,resolveJob($data));
-        if (!$existing) ensure($data['code']!=='' && $data['grade']!=='','Complete el código y los grados del cargo antes de asignarlo a un nuevo funcionario.');
+        if (!$existing && !isOfficialWorker($data)) ensure($data['code']!=='' && $data['grade']!=='','Complete el código y los grados del cargo antes de asignarlo a un nuevo funcionario.');
         foreach (['name','identification','username','email','job_title'] as $field) ensure(trim($data[$field]??'')!=='','Complete los campos obligatorios del funcionario.');
         ensure(filter_var($data['email'],FILTER_VALIDATE_EMAIL)!==false,'El correo no es válido.');
         ensure(preg_match('/^[a-zA-Z0-9._@-]{3,80}$/D',$data['username'])===1,'El usuario admite de 3 a 80 letras, números, puntos, @, guiones y guiones bajos.');
@@ -36,7 +36,7 @@ function saveUser(array $actor,array $data,?int $id=null): void {
             $keys=['name','identification','username','email','job_title','code','grade','appointment_type','department_id','manager_id','deputy_manager_id','high_rank','roles','active'];
             $id=insert('users',array_combine($keys,$values)+['password'=>password_hash($password,PASSWORD_DEFAULT)]);
         }
-        run('UPDATE users SET birth_date=? WHERE id=?',[$birth?:null,$id]);
+        run('UPDATE users SET birth_date=?,job_category=? WHERE id=?',[$birth?:null,$data['job_category'],$id]);
         captureBalances((int)$id);
         (new Workflow())->refreshAssignments((int)$actor['id']);
         event((int)$actor['id'],'Funcionario actualizado','Funcionario '.$id);
@@ -74,7 +74,7 @@ function commitImport(array $actor,array $data): array {
     return atomic(function() use($actor,$data) {
         $passwords=[]; $ids=[]; $seen=[];
         foreach ($data as $i=>$r) {
-            try { $job=resolveJob(['job_title'=>$r['cargo']??'','code'=>$r['codigo']??'','grade'=>$r['grado']??'']); }
+            try { $job=resolveJob(['job_title'=>$r['cargo']??'','code'=>$r['codigo']??'','grade'=>$r['grado']??'','appointment_type'=>$r['vinculacion']??'Carrera administrativa']); }
             catch (DomainException $e) { throw new DomainException('Fila '.($i+2).': '.$e->getMessage().' Registre primero la combinación en Cargos, códigos y grados.'); }
             $r=array_replace($r,['cargo'=>$job['job_title'],'codigo'=>$job['code'],'grado'=>$job['grade']]);
             ensure($r['cedula']!=='' && $r['nombre']!=='' && $r['cargo']!=='' && $r['dependencia']!=='','Faltan datos en la fila '.($i+2).'.');
@@ -88,6 +88,7 @@ function commitImport(array $actor,array $data): array {
             $fields=['name'=>$r['nombre'],'username'=>$r['usuario'],'email'=>$r['correo'],'job_title'=>$r['cargo'],'code'=>$r['codigo']??'','grade'=>$r['grado']??'','department_id'=>$dep['id'],'appointment_type'=>$r['vinculacion']??'Carrera administrativa','high_rank'=>$rank];
             if ($old) { run('UPDATE users SET name=?,username=?,email=?,job_title=?,code=?,grade=?,department_id=?,appointment_type=?,high_rank=? WHERE id=?',[...array_values($fields),$old['id']]); $ids[$r['cedula']]=$old['id']; }
             else { $pass='Inicio!'.bin2hex(random_bytes(6)); $ids[$r['cedula']]=insert('users',$fields+['identification'=>$r['cedula'],'password'=>password_hash($pass,PASSWORD_DEFAULT)]); $passwords[]=[$r['usuario'],$pass]; }
+            run('UPDATE users SET job_category=? WHERE id=?',[$job['job_category'],$ids[$r['cedula']]]);
             if (array_key_exists('fecha_nacimiento',$r) && $r['fecha_nacimiento']!=='') {
                 ensure(validDate($r['fecha_nacimiento']) && $r['fecha_nacimiento']<date('Y-m-d'),'Fecha de nacimiento no válida en la fila '.($i+2).'. Use AAAA-MM-DD.');
                 run('UPDATE users SET birth_date=? WHERE id=?',[$r['fecha_nacimiento'],$ids[$r['cedula']]]);
