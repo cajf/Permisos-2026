@@ -65,9 +65,9 @@ if(form){
   inputs.forEach(input=>input.setCustomValidity(''));dateFields.forEach(input=>input.setCustomValidity(''));
   if(category.selectedOptions[0]?.dataset.slug!=='acto')return;
   const allocated=inputs.reduce((sum,input)=>sum+Math.round(Number(input.value||0)*60),0),requested=[...slots.children].reduce((sum,row)=>sum+Number(row.dataset.minutes||0),0),limit=Number(panel.dataset.dailyLimit);
-  const dates=new Set(dateFields.map(input=>input.value).filter(Boolean));let error='';
-  if(dates.size>1)error='El compensatorio debe disfrutarse en una única fecha laboral.';
-  else if(allocated>limit||requested>limit)error=`La suma no puede superar ${fmt(limit)} por jornada.`;
+  const days={};for(const row of slots.children){const date=row.querySelector('[type=date]').value;if(date)days[date]=(days[date]||0)+Number(row.dataset.minutes||0);}let error='';
+  const exceeded=Object.keys(days).find(date=>days[date]>limit);
+  if(exceeded)error=`El ${exceeded} supera el máximo de ${fmt(limit)} por jornada.`;
   else if(allocated!==requested)error='La suma de los actos debe coincidir con el tiempo solicitado.';
   message.textContent=`Seleccionado en actos: ${fmt(allocated)} · Solicitado: ${fmt(requested)} · Máximo diario: ${fmt(limit)}${error?' · '+error:''}`;
   message.className=error?'alert warning':'alert success';
@@ -78,7 +78,7 @@ if(form){
   updateSupports();
   const seq=++sequence;let total=0;
   const jury=category.selectedOptions[0]?.dataset.slug==='jurado';document.querySelector('#add-slot').disabled=jury;
-  slots.querySelectorAll('select').forEach(select=>{select.querySelector('option[value=hours]').disabled=jury;if(jury)select.value='full';});
+  slots.querySelectorAll('select').forEach(select=>{const act=category.selectedOptions[0]?.dataset.slug==='acto';select.querySelector('option[value=hours]').disabled=jury;select.querySelector('option[value=full]').disabled=act;if(jury)select.value='full';else if(act)select.value='hours';});
   await Promise.all([...slots.children].map(async row=>{
    const date=row.querySelector('[type=date]'),times=row.querySelectorAll('[type=time]'),full=row.querySelector('select').value==='full';times.forEach(t=>t.disabled=full);
    if(!date.value){row.dataset.minutes='0';row.querySelector('.slot-result').textContent='';return;}
