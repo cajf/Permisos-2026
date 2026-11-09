@@ -52,13 +52,17 @@ if(form){
   submitError.textContent=message;submitError.tabIndex=-1;submitError.hidden=false;submitError.scrollIntoView({behavior:'smooth',block:'center'});submitError.focus();
  }
  document.querySelector('#supports-retention-note')?.removeAttribute('hidden');
- const slots=document.querySelector('#slots'),category=document.querySelector('#category');let next=slots.children.length,sequence=0;
+ const slots=document.querySelector('#slots'),category=document.querySelector('#category'),medicalAnswer=document.querySelector('#medical-appointment');let next=slots.children.length,sequence=0;
  const fmt=m=>`${Math.floor(m/60)} h ${String(m%60).padStart(2,'0')} min`;
  function updateSupports(){
-  const selected=category.selectedOptions[0],required=selected?.dataset.supportsRequired==='1',upload=form.querySelector('[name="supports[]"]');
+  const selected=category.selectedOptions[0],ordinary=selected?.dataset.slug==='ordinario';
+  const medical=ordinary&&medicalAnswer.value==='1',required=medical||selected?.dataset.supportsRequired==='1',upload=form.querySelector('[name="supports[]"]');
+  medicalAnswer.closest('label').hidden=!ordinary;
+  medicalAnswer.disabled=!ordinary;
+  medicalAnswer.required=ordinary;
   upload.required=required&&Number(upload.dataset.existingSupports||0)===0;
   document.querySelector('#supports-label').textContent=selected?.dataset.slug?(required?'Selecciona tus archivos *':'Selecciona tus archivos (opcional)'):'Selecciona tus archivos';
-  document.querySelector('#supports-guide').textContent=!selected?.dataset.slug?'Selecciona un tipo para consultar los soportes.':`${required?'Soporte obligatorio.':'Soporte opcional.'} ${selected.dataset.supports||'Puedes adjuntar documentos si lo consideras necesario.'}`;
+  document.querySelector('#supports-guide').textContent=medical?'Soporte obligatorio. Adjunta un documento de la cita médica.':!selected?.dataset.slug?'Selecciona un tipo para consultar los soportes.':`${required?'Soporte obligatorio.':'Soporte opcional.'} ${selected.dataset.supports||'Puedes adjuntar documentos si lo consideras necesario.'}`;
  }
  function updateAllocations(){
   const panel=document.querySelector('#allocation-panel'),message=document.querySelector('#allocation-summary'),inputs=[...panel.querySelectorAll('[data-allocation-hours]')],dateFields=[...slots.querySelectorAll('[type=date]')];
@@ -96,7 +100,7 @@ if(form){
   updateAllocations();
   const guide=document.querySelector('#route-guide');guide.textContent=!slug?'Selecciona el tipo y las fechas.':high&&selected.dataset.family==='permiso'?'Alcalde · aprobación exclusiva':slug==='ordinario'&&total>0&&total<=120?'Jefe inmediato · aprobación única':'Jefe inmediato → Subsecretario de Talento Humano';
  }
- slots.addEventListener('change',refresh);category.addEventListener('change',refresh);
+ slots.addEventListener('change',refresh);category.addEventListener('change',refresh);medicalAnswer.addEventListener('change',updateSupports);
  slots.addEventListener('click',e=>{const btn=e.target.closest('.remove-slot');if(btn&&slots.children.length>1){btn.closest('.slot-row').remove();refresh();}});
  document.querySelector('#add-slot').addEventListener('click',()=>{const copy=slots.firstElementChild.cloneNode(true);copy.querySelectorAll('[name]').forEach(input=>{input.name=input.name.replace(/slots\[\d+\]/,`slots[${next}]`);if(input.type==='date')input.value='';if(input.type==='time')input.disabled=false;});copy.querySelector('select').value='hours';copy.querySelector('.slot-result').textContent='';copy.dataset.minutes='0';next++;slots.append(copy);copy.querySelector('input').focus();});refresh();
 }

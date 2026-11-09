@@ -51,7 +51,7 @@ function captureBalances(int $user): void {
     foreach (rows("SELECT s.* FROM request_slots s JOIN requests r ON r.id=s.request_id JOIN categories c ON c.id=r.category_id WHERE r.user_id=? AND c.slug='ordinario'",[$user]) as $slot) foreach (array_keys($wf->slotSemesters($slot)) as $semester) $quotas[$semester]=max(0,ordinaryQuotaLimit($person)-$wf->quota($user,$semester));
     $current=date('Y').'-'.((int)date('m')<=6?'1':'2');$quotas[$current]??=ordinaryQuotaLimit($person);
     $acts=[];foreach (rows("SELECT * FROM acts WHERE user_id=? AND status='approved'",[$user]) as $act) $acts[]=['number'=>$act['number'],'granted'=>(int)$act['granted_minutes'],'available'=>$wf->available($act),'expires_on'=>$act['expires_on']];
-    insert('balance_snapshots',['user_id'=>$user,'department_id'=>$person['department_id'],'created_at'=>now(),'data'=>json_encode(['name'=>$person['name'],'types'=>$types,'quotas'=>$quotas,'acts'=>$acts],JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR)]);
+    insert('balance_snapshots',['user_id'=>$user,'department_id'=>$person['department_id'],'created_at'=>now(),'data'=>json_encode(['name'=>$person['name'],'types'=>$types,'quotas'=>$quotas,'quota_limit'=>ordinaryQuotaLimit($person),'acts'=>$acts],JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR)]);
 }
 function balanceScope(array $viewer,string $date): array {
     ensure(validDate($date) && $date<=date('Y-m-d'),'Seleccione una fecha de corte válida, hasta hoy.');

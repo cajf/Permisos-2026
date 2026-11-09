@@ -32,7 +32,7 @@ final class Workflow {
     }
     public function quota(int $user,string $semester,?int $exclude=null): int {
         $sum=0;
-        foreach (rows("SELECT s.*,r.status,r.cancelled_at FROM request_slots s JOIN requests r ON r.id=s.request_id JOIN categories c ON c.id=r.category_id WHERE r.user_id=? AND c.slug='ordinario' AND r.status!='rejected' AND r.id!=?",[$user,$exclude??0]) as $s) $sum+=$this->slotSemesters($s,$s['status']==='cancelled'?$s['cancelled_at']:null)[$semester]??0;
+        foreach (rows("SELECT s.*,r.status,r.cancelled_at FROM request_slots s JOIN requests r ON r.id=s.request_id JOIN categories c ON c.id=r.category_id WHERE r.user_id=? AND c.slug='ordinario' AND r.status!='rejected' AND r.id!=? AND NOT (JSON_EXTRACT(r.snapshot,'$.medical_appointment') <=> CAST('true' AS JSON))",[$user,$exclude??0]) as $s) $sum+=$this->slotSemesters($s,$s['status']==='cancelled'?$s['cancelled_at']:null)[$semester]??0;
         return $sum;
     }
     public function slotSemesters(array $slot,?string $until=null): array {
@@ -58,6 +58,10 @@ final class Workflow {
             if ($id) ensure($old && (int)$old['user_id']===(int)$owner['id'] && $old['status']==='returned','Solo puede corregir una solicitud propia devuelta.');
             $category=row('SELECT * FROM categories WHERE id=?',[(int)($input['category_id']??0)]);
             ensure($category!==null,'Seleccione un tipo de solicitud.');
+            $ordinary=$category['slug']==='ordinario';
+            $medicalAnswer=$input['medical_appointment']??'';
+            if ($ordinary) ensure(in_array($medicalAnswer,['0','1'],true),'Indique si el permiso Ordinario-Remunerado es para una cita médica.');
+            $medical=$ordinary && $medicalAnswer==='1';
             $slots=$this->calendar->slots($input['slots']??[],$clock);
             $total=array_sum(array_column($slots,'minutes'));
             if($category['slug']==='acto')$this->validateActWorkday($slots,$owner);
@@ -72,6 +76,7 @@ final class Workflow {
             $relationship=trim($input['relationship']??'');
             if ($category['slug']==='luto') ensure($relationship!=='','Indique el parentesco para la licencia por luto.');
             $existingFiles=$id?(int)row('SELECT COUNT(*) n FROM attachments WHERE request_id=?',[$id])['n']:0;
+            if ($medical) ensure(count($files)+$existingFiles>=1,'Adjunte al menos un soporte de la cita médica.');
             if ((int)$category['supports_required']===1) ensure(count($files)+$existingFiles>=1,'Adjunte al menos un soporte.');
             ensure(count($files)+$existingFiles<=20,'Una solicitud admite hasta veinte soportes.');
             $semesters=[];
@@ -80,9 +85,9 @@ final class Workflow {
                 $overlap=row("SELECT r.id FROM request_slots s JOIN requests r ON r.id=s.request_id WHERE r.user_id=? AND r.id!=? AND r.status NOT IN ('rejected','cancelled') AND COALESCE(s.start_at,CONCAT(s.date,' ',s.start_time,':00'))<? AND COALESCE(s.end_at,CONCAT(s.date,' ',s.end_time,':00'))>? LIMIT 1",[$owner['id'],$id??0,$s['end_at'],$s['start_at']]);
                 ensure(!$overlap,'El horario se cruza con otra solicitud activa.');
             }
-            if ($category['slug']==='ordinario') foreach ($semesters as $semester=>$minutes) {
+            if ($ordinary) foreach ($semesters as $semester=>$minutes) {
                 ensure(substr($semester,0,4)===$clock->format('Y'),'El Ordinario-Remunerado debe disfrutarse en el año en curso.');
-                ensure($this->quota((int)$owner['id'],$semester,$id)+$minutes<=ordinaryQuotaLimit($owner),'La solicitud excede el cupo de '.hours(ordinaryQuotaLimit($owner)).' del semestre '.$semester.'.');
+                if (!$medical) ensure($this->quota((int)$owner['id'],$semester,$id)+$minutes<=ordinaryQuotaLimit($owner),'La solicitud excede el cupo de '.hours(ordinaryQuotaLimit($owner)).' del semestre '.$semester.'.');
             }
             $birthdayYear=null;
             if ($category['slug']==='cumpleanos') {
@@ -104,6 +109,7 @@ final class Workflow {
             }
             $snapshotData=array_intersect_key($owner,array_flip(['name','identification','job_title','code','grade','department','appointment_type','job_category','high_rank']));
             $snapshotData['ordinary_quota_minutes']=ordinaryQuotaLimit($owner);
+            if ($ordinary) $snapshotData['medical_appointment']=$medical;
             if($category['slug']==='acto'){ $snapshotData['act_workdays']=[];foreach($slots as $slot)$snapshotData['act_workdays'][$slot['date']]=$this->calendar->periods($slot['date']); }
             if($category['slug']==='jurado') $snapshotData['jury_role']=$input['jury_role'];
             if($electoral!==null) $snapshotData['electoral_check']=ElectoralCertificate::validate($electoral,$owner['identification'],$slots,$clock->format('Y-m-d'));
@@ -283,10 +289,12 @@ final class Workflow {
             $hashes=array_column(rows('SELECT sha256 FROM attachments WHERE request_id=?',[$id]),'sha256');
             foreach($checked['documents'] as $document) if($document['recognized']) ensure(in_array($document['sha256'],$hashes,true),'Falta el soporte que se utilizó para validar el certificado electoral. Devuelva la solicitud para corregir.');
         }
-        if ((int)$category['supports_required']===1) ensure(row('SELECT id FROM attachments WHERE request_id=? LIMIT 1',[$id])!==null,'Falta el soporte obligatorio. Devuelva la solicitud para adjuntarlo.');
+        $quotaSnapshot=$category['slug']==='ordinario'?json_decode($request['snapshot'],true):[];
+        $medical=($quotaSnapshot['medical_appointment']??false)===true;
+        if ($medical || (int)$category['supports_required']===1) ensure(row('SELECT id FROM attachments WHERE request_id=? LIMIT 1',[$id])!==null,'Falta el soporte obligatorio. Devuelva la solicitud para adjuntarlo.');
         if ($category['slug']!=='cumpleanos' && $category['max_minutes']!==null && (int)$category['policy_confirmed']===1) ensure((int)$request['total_minutes']<=(int)$category['max_minutes'],'La duración supera el límite vigente del tipo de solicitud.');
-        if ($category['slug']==='ordinario') {
-            $quotaSnapshot=json_decode($request['snapshot'],true);$quotaLimit=(int)($quotaSnapshot['ordinary_quota_minutes']??ordinaryQuotaLimit($quotaSnapshot));
+        if ($category['slug']==='ordinario' && !$medical) {
+            $quotaLimit=(int)($quotaSnapshot['ordinary_quota_minutes']??ordinaryQuotaLimit($quotaSnapshot??[]));
             foreach (rows('SELECT * FROM request_slots WHERE request_id=?',[$id]) as $slot) foreach($this->slotSemesters($slot) as $semester=>$minutes) ensure($this->quota((int)$request['user_id'],$semester)<=$quotaLimit,'La solicitud excede el cupo semestral de Ordinario-Remunerado.');
         }
         if ($category['slug']==='acto') {

@@ -19,7 +19,7 @@ function testSubmit(int $uid,string $slug,array $slots,array $allocations=[],?Da
  global $wf;$u=person($uid);$c=cat($slug);
  $stub=insert('requests',['user_id'=>$uid,'category_id'=>$c['id'],'status'=>'returned','justification'=>'Solicitud de prueba','total_minutes'=>1,'snapshot'=>'{}','revision'=>0,'created_at'=>now(),'updated_at'=>now()]);
  insert('attachments',['user_id'=>$uid,'request_id'=>$stub,'original_name'=>'soporte-prueba.pdf','stored_name'=>'test-'.bin2hex(random_bytes(8)),'mime'=>'application/pdf','size'=>100,'sha256'=>str_repeat('0',64),'created_at'=>now()]);
- try{return $wf->submit($u,['category_id'=>$c['id'],'slots'=>$slots,'justification'=>'Justificación de prueba funcional','exception_reason'=>'Excepción justificada para probar el trámite','relationship'=>'Padre','allocations'=>$allocations],[],$stub,$clock??new DateTimeImmutable('2026-10-26 06:00:00'));}
+ try{return $wf->submit($u,['category_id'=>$c['id'],'medical_appointment'=>'0','slots'=>$slots,'justification'=>'Justificación de prueba funcional','exception_reason'=>'Excepción justificada para probar el trámite','relationship'=>'Padre','allocations'=>$allocations],[],$stub,$clock??new DateTimeImmutable('2026-10-26 06:00:00'));}
  catch(Throwable $e){run('DELETE FROM attachments WHERE request_id=?',[$stub]);run('DELETE FROM requests WHERE id=?',[$stub]);throw $e;}
 }
 function slot(string $date,string $start,string $end):array{return ['date'=>$date,'start'=>$start,'end'=>$end,'mode'=>'hours'];}
@@ -88,7 +88,7 @@ check((int)$legacy->query('SELECT supports_required FROM categories')->fetchColu
 foreach(['ordinario','bici','matrimonio','estudios'] as $i=>$slug) {
     $category=cat($slug);
     run('UPDATE categories SET supports_required=0 WHERE id=?',[$category['id']]);
-    $input=['category_id'=>$category['id'],'slots'=>[slot('2026-12-'.(21+$i),'07:30','08:30')],'justification'=>'Solicitud de prueba sin soporte opcional'];
+    $input=['category_id'=>$category['id'],'medical_appointment'=>'0','slots'=>[slot('2026-12-'.(21+$i),'07:30','08:30')],'justification'=>'Solicitud de prueba sin soporte opcional'];
     $optional=$wf->submit(person(8),$input,[],null,new DateTimeImmutable('2026-10-26 06:00'));
     check((int)row('SELECT COUNT(*) n FROM attachments WHERE request_id=?',[$optional])['n']===0,'Permite enviar sin adjuntos cuando es opcional: '.$slug);
     run('UPDATE categories SET supports_required=1 WHERE id=?',[$category['id']]);

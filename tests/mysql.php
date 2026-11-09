@@ -22,7 +22,7 @@ function concurrentJobs(array $jobs):array {
 $raceUser=insert('users',['name'=>'Funcionario de concurrencia','identification'=>'RACE-QA','username'=>'race.qa','email'=>'race@ejemplo.invalid','password'=>'hash','job_title'=>'Funcionario','department_id'=>2,'manager_id'=>2,'birth_date'=>'1988-06-20']);
 foreach(['ordinario','acto','cumpleanos','academico'] as $slug)run('UPDATE categories SET supports_required=0 WHERE slug=?',[$slug]);
 $base=['justification'=>'Solicitud simultánea para verificar los límites transaccionales'];
-$quotaJobs=[];foreach([['2026-12-21','2026-12-22'],['2026-12-23','2026-12-24']] as $dates)$quotaJobs[]=['action'=>'submit','actor'=>$raceUser,'input'=>$base+['category_id'=>cat('ordinario')['id'],'slots'=>array_map(fn($date)=>['date'=>$date,'mode'=>'full'],$dates)]];
+$quotaJobs=[];foreach([['2026-12-21','2026-12-22'],['2026-12-23','2026-12-24']] as $dates)$quotaJobs[]=['action'=>'submit','actor'=>$raceUser,'input'=>$base+['category_id'=>cat('ordinario')['id'],'medical_appointment'=>'0','slots'=>array_map(fn($date)=>['date'=>$date,'mode'=>'full'],$dates)]];
 $results=concurrentJobs($quotaJobs);
 check(count(array_filter($results,fn($result)=>$result['ok']))===1 && $wf->quota($raceUser,'2026-2')===1020,'Dos solicitudes simultáneas no pueden exceder el cupo semestral');
 $raceAct=insert('acts',['user_id'=>14,'number'=>'CONCURRENCIA-SALDO','issued_on'=>date('Y-m-d'),'expires_on'=>'2026-12-31','granted_minutes'=>60,'status'=>'approved','reviewed_by'=>12,'reviewed_at'=>now(),'created_at'=>now()]);
