@@ -69,6 +69,7 @@ function statusLabel(string $s): string { return ['pending'=>'En aprobación','a
 function roleLabel(string $role): string { return systemRoles()[$role]??$role; }
 function familyLabel(string $s): string { return ['permiso'=>'Permiso','compensatorio'=>'Compensatorio','remunerada'=>'Licencia remunerada','no_remunerada'=>'Licencia no remunerada'][$s]??$s; }
 require_once __DIR__.'/Calendar.php';
+require_once __DIR__.'/AnnualLeave.php';
 require_once __DIR__.'/Workflow.php';
 require_once __DIR__.'/Files.php';
 require_once __DIR__.'/ElectoralCertificate.php';

@@ -105,6 +105,20 @@ function commitImport(array $actor,array $data): array {
         return $passwords;
     });
 }
+function saveSchoolBreak(array $actor,array $data,?DateTimeImmutable $clock=null): void {
+    requirePermission($actor,'calendar.edit');
+    $year=($clock??new DateTimeImmutable())->format('Y');
+    $start=$data['start_date']??'';
+    $end=$data['end_date']??'';
+    ensure(is_string($start) && is_string($end) && validDate($start) && validDate($end) && $start<=$end
+        && substr($start,0,4)===$year && substr($end,0,4)===$year,'Indique un inicio y un fin ordenados dentro de la vigencia '.$year.'.');
+    ensure((new DateTimeImmutable($start))->diff(new DateTimeImmutable($end))->days<7,'El receso escolar admite hasta siete días calendario consecutivos.');
+    atomic(function() use($actor,$year,$start,$end) {
+        setSetting('school_break_'.$year,json_encode(['start'=>$start,'end'=>$end],JSON_THROW_ON_ERROR));
+        event((int)$actor['id'],'Semana de receso escolar actualizada',"$year · $start a $end");
+    });
+}
+
 function saveSchedule(array $actor,array $data): void {
     requirePermission($actor,'calendar.edit'); $a=$data['start_date']??''; $b=$data['end_date']??'';
     $group=(string)($data['schedule_group']??'regular');ensure(in_array($group,['regular','official_worker'],true),'Seleccione una jornada válida.');

@@ -100,6 +100,7 @@ try {
                     $wf->refreshAssignments((int)$u['id']); event((int)$u['id'],'Responsables actualizados','Se conservaron las actuaciones ya realizadas.');
                 }); $destination='/?page=settings'; break;
             case 'schedule': saveSchedule($u,$_POST); $destination='/?page=calendar'; break;
+            case 'school_break': saveSchoolBreak($u,$_POST); $destination='/?page=calendar'; break;
             case 'holiday':
                  ensure(validDate($_POST['date']??'') && trim($_POST['name']??'')!=='','Indique fecha y nombre del día no laborable.');
                 ensure($_POST['date']>=date('Y-m-d'),'No se modifican festivos pasados.');
@@ -115,7 +116,13 @@ try {
                 if (in_array($c['slug'],['ordinario','cumpleanos'],true)) $max=null;
                 atomic(function() use($supports,$supportsRequired,$max,$c,$u) {
                     run('UPDATE categories SET supports=?,supports_required=?,max_minutes=?,policy_confirmed=?,notes=? WHERE id=?',[$supports,$supportsRequired,$max,isset($_POST['policy_confirmed'])?1:0,trim($_POST['notes']??''),$c['id']]);
-                    event((int)$u['id'],'Matriz actualizada',$c['name'].' · Soporte '.($supportsRequired?'obligatorio':'opcional'));
+                    $detail=$c['name'].' · Soporte '.($supportsRequired?'obligatorio':'opcional');
+                    if (in_array($c['slug'],AnnualLeave::TYPES,true) && array_key_exists('annual_days',$_POST)) {
+                        $year=(int)date('Y');
+                        ensure(($_POST['annual_year']??'')===(string)$year,'Actualice la página para configurar el cupo de la vigencia actual.');
+                        $detail.=' · '.$year.' · '.AnnualLeave::saveLimit($c['slug'],$year,$_POST['annual_days']);
+                    }
+                    event((int)$u['id'],'Matriz actualizada',$detail);
                 }); $destination='/?page=policies'; break;
             case 'import_preview':
                  $f=$_FILES['excel']??[];

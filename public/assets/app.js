@@ -53,6 +53,8 @@ if(form){
  }
  document.querySelector('#supports-retention-note')?.removeAttribute('hidden');
  const slots=document.querySelector('#slots'),category=document.querySelector('#category'),medicalAnswer=document.querySelector('#medical-appointment');let next=slots.children.length,sequence=0;
+ const annualAvailability=JSON.parse(form.dataset.annualAvailability),birthdayYear=form.elements.birthday_year;
+ const addSlot=document.querySelector('#add-slot'),annualGuide=document.querySelector('#annual-days-guide');
  const fmt=m=>`${Math.floor(m/60)} h ${String(m%60).padStart(2,'0')} min`;
  function updateSupports(){
   const selected=category.selectedOptions[0],ordinary=selected?.dataset.slug==='ordinario';
@@ -65,8 +67,8 @@ if(form){
   document.querySelector('#supports-guide').textContent=medical?'Soporte obligatorio. Adjunta un documento de la cita médica.':!selected?.dataset.slug?'Selecciona un tipo para consultar los soportes.':`${required?'Soporte obligatorio.':'Soporte opcional.'} ${selected.dataset.supports||'Puedes adjuntar documentos si lo consideras necesario.'}`;
  }
  function updateAllocations(){
-  const panel=document.querySelector('#allocation-panel'),message=document.querySelector('#allocation-summary'),inputs=[...panel.querySelectorAll('[data-allocation-hours]')],dateFields=[...slots.querySelectorAll('[type=date]')];
-  inputs.forEach(input=>input.setCustomValidity(''));dateFields.forEach(input=>input.setCustomValidity(''));
+  const panel=document.querySelector('#allocation-panel'),message=document.querySelector('#allocation-summary'),inputs=[...panel.querySelectorAll('[data-allocation-hours]')];
+  inputs.forEach(input=>input.setCustomValidity(''));
   if(category.selectedOptions[0]?.dataset.slug!=='acto')return;
   const allocated=inputs.reduce((sum,input)=>sum+Math.round(Number(input.value||0)*60),0),requested=[...slots.children].reduce((sum,row)=>sum+Number(row.dataset.minutes||0),0),limit=Number(panel.dataset.dailyLimit);
   const days={};for(const row of slots.children){const date=row.querySelector('[type=date]').value;if(date)days[date]=(days[date]||0)+Number(row.dataset.minutes||0);}let error='';
@@ -77,14 +79,49 @@ if(form){
   message.className=error?'alert warning':'alert success';
   if(error&&inputs.length)inputs[0].setCustomValidity(error);
  }
+ function updateDayFields(slug){
+  const annual=Object.hasOwn(annualAvailability,slug),recess=slug==='receso',jury=slug==='jurado';
+  const year=slug==='cumpleanos'?birthdayYear.value:form.dataset.year;
+  const available=annual?annualAvailability[slug][year]:null;
+  const fullOnly=annual||jury,rows=[...slots.children];
+  const dates=rows.map(row=>{
+   const date=row.querySelector('input[type=date]'),choice=row.querySelector('[data-recess-date]'),mode=row.querySelector('[data-mode]');
+   if(recess&&choice.disabled)choice.value=date.value;
+   if(!recess&&date.disabled)date.value=choice.value;
+   date.hidden=date.disabled=recess;date.required=!recess;
+   choice.hidden=choice.disabled=!recess;choice.required=recess;
+   date.setCustomValidity('');choice.setCustomValidity('');
+   mode.querySelector('option[value=hours]').disabled=fullOnly;
+   mode.querySelector('option[value=full]').disabled=slug==='acto';
+   if(fullOnly)mode.value='full';else if(slug==='acto')mode.value='hours';
+   return recess?choice:date;
+  });
+  const recessCount=recess?dates[0].options.length-1:Infinity;
+  const limit=Math.min(jury?1:90,available??Infinity,recessCount);
+  addSlot.disabled=rows.length>=limit;
+  annualGuide.hidden=!annual;
+  if(annual){
+   const balance=available===null?`Sin límite anual para ${year}.`:`Días completos disponibles en ${year}: ${available}.`;
+   const notice=recessCount===0?' No hay días hábiles de receso disponibles.':'';
+   const error=rows.length>limit?(limit===0?'No hay días disponibles para esta solicitud.':'Elimina las fechas que superen los días disponibles.'):'';
+   annualGuide.textContent=balance+notice+(error?' '+error:'');
+   if(error)dates[0].setCustomValidity(error);
+  }
+  if(recess)for(const date of dates){
+   const used=new Set(dates.filter(other=>other!==date).map(other=>other.value).filter(Boolean));
+   for(const option of date.options)option.disabled=used.has(option.value)&&option.value!==date.value;
+   if(date.value&&used.has(date.value))date.setCustomValidity('Selecciona una fecha de receso diferente para cada jornada.');
+  }
+  return dates;
+ }
  document.querySelector('#allocation-panel').addEventListener('input',updateAllocations);
  async function refresh(){
   updateSupports();
   const seq=++sequence;let total=0;
-  const jury=category.selectedOptions[0]?.dataset.slug==='jurado';document.querySelector('#add-slot').disabled=jury;
-  slots.querySelectorAll('select').forEach(select=>{const act=category.selectedOptions[0]?.dataset.slug==='acto';select.querySelector('option[value=hours]').disabled=jury;select.querySelector('option[value=full]').disabled=act;if(jury)select.value='full';else if(act)select.value='hours';});
-  await Promise.all([...slots.children].map(async row=>{
-   const date=row.querySelector('[type=date]'),times=row.querySelectorAll('[type=time]'),full=row.querySelector('select').value==='full';times.forEach(t=>t.disabled=full);
+  const selected=category.selectedOptions[0],slug=selected?.dataset.slug;
+  const dates=updateDayFields(slug);
+  await Promise.all([...slots.children].map(async (row,index)=>{
+   const date=dates[index],times=row.querySelectorAll('[type=time]'),full=row.querySelector('[data-mode]').value==='full';times.forEach(t=>t.disabled=full);
    if(!date.value){row.dataset.minutes='0';row.querySelector('.slot-result').textContent='';return;}
    const p=new URLSearchParams({page:'estimate',date:date.value});if(!full){p.set('start',times[0].value);p.set('end',times[1].value);}
    try{const response=await fetch('/?'+p);if(!response.ok)throw new Error();const data=await response.json();if(seq!==sequence)return;if(full&&data.periods.length){times[0].value=data.periods[0][0];times[1].value=data.periods[data.periods.length-1][1];}row.dataset.minutes=String(data.minutes);row.querySelector('.slot-result').textContent=data.periods.length?fmt(data.minutes):'Día no laborable';}
@@ -92,7 +129,7 @@ if(form){
   }));
   if(seq!==sequence)return;
   [...slots.children].forEach(row=>total+=Number(row.dataset.minutes||0));document.querySelector('#total-minutes').textContent=fmt(total);
-  const selected=category.selectedOptions[0],slug=selected?.dataset.slug,high=document.querySelector('#route-guide').dataset.highRank;
+  const high=document.querySelector('#route-guide').dataset.highRank;
   document.querySelector('#allocation-panel').hidden=slug!=='acto';document.querySelector('#relationship-field').hidden=slug!=='luto';document.querySelector('[name=relationship]').required=slug==='luto';
   document.querySelector('#birthday-year-field').hidden=slug!=='cumpleanos';
   document.querySelector('#jury-role-field').hidden=slug!=='jurado';document.querySelector('#jury-role').required=slug==='jurado';
@@ -100,9 +137,16 @@ if(form){
   updateAllocations();
   const guide=document.querySelector('#route-guide');guide.textContent=!slug?'Selecciona el tipo y las fechas.':high&&selected.dataset.family==='permiso'?'Alcalde · aprobación exclusiva':slug==='ordinario'&&total>0&&total<=120?'Jefe inmediato · aprobación única':'Jefe inmediato → Subsecretario de Talento Humano';
  }
- slots.addEventListener('change',refresh);category.addEventListener('change',refresh);medicalAnswer.addEventListener('change',updateSupports);
+ slots.addEventListener('change',refresh);category.addEventListener('change',refresh);birthdayYear.addEventListener('change',refresh);medicalAnswer.addEventListener('change',updateSupports);
  slots.addEventListener('click',e=>{const btn=e.target.closest('.remove-slot');if(btn&&slots.children.length>1){btn.closest('.slot-row').remove();refresh();}});
- document.querySelector('#add-slot').addEventListener('click',()=>{const copy=slots.firstElementChild.cloneNode(true);copy.querySelectorAll('[name]').forEach(input=>{input.name=input.name.replace(/slots\[\d+\]/,`slots[${next}]`);if(input.type==='date')input.value='';if(input.type==='time')input.disabled=false;});copy.querySelector('select').value='hours';copy.querySelector('.slot-result').textContent='';copy.dataset.minutes='0';next++;slots.append(copy);copy.querySelector('input').focus();});refresh();
+ addSlot.addEventListener('click',()=>{
+  const copy=slots.firstElementChild.cloneNode(true);
+  copy.querySelectorAll('[name]').forEach(input=>{input.name=input.name.replace(/slots\[\d+\]/,`slots[${next}]`);});
+  copy.querySelector('input[type=date]').value='';
+  copy.querySelector('[data-recess-date]').value='';
+  copy.querySelector('.slot-result').textContent='';copy.dataset.minutes='0';
+  next++;slots.append(copy);refresh();copy.querySelector('input[type=date]:not(:disabled),[data-recess-date]:not(:disabled)').focus();
+ });refresh();
 }
 
 const bulkForm=document.querySelector('#bulk-approval-form');

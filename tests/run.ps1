@@ -21,6 +21,8 @@ if ($LASTEXITCODE -ne 0) { throw 'Fallaron las pruebas de compensatorio por acto
 if ($LASTEXITCODE -ne 0) { throw 'Fallaron las pruebas de trabajador oficial.' }
 & $testPhp -c $testIni tests/medical-appointments.php
 if ($LASTEXITCODE -ne 0) { throw 'Fallaron las pruebas de citas médicas.' }
+& $testPhp -c $testIni tests/annual-leave.php
+if ($LASTEXITCODE -ne 0) { throw 'Fallaron las pruebas de cupos anuales y receso escolar.' }
 & $testPhp -c $testIni -d display_errors=1 tests/catalog-migration.php
 if ($LASTEXITCODE -ne 0) { throw 'Falló la migración aislada del catálogo.' }
 $testResult = Get-Content -LiteralPath '.work\test-result.json' -Raw | ConvertFrom-Json

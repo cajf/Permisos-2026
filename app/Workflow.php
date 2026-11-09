@@ -90,16 +90,27 @@ final class Workflow {
                 if (!$medical) ensure($this->quota((int)$owner['id'],$semester,$id)+$minutes<=ordinaryQuotaLimit($owner),'La solicitud excede el cupo de '.hours(ordinaryQuotaLimit($owner)).' del semestre '.$semester.'.');
             }
             $birthdayYear=null;
+            $year=(int)$clock->format('Y');
             if ($category['slug']==='cumpleanos') {
                 $birth=$owner['birth_date']??'';
                 ensure(validDate($birth) && $birth<$clock->format('Y-m-d'),'Talento Humano debe registrar una fecha de nacimiento válida antes de solicitar Cumpleaños.');
-                ensure(count($slots)===1 && (int)$slots[0]['is_full_day']===1,'Cumpleaños se disfruta en una única jornada completa; seleccione Día completo.');
-                $birthdayYear=filter_var($input['birthday_year']??$clock->format('Y'),FILTER_VALIDATE_INT);
-                ensure($birthdayYear!==false && $birthdayYear>=(int)$clock->format('Y')-1 && $birthdayYear<=(int)$clock->format('Y'),'Seleccione una vigencia de cumpleaños válida.');
-                $date=$slots[0]['date'];$normal=substr($date,0,4)===(string)$birthdayYear;
-                $carry=substr($birth,5,2)==='12' && $date>=($birthdayYear+1).'-01-01' && $date<=($birthdayYear+1).'-01-30';
-                ensure($normal || $carry,'El día de Cumpleaños debe estar en su vigencia; únicamente los nacidos en diciembre pueden disfrutarlo hasta el 30 de enero siguiente.');
-                foreach (rows("SELECT r.*,s.* FROM requests r JOIN request_slots s ON s.request_id=r.id JOIN categories c ON c.id=r.category_id WHERE r.user_id=? AND c.slug='cumpleanos' AND COALESCE(r.birthday_year,CAST(substr(s.date,1,4) AS SIGNED))=CAST(? AS SIGNED) AND r.id!=? AND r.status!='rejected'",[$owner['id'],$birthdayYear,$id??0]) as $existing) ensure($existing['status']==='cancelled' && $this->consumedSlot($existing,$existing['cancelled_at'])===0,'El beneficio de cumpleaños de esa vigencia ya está solicitado o disfrutado.');
+                $birthdayYear=filter_var($input['birthday_year']??$year,FILTER_VALIDATE_INT);
+                ensure($birthdayYear!==false && $birthdayYear>=$year-1 && $birthdayYear<=$year,'Seleccione una vigencia de cumpleaños válida.');
+            }
+            if (in_array($category['slug'],AnnualLeave::TYPES,true)) {
+                $benefitYear=$birthdayYear??$year;
+                $recess=$category['slug']==='receso'?$this->calendar->schoolBreakDays($clock):[];
+                foreach ($slots as $slot) {
+                    ensure((int)$slot['is_full_day']===1,'Para '.$category['name'].' seleccione Día completo.');
+                    $date=$slot['date'];
+                    $carry=$birthdayYear!==null && substr($birth,5,2)==='12' && $date>=($benefitYear+1).'-01-01' && $date<=($benefitYear+1).'-01-30';
+                    ensure((int)substr($date,0,4)===$benefitYear || $carry,$birthdayYear===null
+                        ?'Las fechas deben pertenecer a la vigencia '.$year.'.'
+                        :'Las fechas de Cumpleaños deben estar en la vigencia elegida. Los nacidos en diciembre pueden disfrutarlas hasta el 30 de enero siguiente.');
+                    if ($category['slug']==='receso') ensure(in_array($date,$recess,true),'Seleccione un día hábil disponible de la semana de receso escolar registrada para '.$year.'.');
+                }
+                $remaining=AnnualLeave::remaining($this,(int)$owner['id'],$category,$benefitYear,$id);
+                if ($remaining!==null) ensure(count($slots)<=$remaining,'Para '.$category['name'].' quedan '.$remaining.' día(s) completo(s) disponibles en la vigencia '.$benefitYear.'.');
             }
             $route=$this->route($owner,$category,$total,$clock->format('Y-m-d'));
             $revision=$old?(int)$old['revision']+1:1;
