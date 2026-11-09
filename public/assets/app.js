@@ -87,11 +87,6 @@ if(form){
   const fullOnly=annual||jury,rows=[...slots.children];
   const dates=rows.map(row=>{
    const date=row.querySelector('input[type=date]'),choice=row.querySelector('[data-recess-date]'),mode=row.querySelector('[data-mode]');
-   if(recess&&choice.disabled){
-    choice.value=date.value;
-    if(!choice.selectedOptions.length||choice.selectedOptions[0].hasAttribute('data-ended'))choice.value='';
-   }
-   if(!recess&&date.disabled)date.value=choice.value;
    date.hidden=date.disabled=recess;date.required=!recess;
    choice.hidden=choice.disabled=!recess;choice.required=recess;
    date.setCustomValidity('');choice.setCustomValidity('');
@@ -141,7 +136,17 @@ if(form){
   updateAllocations();
   const guide=document.querySelector('#route-guide');guide.textContent=!slug?'Selecciona el tipo y las fechas.':high&&selected.dataset.family==='permiso'?'Alcalde · aprobación exclusiva':slug==='ordinario'&&total>0&&total<=120?'Jefe inmediato · aprobación única':'Jefe inmediato → Subsecretario de Talento Humano';
  }
- slots.addEventListener('change',refresh);category.addEventListener('change',refresh);birthdayYear.addEventListener('change',refresh);medicalAnswer.addEventListener('change',updateSupports);
+ slots.addEventListener('change',refresh);
+ category.addEventListener('change',()=>{
+  const firstRow=slots.firstElementChild;
+  slots.replaceChildren(firstRow);
+  firstRow.querySelector('input[type=date]').value='';
+  firstRow.querySelector('[data-recess-date]').value='';
+  firstRow.querySelector('[data-mode]').value='hours';
+  firstRow.querySelectorAll('[data-request-time]').forEach(input=>{input.value=input.defaultValue;});
+  refresh();
+ });
+ birthdayYear.addEventListener('change',refresh);medicalAnswer.addEventListener('change',updateSupports);
  slots.addEventListener('click',e=>{const btn=e.target.closest('.remove-slot');if(btn&&slots.children.length>1){btn.closest('.slot-row').remove();refresh();}});
  addSlot.addEventListener('click',()=>{
   const copy=slots.firstElementChild.cloneNode(true);
