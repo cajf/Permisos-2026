@@ -55,6 +55,7 @@ if(form){
  const slots=document.querySelector('#slots'),category=document.querySelector('#category'),medicalAnswer=document.querySelector('#medical-appointment');let next=slots.children.length,sequence=0;
  const annualAvailability=JSON.parse(form.dataset.annualAvailability),birthdayYear=form.elements.birthday_year;
  const addSlot=document.querySelector('#add-slot'),annualGuide=document.querySelector('#annual-days-guide');
+ const recessGuide=document.querySelector('#school-break-guide');
  const fmt=m=>`${Math.floor(m/60)} h ${String(m%60).padStart(2,'0')} min`;
  function updateSupports(){
   const selected=category.selectedOptions[0],ordinary=selected?.dataset.slug==='ordinario';
@@ -86,7 +87,10 @@ if(form){
   const fullOnly=annual||jury,rows=[...slots.children];
   const dates=rows.map(row=>{
    const date=row.querySelector('input[type=date]'),choice=row.querySelector('[data-recess-date]'),mode=row.querySelector('[data-mode]');
-   if(recess&&choice.disabled)choice.value=date.value;
+   if(recess&&choice.disabled){
+    choice.value=date.value;
+    if(!choice.selectedOptions.length||choice.selectedOptions[0].hasAttribute('data-ended'))choice.value='';
+   }
    if(!recess&&date.disabled)date.value=choice.value;
    date.hidden=date.disabled=recess;date.required=!recess;
    choice.hidden=choice.disabled=!recess;choice.required=recess;
@@ -96,20 +100,20 @@ if(form){
    if(fullOnly)mode.value='full';else if(slug==='acto')mode.value='hours';
    return recess?choice:date;
   });
-  const recessCount=recess?dates[0].options.length-1:Infinity;
+  const recessCount=recess?dates[0].querySelectorAll('option[value]:not([value=""]):not([data-ended])').length:Infinity;
   const limit=Math.min(jury?1:90,available??Infinity,recessCount);
   addSlot.disabled=rows.length>=limit;
   annualGuide.hidden=!annual;
+  recessGuide.hidden=!recess;
   if(annual){
    const balance=available===null?`Sin límite anual para ${year}.`:`Días completos disponibles en ${year}: ${available}.`;
-   const notice=recessCount===0?' No hay días hábiles de receso disponibles.':'';
    const error=rows.length>limit?(limit===0?'No hay días disponibles para esta solicitud.':'Elimina las fechas que superen los días disponibles.'):'';
-   annualGuide.textContent=balance+notice+(error?' '+error:'');
+   annualGuide.textContent=balance+(error&&recessCount!==0?' '+error:'');
    if(error)dates[0].setCustomValidity(error);
   }
   if(recess)for(const date of dates){
    const used=new Set(dates.filter(other=>other!==date).map(other=>other.value).filter(Boolean));
-   for(const option of date.options)option.disabled=used.has(option.value)&&option.value!==date.value;
+   for(const option of date.options)option.disabled=option.hasAttribute('data-ended')||(used.has(option.value)&&option.value!==date.value);
    if(date.value&&used.has(date.value))date.setCustomValidity('Selecciona una fecha de receso diferente para cada jornada.');
   }
   return dates;

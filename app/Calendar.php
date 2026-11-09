@@ -16,16 +16,20 @@ final class WorkCalendar {
     public static function schoolBreak(int $year): array {
         return json_decode(setting('school_break_'.$year,'{}'),true,512,JSON_THROW_ON_ERROR);
     }
-    public function schoolBreakDays(DateTimeImmutable $clock): array {
+    public function schoolBreakDates(DateTimeImmutable $clock): array {
         $break=self::schoolBreak((int)$clock->format('Y'));
         $days=[];
         if (!$break) return $days;
-        for ($day=new DateTimeImmutable(max($break['start'],$clock->format('Y-m-d')));$day->format('Y-m-d')<=$break['end'];$day=$day->modify('+1 day')) {
+        $now=$clock->format('Y-m-d H:i:s');
+        for ($day=new DateTimeImmutable($break['start']);$day->format('Y-m-d')<=$break['end'];$day=$day->modify('+1 day')) {
             $date=$day->format('Y-m-d');
             $periods=$this->periods($date);
-            if ($periods && $date.' '.$periods[count($periods)-1][1].':00'>$clock->format('Y-m-d H:i:s')) $days[]=$date;
+            if ($periods) $days[$date]=$date.' '.$periods[count($periods)-1][1].':00'>$now;
         }
         return $days;
+    }
+    public function schoolBreakDays(DateTimeImmutable $clock): array {
+        return array_keys(array_filter($this->schoolBreakDates($clock)));
     }
     /** Jornada semanal vigente: también puede consultarse en fines de semana y festivos. */
     public function schedule(string $date):array {

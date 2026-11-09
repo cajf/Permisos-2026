@@ -75,6 +75,21 @@ saveSchoolBreak($admin,$break,$clock);
 insert('holidays',['date'=>'2026-12-16','name'=>'Día no laborable de prueba']);
 $expected=['2026-12-14','2026-12-15','2026-12-17','2026-12-18'];
 verify((new WorkCalendar())->schoolBreakDays($clock)===$expected && (new WorkCalendar(true))->schoolBreakDays($clock)===$expected,'Las fechas excluyen festivos y fin de semana en ambas jornadas');
+$midweek=new DateTimeImmutable('2026-12-15 13:00:00');
+$recessDates=(new WorkCalendar())->schoolBreakDates($midweek);
+verify($recessDates===array_combine($expected,[false,true,true,true]),'Se distinguen las jornadas terminadas de las vigentes y futuras');
+$isRecess=true;
+$slots=[['date'=>'2026-12-14','mode'=>'full']];
+$u=$employee;
+ob_start();
+require ROOT.'/views/slot-fields.php';
+$renderedDates=ob_get_clean();
+verify(str_contains($renderedDates,'value="2026-12-14" disabled data-ended')
+    && str_contains($renderedDates,'value="2026-12-15" >15/12/2026')
+    && !str_contains($renderedDates,'value="2026-12-16"'),'El selector muestra los días hábiles y bloquea solo los ya finalizados');
+$afterRecess=new DateTimeImmutable('2026-12-21 08:00:00');
+verify((new WorkCalendar())->schoolBreakDates($afterRecess)===array_fill_keys($expected,false)
+    && (new WorkCalendar())->schoolBreakDays($afterRecess)===[],'Un receso vencido conserva las fechas visibles y no admite radicación');
 blocked(fn()=>registerDays('receso',['2026-12-21']),'semana de receso');
 blocked(fn()=>registerDays('receso',['2026-12-16']),'no es un día laborable');
 AnnualLeave::saveLimit('receso',2026,'1');
