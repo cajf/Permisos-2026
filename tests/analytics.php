@@ -15,6 +15,7 @@ factRequest('ordinario','2026-10-28',[['07:30','09:30']],'cancelled','2026-10-28
 factRequest('ordinario','2026-10-28',[['07:30','09:30']],'cancelled','2026-10-28 08:00:00',false);
 factRequest('ordinario','2026-10-28',[['07:30','09:30']],'pending');
 $prior=factRequest('ordinario','2025-12-31',[['2025-12-31 23:00:00','2026-01-01 01:00:00']]);
+run('UPDATE requests SET snapshot=? WHERE id=?',['{"medical_appointment":true}',$prior]);
 $licence=rows("SELECT slug FROM categories WHERE family='remunerada' LIMIT 1")[0]['slug'];
 factRequest($licence,'2026-10-28',[['07:30','09:30']],'cancel_pending',null,true,2);
 $facts=enjoyedFacts($clock);$find=fn($id,$year)=>array_values(array_filter($facts,fn($f)=>$f['request_id']===$id&&$f['year']===$year))[0]??null;
@@ -26,6 +27,7 @@ $data=analyticsData(['year'=>'2026'],$clock);
 $approved=analyticsData(['year'=>'2026','metric'=>'approved'],$clock);
 check($approved['counts']===['total'=>4,'permiso'=>3,'compensatorio'=>0,'licencia'=>1],'Aprobadas incluye disfrute futuro y cancelación pendiente; excluye canceladas y pendientes');
 check(analyticsData(['year'=>'all','metric'=>'approved'],$clock)['counts']['total']===4,'Aprobadas no duplica solicitudes que cruzan vigencia');
+check($approved['medical']===['total'=>3,'appointments'=>1]&&analyticsData(['year'=>'all','metric'=>'approved'],$clock)['medical']===$approved['medical'],'Citas médicas: solo ordinarios aprobados, sin duplicar solicitudes entre vigencias');
 check(analyticsData(['year'=>'2025','metric'=>'approved'],$clock)['counts']['total']===1,'Aprobadas se atribuye a la vigencia del disfrute autorizado');
 $approvedRows=approvedFacts($clock);$full=array_values(array_filter($approvedRows,fn($f)=>$f['request_id']===$started))[0];
 check($full['seconds']===30600,'Aprobadas conserva toda la duración autorizada, sin limitarla a la hora actual');
