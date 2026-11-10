@@ -1,4 +1,4 @@
-<?php $scheduleToday=date('Y-m-d');foreach([true=>'Trabajador oficial',false=>'Otras vinculaciones'] as $worker=>$label):$calendarForGroup=new WorkCalendar((bool)$worker);$activeSchedule=$calendarForGroup->schedule($scheduleToday); ?>
+<?php $scheduleToday=date('Y-m-d');foreach([false=>'Otras vinculaciones',true=>'Trabajador oficial'] as $worker=>$label):$calendarForGroup=new WorkCalendar((bool)$worker);$activeSchedule=$calendarForGroup->schedule($scheduleToday); ?>
 <section class="panel"><div class="panel-header"><div><h2><?=e($label)?></h2><p>Jornada vigente al <?=e($scheduleToday)?> · hora de Bogotá</p></div><span class="badge"><?=$activeSchedule['temporary']?'Horario temporal activo':'Jornada ordinaria activa'?></span></div>
 <p><strong><?=e($activeSchedule['name'])?></strong><?php if($activeSchedule['temporary']): ?><br>Vigencia: <?=e($activeSchedule['start_date'].' a '.$activeSchedule['end_date'])?><?php endif; ?></p>
 <div class="table-wrap"><table><thead><tr><th>Día</th><th>Franjas de trabajo</th><th>Total diario</th></tr></thead><tbody>
