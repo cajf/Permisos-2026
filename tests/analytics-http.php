@@ -17,6 +17,10 @@ $asset=curl_init($base.'/assets/analytics.js');curl_setopt($asset,CURLOPT_RETURN
 $r=http('page=analytics');ok($r['code']===200&&str_contains($r['body'],'analytics-board'),'Titular vigente accede al tablero');
 ok(strpos($r['body'],'Solicitudes aprobadas')<strpos($r['body'],'Solicitudes disfrutadas'),'Tablero de aprobadas aparece primero');
 ok(substr_count($r['body'],'data-analytics-board')===2,'Ambos tableros disponen de filtros y actualización independientes');
+$chartPage=http('page=analytics&year=2026&department=999999&distribution_year=all');
+$chartFound=preg_match('~id="analytics-distribution".*?<script type="application/json" class="analytics-initial">(.*?)</script>~s',$chartPage['body'],$chartMatch);
+$chartData=$chartFound?json_decode($chartMatch[1],true,512,JSON_THROW_ON_ERROR):[];
+ok($chartPage['code']===200&&($chartData['year']??null)==='all'&&($chartData['department']??null)==='all'&&($chartData['counts']['total']??null)===4,'La gráfica usa aprobaciones de todas las dependencias y su propio filtro de vigencia');
 ok(str_contains($r['headers'],'no-store')&&str_contains($r['headers'],'private'),'Tablero privado sin caché');
 $r=http('page=analytics_data&year=all');$data=json_decode($r['body'],true,512,JSON_THROW_ON_ERROR);
 ok($r['code']===200&&$data['counts']['total']>=2&&isset($data['counts']['licencia']),'JSON devuelve conteo de disfrute actualizado');

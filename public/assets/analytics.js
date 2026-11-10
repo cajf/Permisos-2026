@@ -1,9 +1,33 @@
 'use strict';
 (()=>{
- document.querySelectorAll('[data-analytics-board]').forEach(board=>{
+ const families=[['permiso','Permisos'],['compensatorio','Compensatorios'],['licencia','Licencias']];
+ const quantity=new Intl.NumberFormat('es-CO');
+ const percentage=new Intl.NumberFormat('es-CO',{style:'percent',maximumFractionDigits:1});
+ document.querySelectorAll('[data-analytics-board], [data-analytics-distribution]').forEach(board=>{
  const form=board.querySelector('form'),status=board.querySelector('[role=status]');let busy=false,sequence=0;
+ const distribution=board.hasAttribute('data-analytics-distribution');
  const text=(tag,value)=>{const node=document.createElement(tag);node.textContent=String(value);return node;};
+ function renderDistribution(data){
+  const chart=board.querySelector('.analytics-distribution-chart'),fragment=document.createDocumentFragment();
+  if(!data.counts.total)fragment.append(text('p','No hay solicitudes aprobadas para esta selección.'));
+  for(const department of data.departments){
+   const group=document.createElement('article');group.className='analytics-distribution-group';group.append(text('h3',department.name));
+   for(const [key,label] of families){
+    const count=department[key],total=data.counts[key],share=total?count/total:0;
+    const row=document.createElement('div');row.className='analytics-distribution-row';
+    const bar=document.createElement('progress');bar.max=100;bar.value=share*100;bar.className=`analytics-progress-${key}`;bar.setAttribute('aria-hidden','true');
+    const value=text('strong',total?`${quantity.format(count)} · ${share>0&&share<0.0005?`<${percentage.format(0.001)}`:percentage.format(share)}`:'0 · Sin datos');
+    row.append(text('span',label),bar,value);group.append(row);
+   }
+   fragment.append(group);
+  }
+  chart.replaceChildren(fragment);
+ }
  function render(data){
+  const years=distribution?form.elements.distribution_year:form.elements.year;
+  years.replaceChildren(...data.years.map(y=>new Option(String(y),String(y))),new Option('Todas las vigencias','all'));years.value=data.year;
+  status.textContent=`Actualizado: ${data.generated_at} · Bogotá. Actualización automática cada 30 segundos.`;
+  if(distribution){renderDistribution(data);return;}
   for(const [key,value] of Object.entries(data.counts))board.querySelector(`[data-count="${key}"]`).textContent=value;
   const tbody=board.querySelector('tbody');tbody.replaceChildren();
   data.departments.forEach(d=>{const row=document.createElement('tr');[d.name,d.permiso,d.compensatorio,d.licencia,d.total].forEach(v=>row.append(text('td',v)));tbody.append(row);});
@@ -12,12 +36,10 @@
   data.trend.forEach(r=>{const article=document.createElement('article');article.append(text('h3',r.year));const bar=document.createElement('div');bar.className='analytics-bar';
    [['permiso','Permisos'],['compensatorio','Compensatorios'],['licencia','Licencias']].forEach(([key,label])=>{const span=text('span',r[key]||'');span.className=`analytics-${key}`;span.style.width=`${r[key]/max*100}%`;span.title=`${label}: ${r[key]}`;bar.append(span);});article.append(bar,text('p',`Permisos ${r.permiso} · Compensatorios ${r.compensatorio} · Licencias ${r.licencia}`));trend.append(article);});
   if(!data.trend.length)trend.append(text('p','Sin solicitudes registradas para esta selección.'));
-  const years=form.elements.year,selected=years.value;years.replaceChildren(...data.years.map(y=>new Option(String(y),String(y))),new Option('Todas las vigencias','all'));years.value=selected;
   const departments=form.elements.department,previous=departments.value;departments.replaceChildren(new Option('Todas las dependencias','all'),...data.department_options.map(d=>new Option(d.name,String(d.id))));departments.value=previous;
-  status.textContent=`Actualizado: ${data.generated_at} · Bogotá. Actualización automática cada 30 segundos.`;
   board.querySelector('a').href='/?page=analytics_export&'+new URLSearchParams({metric:form.elements.metric.value,year:form.elements.year.value,department:form.elements.department.value});
  }
- async function refresh(){if(busy)return;busy=true;const current=sequence,params=new URLSearchParams(new FormData(form));params.set('page','analytics_data');const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),20000);
+ async function refresh(){if(busy)return;busy=true;const current=sequence,params=new URLSearchParams(new FormData(form));params.set('page','analytics_data');if(distribution){params.set('year',params.get('distribution_year'));params.delete('distribution_year');params.set('metric','approved');params.set('department','all');}const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),20000);
   try{const response=await fetch('/?'+params,{credentials:'same-origin',cache:'no-store',signal:controller.signal});if(response.redirected||response.status===403||response.status===401){board.replaceChildren(text('p','Su sesión o autorización cambió. Ingrese nuevamente para consultar el tablero.'));clearInterval(interval);return;}if(!response.ok||!response.headers.get('content-type')?.includes('application/json'))throw new Error();const data=await response.json();if(current===sequence)render(data);}
   catch{if(current===sequence)status.textContent='No se pudo actualizar. Se mantienen los últimos datos visibles; se reintentará automáticamente.';}finally{clearTimeout(timer);busy=false;if(current!==sequence)refresh();}
  }
