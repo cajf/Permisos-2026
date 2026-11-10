@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 /** Restaura únicamente los datos ficticios de la primera versión, con las reglas actuales. */
 function restoreOriginalDemo(): array {
+    require_once ROOT.'/app/Admin.php';
     require_once ROOT.'/database/holidays.php';
     $credentials=atomic(function (): array {
         if (tableExists('attachment_contents')) run('DELETE FROM attachment_contents');
@@ -24,7 +25,7 @@ function restoreOriginalDemo(): array {
         ];
         $credentials=[];
         foreach ($people as $i=>$person) {
-            $password='Demo!'.bin2hex(random_bytes(10));
+            $password=temporaryPassword();
             $credentials[$person['username']]=$password;
             createDemoIdentity(array_replace(['id'=>$i+1,'identification'=>'DEMO-'.($i+1),'email'=>$person['username'].'@ejemplo.invalid','department_id'=>1,'force_password'=>1,'password'=>password_hash($password,PASSWORD_DEFAULT)],$person));
         }

@@ -6,13 +6,21 @@ function icon(string $name): string {
 }
 function navLink(string $target,string $label,string $ic): void { global $page,$u; try {authorizeRoute($u,$target);}catch(DomainException){return;} echo '<a class="nav-item '.($page===$target?'active':'').'" href="/?page='.$target.'">'.icon($ic).'<span>'.e($label).'</span></a>'; }
 function badge(string $s): string { return '<span class="badge badge-'.e($s).'">'.e(statusLabel($s)).'</span>'; }
-function requestTable(array $list,bool $selectable=false,array $failures=[]): void {
+function requestTable(array $list,bool $selectable=false,array $failures=[],array $attachments=[]): void {
  if (!$list) { echo '<div class="empty">'.icon('file').'<h3>Aquí aparecerán las solicitudes</h3><p>Cuando se registre una solicitud, podrá consultar sus fechas y estado.</p></div>'; return; }
  echo '<div class="table-wrap"><table><thead><tr>'.($selectable?'<th><span class="sr-only">Seleccionar</span></th>':'').'<th>Radicado / funcionario</th><th>Solicitud</th><th>Fecha de registro</th><th>Tiempo</th><th>Estado</th><th><span class="sr-only">Abrir</span></th></tr></thead><tbody>';
  foreach ($list as $r) {
   $selection='';
   if ($selectable) $selection='<td>'.(in_array($r['pending_role']??'',['manager','subsecretary'],true)?'<input type="checkbox" name="approval_ids[]" value="'.(int)$r['pending_approval_id'].'" aria-label="Seleccionar solicitud TH-'.str_pad((string)$r['id'],6,'0',STR_PAD_LEFT).'">':'').'</td>';
   echo '<tr id="request-'.(int)$r['id'].'">'.$selection.'<td><a class="strong-link" href="/?page=request&id='.(int)$r['id'].'">TH-'.str_pad((string)$r['id'],6,'0',STR_PAD_LEFT).'</a><small>'.e($r['name']??'').'</small></td><td>'.e($r['category']).'<small>'.e(familyLabel($r['family']).(($r['slug']??'')==='jurado'?' · '.ucfirst(json_decode($r['snapshot'],true)['jury_role']??'Sin clasificar'):'')).'</small></td><td>'.e(substr($r['created_at'],0,10)).'</td><td>'.e(hours((int)$r['total_minutes'])).'</td><td>'.badge($r['status']).(isset($failures[(int)$r['id']])?'<small class="approval-error" role="alert">No aprobada: '.e($failures[(int)$r['id']]).'</small>':'').'</td><td><a class="icon-button" aria-label="Abrir solicitud '.(int)$r['id'].'" href="/?page=request&id='.(int)$r['id'].'">'.icon('arrow').'</a></td></tr>';
+  if (!empty($attachments[$r['id']])) {
+   echo '<tr><td colspan="'.($selectable?'7':'6').'"><strong>Soportes adjuntos</strong><ul>';
+   foreach ($attachments[$r['id']] as $file) {
+    $url='/?page=download&amp;id='.(int)$file['id'];
+    echo '<li>'.e($file['original_name']).' · <a href="'.$url.'&amp;preview=1" target="_blank" rel="noopener">Previsualizar</a> · <a href="'.$url.'">Descargar</a></li>';
+   }
+   echo '</ul></td></tr>';
+  }
   $electoralCategory=$r['slug']??'';
   if(($electoralCategory==='sufragar' || ($electoralCategory==='jurado' && (json_decode($r['snapshot'],true)['jury_role']??'')!=='clavero'))) {
    $electoralReport=ElectoralCertificate::report($r)??['status'=>'manual'];
@@ -30,7 +38,7 @@ function requestTable(array $list,bool $selectable=false,array $failures=[]): vo
  echo '</tbody></table></div>';
 }
 ?>
-<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title><?=e($titles[$page]??'Talento Humano')?> · Bucaramanga</title><link rel="stylesheet" href="/assets/app.css?v=balances-2"><script src="/assets/app.js?v=request-type-dates-1" defer></script></head>
+<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title><?=e($titles[$page]??'Talento Humano')?> · Bucaramanga</title><link rel="stylesheet" href="/assets/app.css?v=balances-2"><script src="/assets/app.js?v=attachments-2mb-1" defer></script></head>
 <body>
 <?php if ($page==='login'): ?>
 <main class="login-shell"><section class="login-story"><a class="brand brand-image" href="/"><img src="/assets/alcaldia-bucaramanga.png" alt="Alcaldía de Bucaramanga" width="96" height="81"></a><div><p class="eyebrow">GESTIÓN DEL TALENTO HUMANO</p><h1>Tu tiempo,<br>bien gestionado.</h1><p>Un solo espacio para solicitar permisos, compensatorios y licencias, y seguir cada paso de su aprobación.</p><div class="login-decoration" aria-hidden="true"><span>01</span><div>Solicita<span>Registra las fechas y tus soportes.</span></div><span>02</span><div>Haz seguimiento<span>Consulta las decisiones del trámite.</span></div><span>03</span><div>Descarga<span>Conserva la constancia con sus anexos.</span></div></div></div><p class="login-foot">Administración municipal · Bucaramanga, Santander</p></section>

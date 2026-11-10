@@ -2,6 +2,7 @@
 declare(strict_types=1);
 if (PHP_SAPI!=='cli') exit;
 require __DIR__.'/../app/bootstrap.php';
+require_once ROOT.'/app/Admin.php';
 require ROOT.'/database/holidays.php';
 if (!tableExists('users')) {
     installMysqlSchema(administrativeMysqlConnection());
@@ -9,7 +10,7 @@ if (!tableExists('users')) {
 if (row('SELECT id FROM users LIMIT 1')) { echo "La base de datos ya está inicializada. No se modificaron datos.\n"; exit; }
 atomic(function() {
     foreach (['Secretaría Administrativa','Secretaría de Planeación','Despacho del Alcalde'] as $name) insert('departments',['name'=>$name]);
-    $password='Local!'.bin2hex(random_bytes(6));
+    $password=temporaryPassword();
     $base=['identification'=>'','email'=>'','password'=>password_hash($password,PASSWORD_DEFAULT),'job_title'=>'','department_id'=>1,'force_password'=>1];
     $people=[
       ['name'=>'Administrador de demostración','username'=>'admin','roles'=>'["admin"]','job_title'=>'Administrador de Talento Humano'],

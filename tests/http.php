@@ -11,13 +11,26 @@ $pdf=new TCPDF();$pdf->setPrintHeader(false);$pdf->AddPage();$pdf->SetFont('helv
 $img=imagecreatetruecolor(600,240);$white=imagecolorallocate($img,255,255,255);imagefill($img,0,0,$white);$green=imagecolorallocate($img,20,105,80);imagestring($img,5,30,100,'SOPORTE PNG DE PRUEBA',$green);imagepng($img,$root.'/.work/soporte.png');
 $csrf=login('qa8');$employeeCookie=$cookie;
 $bad=http('page=new',['action'=>'submit','csrf'=>'incorrecto'],true);ok(str_contains($bad['body'],'expiró'),'Protección CSRF');
+$sixFiles=['action'=>'submit','csrf'=>$csrf];
+for($i=0;$i<6;$i++) $sixFiles["supports[$i]"]=new CURLFile($root.'/.work/soporte.png','image/png','soporte.png');
+ok(str_contains(http('page=new',$sixFiles,true)['body'],'hasta 5 soportes'),'La solicitud rechaza una carga de seis archivos');
+$oversized=$root.'/.work/soporte-grande-'.bin2hex(random_bytes(4));
+file_put_contents($oversized,str_repeat('X',2*1024*1024+1));
+try {
+    $tooBig=['action'=>'submit','csrf'=>$csrf,'supports[0]'=>new CURLFile($oversized,'application/pdf','grande.pdf')];
+    ok(str_contains(http('page=new',$tooBig,true)['body'],'2 MB'),'La solicitud rechaza un archivo mayor de 2 MB');
+} finally {unlink($oversized);}
 $r=http('page=new',['action'=>'submit','csrf'=>$csrf,'category_id'=>'1','medical_appointment'=>'0','justification'=>'Prueba del formulario con anexos PDF e imagen','exception_reason'=>'Excepción para verificar el proceso local','slots[0][date]'=>'2026-12-10','slots[0][start]'=>'07:30','slots[0][end]'=>'09:30','slots[0][mode]'=>'hours','supports[0]'=>new CURLFile($root.'/.work/soporte.pdf','application/pdf','soporte.pdf'),'supports[1]'=>new CURLFile($root.'/.work/soporte.png','image/png','soporte.png')],true);
 ok($r['code']===302 && preg_match('/Location: \/\?page=request&id=(\d+)/i',$r['headers'],$m)===1,'Registro por HTTP con carga multipart');$id=$m[1];
 $detail=http('page=request&id='.$id);ok(str_contains($detail['body'],'En aprobación') && str_contains($detail['body'],'soporte.pdf'),'Detalle con estado y soportes');
 $download=http('page=pdf&id='.$id);ok(str_starts_with($download['body'],'%PDF-'),'Generación real del PDF con anexos');file_put_contents($root.'/.work/solicitud-verificacion.pdf',$download['body']);
 preg_match('/page=download&id=(\d+)/',$detail['body'],$attachment);ok(http('page=download&id='.$attachment[1])['code']===200,'Descarga autorizada de soporte');
 $csrf=login('qa1');$denied=http('page=request&id='.$id);ok(str_contains($denied['body'],'No tiene acceso'),'Otro funcionario no puede consultar detalle');$denied=http('page=pdf&id='.$id);ok($denied['code']===403,'Otro funcionario no puede generar PDF');$denied=http('page=download&id='.$attachment[1]);ok($denied['code']===403,'Otro funcionario no puede descargar soporte');
+$denied=http('page=download&preview=1&id='.$attachment[1]);ok($denied['code']===403,'Otro funcionario no puede previsualizar el soporte');
 $csrf=login('qa2');$inbox=http('page=inbox');ok(str_contains($inbox['body'],'id='.$id),'Solicitud visible en bandeja del jefe');
+ok(str_contains($inbox['body'],'<h3>Permisos</h3>')&&str_contains($inbox['body'],'Previsualizar')&&str_contains($inbox['body'],'Descargar'),'La bandeja agrupa por tipo y ofrece ambas acciones de soporte');
+$preview=http('page=download&preview=1&id='.$attachment[1]);
+ok($preview['code']===200&&stripos($preview['headers'],'Content-Disposition: inline')!==false&&str_starts_with($preview['body'],'%PDF-'),'El aprobador puede previsualizar el PDF original');
 $r=http('page=request&id='.$id,['action'=>'review','csrf'=>$csrf,'id'=>$id,'decision'=>'approved','comment'=>'Prueba de aprobación por HTTP'],true);ok($r['code']===302,'Aprobación por HTTP');ok(str_contains(http('page=request&id='.$id)['body'],'Aprobada'),'Permiso de dos horas concluye sin subsecretario');
 $csrf=login('qa5');foreach(['jobs','users','settings','calendar','policies','import','outbox','audit','reports'] as $page){$r=http('page='.$page);ok($r['code']===200 && !str_contains($r['body'],'Fatal error'),'Pantalla administrativa '.$page);}
 $catalogForm=http('page=users')['body'];

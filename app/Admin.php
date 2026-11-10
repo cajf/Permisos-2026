@@ -41,7 +41,8 @@ function saveUser(array $actor,array $data,?int $id=null): void {
         event((int)$actor['id'],'Funcionario actualizado','Funcionario '.$id);
     });
 }
-function validatePassword(string $password): void { ensure(strlen($password)>=12 && strlen($password)<=128 && preg_match('/[A-Za-z]/',$password) && preg_match('/[0-9]/',$password),'La contraseña debe tener de 12 a 128 caracteres, con letras y números.'); }
+function validatePassword(string $password): void { ensure(mb_strlen($password)>=8 && mb_strlen($password)<=15 && preg_match('/[A-Za-z]/',$password) && preg_match('/[0-9]/',$password),'La contraseña debe tener de 8 a 15 caracteres, con letras y números.'); }
+function temporaryPassword(): string { return 'Th1'.bin2hex(random_bytes(6)); }
 function readImport(string $path,string $extension): array {
     ensure(in_array($extension,['xlsx','csv'],true),'Importe un archivo XLSX o CSV.');
     if ($extension==='xlsx') {
@@ -89,7 +90,7 @@ function commitImport(array $actor,array $data): array {
             $employment=['job_id'=>$job['job_id'],'grade'=>$type==='Trabajador oficial'?null:$job['grade'],'employment_type'=>$type,'department_id'=>$dep['id'],'high_rank'=>$rank];
             $account=['username'=>$r['usuario']];
             if (!$old) {
-                $pass='Inicio!'.bin2hex(random_bytes(6));
+                $pass=temporaryPassword();
                 $account['password']=password_hash($pass,PASSWORD_DEFAULT);
                 $passwords[]=[$r['usuario'],$pass];
             }

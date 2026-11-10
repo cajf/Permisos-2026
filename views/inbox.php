@@ -2,11 +2,32 @@
 $inboxFilter="FROM requests r JOIN categories c ON c.id=r.category_id JOIN user_profiles u ON u.id=r.user_id JOIN approvals a ON a.request_id=r.id AND a.revision=r.revision WHERE r.status='pending' AND a.status='waiting' AND a.assigned_user_id=? AND NOT EXISTS(SELECT 1 FROM approvals b WHERE b.request_id=a.request_id AND b.revision=a.revision AND b.step<a.step AND b.status='waiting')";
 $totalPending=(int)row('SELECT COUNT(*) n '.$inboxFilter,[$u['id']])['n'];
 $pageCount=max(1,(int)ceil($totalPending/100));$inboxPage=min($pageCount,max(1,(int)($_GET['inbox_page']??1)));
-$pendingRows=rows('SELECT r.*,c.name category,c.family,c.slug,u.name,a.id pending_approval_id,a.role pending_role '.$inboxFilter.' ORDER BY r.created_at,r.id LIMIT 100 OFFSET '.(($inboxPage-1)*100),[$u['id']]);
+$pendingRows=rows("SELECT r.*,c.name category,c.family,c.slug,u.name,a.id pending_approval_id,a.role pending_role ".$inboxFilter." ORDER BY CASE c.family WHEN 'permiso' THEN 1 WHEN 'compensatorio' THEN 2 ELSE 3 END,r.created_at,r.id LIMIT 100 OFFSET ".(($inboxPage-1)*100),[$u['id']]);
 $canBulk=(hasRole($u,'manager')||hasRole($u,'subsecretary')) && count(array_filter($pendingRows,fn($r)=>in_array($r['pending_role'],['manager','subsecretary'],true)))>0;
 $bulkResult=$_SESSION['bulk_result']??null;unset($_SESSION['bulk_result']);
 if ($bulkResult) $_SESSION['bulk_failures']=$bulkResult['failed'];
 $failureMessages=[]; foreach($_SESSION['bulk_failures']??[] as $failure) if($failure['request_id']) $failureMessages[(int)$failure['request_id']]=$failure['message'];
+$renderGroups=function(array $requests,bool $selectable=false,array $failures=[]) use($u): void {
+    if (!$requests) {requestTable([]);return;}
+    $attachments=[];
+    if (can($u,'resource.attachments')) {
+        $ids=array_column($requests,'id');
+        $marks=implode(',',array_fill(0,count($ids),'?'));
+        foreach (rows("SELECT id,request_id,original_name FROM attachments WHERE request_id IN ($marks) ORDER BY id",$ids) as $file) {
+            $attachments[$file['request_id']][]=$file;
+        }
+    }
+    $groups=['Permisos'=>[],'Compensatorios'=>[],'Licencias'=>[]];
+    foreach ($requests as $request) {
+        $group=match($request['family']) {'permiso'=>'Permisos','compensatorio'=>'Compensatorios',default=>'Licencias'};
+        $groups[$group][]=$request;
+    }
+    foreach ($groups as $label=>$group) {
+        if (!$group) continue;
+        echo '<div class="panel-header"><h3>'.e($label).'</h3></div>';
+        requestTable($group,$selectable,$failures,$attachments);
+    }
+};
 ?>
 <p class="page-intro">Aquí aparecen las solicitudes cuya siguiente decisión te corresponde. Revisa sus datos y soportes antes de aprobar.</p>
 <?php if($bulkResult): ?>
@@ -25,16 +46,16 @@ $failureMessages=[]; foreach($_SESSION['bulk_failures']??[] as $failure) if($fai
             <span class="fine" id="bulk-selected-count" role="status" aria-live="polite" hidden></span>
             <span class="fine">Hasta 100 solicitudes por acción.</span>
         </div>
-        <?php requestTable($pendingRows,true,$failureMessages); ?>
+        <?php $renderGroups($pendingRows,true,$failureMessages); ?>
         <div class="form-panel bulk-actions">
             <label>Observación para las solicitudes seleccionadas (opcional)<textarea name="comment" rows="2" maxlength="3000" placeholder="Esta observación quedará registrada en cada solicitud aprobada."></textarea></label>
             <button class="button" type="submit" id="bulk-approve-button"><?=icon('check')?> Aprobar seleccionadas</button>
             <p class="fine">Cada solicitud conserva su ruta de aprobación. Las que no puedan aprobarse se informarán por separado y no impedirán procesar las demás.</p>
         </div>
     </form>
-    <?php else: requestTable($pendingRows,false,$failureMessages); endif; ?>
+    <?php else: $renderGroups($pendingRows,false,$failureMessages); endif; ?>
     <?php if($pageCount>1): ?><nav class="bulk-pagination" aria-label="Páginas de solicitudes pendientes"><?php if($inboxPage>1): ?><a class="button secondary small" href="/?page=inbox&amp;inbox_page=<?=$inboxPage-1?>">Anterior</a><?php endif; ?><span class="fine">Página <?=$inboxPage?> de <?=$pageCount?></span><?php if($inboxPage<$pageCount): ?><a class="button secondary small" href="/?page=inbox&amp;inbox_page=<?=$inboxPage+1?>">Siguiente</a><?php endif; ?></nav><?php endif; ?>
 </section>
 <?php if(hasRole($u,'subsecretary')): $cancels=[]; foreach(rows("SELECT r.*,c.name category,c.family,c.slug,u.name FROM requests r JOIN categories c ON c.id=r.category_id JOIN user_profiles u ON u.id=r.user_id WHERE r.status='cancel_pending'") as $r) { try { if((int)$r['cancellation_assignee_id']===(int)$u['id']) $cancels[]=$r; } catch(DomainException){} } ?>
-<section class="panel"><div class="panel-header"><h2>Cancelaciones por autorizar</h2></div><?php requestTable($cancels); ?></section>
+<section class="panel"><div class="panel-header"><h2>Cancelaciones por autorizar</h2></div><?php $renderGroups($cancels); ?></section>
 <?php endif; ?>

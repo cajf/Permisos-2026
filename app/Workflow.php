@@ -78,7 +78,8 @@ final class Workflow {
             $existingFiles=$id?(int)row('SELECT COUNT(*) n FROM attachments WHERE request_id=?',[$id])['n']:0;
             if ($medical) ensure(count($files)+$existingFiles>=1,'Adjunte al menos un soporte de la cita médica.');
             if ((int)$category['supports_required']===1) ensure(count($files)+$existingFiles>=1,'Adjunte al menos un soporte.');
-            ensure(count($files)+$existingFiles<=20,'Una solicitud admite hasta veinte soportes.');
+            ensure(!$files || count($files)+$existingFiles<=REQUEST_UPLOAD_MAX_FILES,'Una solicitud admite hasta cinco soportes en total.');
+            foreach ($files as $file) ensure($file['size']<=REQUEST_UPLOAD_MAX_BYTES,'Cada soporte nuevo debe pesar máximo 2 MB.');
             $semesters=[];
             foreach ($slots as $s) {
                 foreach ($this->slotSemesters($s) as $semester=>$minutes) $semesters[$semester]=($semesters[$semester]??0)+$minutes;

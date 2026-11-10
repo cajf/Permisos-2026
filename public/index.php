@@ -72,7 +72,7 @@ try {
         $destination='/?page='.$page;
         switch ($action) {
             case 'submit':
-                $id=$wf->submit($u,$_POST,validateUploads($_FILES['supports']??[]),empty($_POST['id'])?null:(int)$_POST['id']); $destination='/?page=request&id='.$id; break;
+                $id=$wf->submit($u,$_POST,validateUploads($_FILES['supports']??[],REQUEST_UPLOAD_MAX_FILES,REQUEST_UPLOAD_MAX_BYTES),empty($_POST['id'])?null:(int)$_POST['id']); $destination='/?page=request&id='.$id; break;
             case 'review': $wf->review($u,(int)$_POST['id'],$_POST['decision']??'',trim($_POST['comment']??''),(string)($_POST['approval_exception_reason']??''),(string)($_POST['electoral_review']??'')); $destination='/?page=request&id='.(int)$_POST['id']; break;
             case 'approve_bulk':
                 ensure(is_array($_POST['approval_ids']??null),'Seleccione las solicitudes que desea aprobar.');
@@ -197,7 +197,10 @@ if ($page!=='login') {
             if ($a['act_id'] && !$allowed) foreach (rows('SELECT r.* FROM requests r JOIN allocations l ON l.request_id=r.id WHERE l.act_id=?',[$a['act_id']]) as $r) if(canReadRequest($u,$r)) $allowed=true;
             ensure($allowed,'No tiene acceso a este soporte.');
             $attachmentFile=attachmentPath($a);
-            header('Content-Type: '.$a['mime']); header("Content-Disposition: attachment; filename=\"soporte\"; filename*=UTF-8''".rawurlencode($a['original_name'])); readfile($attachmentFile); exit;
+            $inline=($_GET['preview']??'')==='1' && in_array($a['mime'],['application/pdf','image/jpeg','image/png'],true);
+            header('Content-Type: '.$a['mime']);
+            header('Content-Disposition: '.($inline?'inline':'attachment')."; filename=\"soporte\"; filename*=UTF-8''".rawurlencode($a['original_name']));
+            readfile($attachmentFile); exit;
         }
         if ($page==='template') {
              header('Content-Type: text/csv; charset=utf-8'); header('Content-Disposition: attachment; filename="plantilla-funcionarios.csv"');

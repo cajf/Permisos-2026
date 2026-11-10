@@ -33,6 +33,14 @@ if(form){
  let submitError=document.querySelector('#main > .alert.error');
  form.addEventListener('submit',async event=>{
   event.preventDefault();if(sending)return;
+  const upload=form.querySelector('[name="supports[]"]');
+  const files=[...upload.files];
+  if(files.length && files.length+Number(upload.dataset.existingSupports||0)>5){
+   showSubmitError('Una solicitud admite hasta cinco soportes en total.');return;
+  }
+  if(files.some(file=>file.size>2*1024*1024)){
+   showSubmitError('Cada soporte nuevo debe pesar máximo 2 MB.');return;
+  }
   const payload=new FormData(form);
   sending=true;sendButton.disabled=true;sendButton.textContent='Enviando solicitud…';
   if(submitError)submitError.hidden=true;

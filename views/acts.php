@@ -1,12 +1,24 @@
 <?php
-$listing=searchRegisteredActs($u,$_GET);$listingPage='acts';
-$listingFields=['q_number'=>['label'=>'Número de resolución']];
+$listingPage='acts';
+$statusLabels=['pending'=>'Pendientes de aprobación','approved'=>'Aprobados','rejected'=>'Rechazados'];
+$selectedStatus=listingText($_GET,'q_status');
+$statuses=isset($statusLabels[$selectedStatus])?[$selectedStatus]:['pending','approved'];
+$listingFields=['q_number'=>['label'=>'Número de resolución'],'q_status'=>['label'=>'Estado','options'=>$statusLabels,'empty_label'=>'Pendientes y aprobados']];
 if(can($u,'data.acts_all'))$listingFields+=['q_name'=>['label'=>'Nombres o apellidos del funcionario'],'q_identification'=>['label'=>'Cédula del funcionario']];
 ?>
 <p class="page-intro">Registra el acto que otorga tus horas. Nómina debe aprobarlo antes de utilizar su saldo. Los registros se agrupan por número de resolución; haz clic para ver el detalle.</p>
 <div class="detail-columns"><section class="panel"><div class="panel-header"><h2>Actos registrados</h2></div>
-<?php require ROOT.'/views/listing-filters.php';require ROOT.'/views/listing-pagination.php';if(!$listing['items']): ?><div class="empty"><p>No hay actos registrados que coincidan con la consulta.</p></div><?php endif; ?>
+<?php require ROOT.'/views/listing-filters.php'; ?>
+<?php foreach($statuses as $status):
+    $listingPageParameter=$status.'_page';
+    $listing=searchRegisteredActs($u,array_replace($_GET,['list_page'=>$_GET[$listingPageParameter]??1]),$status);
+?>
+<section aria-label="<?=e($statusLabels[$status])?>">
+<div class="panel-header"><h3><?=e($statusLabels[$status])?></h3></div>
+<?php if($listing['items'] || $listing['page']>1) require ROOT.'/views/listing-pagination.php'; ?>
+<?php if(!$listing['items']): ?><div class="empty"><p>No hay actos en este grupo que coincidan con la consulta.</p></div><?php endif; ?>
 <?php foreach($listing['items'] as $group): ?><details class="balance-person"><summary><strong>Resolución No. <?=e($group['number'])?></strong><span><?=(int)$group['records']?> registro(s) coincidente(s)</span></summary><?php foreach($group['acts'] as $a): $balance=$wf->available($a); ?>
 <article class="act-card"><div class="panel-header flush"><div><h3>Resolución No. <?=e($a['number'])?></h3><p><?=e($a['name'])?></p></div><?=badge($a['status'])?></div><div class="act-numbers"><div><span>Reconocidas</span><strong><?=e(hours((int)$a['granted_minutes']))?></strong></div><div><span>Sin asignar</span><strong><?=e(hours($balance))?></strong></div></div><p class="fine">Expedición: <?=e($a['issued_on'])?> · Vencimiento: <?=e($a['expires_on'])?> <?=$a['expires_on']<date('Y-m-d')?' · Vencido; saldo no utilizable':''?></p><?php foreach(rows('SELECT * FROM attachments WHERE act_id=?',[$a['id']]) as $file): ?><a class="text-link" href="/?page=download&id=<?=(int)$file['id']?>"><?=e($file['original_name'])?> ↓</a><?php endforeach; if($a['reviewed_at']): $reviewer=row('SELECT name FROM user_profiles WHERE id=?',[$a['reviewed_by']]); ?><p class="fine">Revisado por <?=e($reviewer['name']??'')?> · <?=e($a['reviewed_at'])?></p><?php endif; if($a['comment']): ?><p><?=e($a['comment'])?></p><?php endif; if((hasRole($u,'payroll')||isSuperadmin($u)) && $a['status']==='pending' && (int)$a['user_id']!==(int)$u['id']): ?><form method="post" class="review-act"><?=csrf()?><input type="hidden" name="action" value="review_act"><input type="hidden" name="id" value="<?=(int)$a['id']?>"><label>Observación de validación<textarea name="comment" required minlength="5" maxlength="3000"></textarea></label><button class="button small" name="decision" value="approved">Aprobar acto · Nómina</button><button class="button secondary small" name="decision" value="rejected">Rechazar acto</button></form><?php endif; ?></article>
 <?php endforeach; ?></details><?php endforeach; ?></section>
+<?php endforeach; ?></section>
 <aside class="panel form-panel"><h2>Registrar acto administrativo</h2><form method="post" enctype="multipart/form-data"><?=csrf()?><input type="hidden" name="action" value="act"><label>Número de acto o resolución *<input name="number" required maxlength="120"></label><label>Fecha de expedición *<input name="issued_on" type="date" max="<?=date('Y-m-d')?>" required></label><label>Fecha de vencimiento *<input name="expires_on" type="date" min="<?=date('Y-m-d')?>" required></label><label>Total de horas otorgadas *<input name="hours" type="number" min="0.05" step="0.05" required><small>Por ejemplo: 8,5 horas equivalen a un día de jornada ordinaria.</small></label><label>Soporte del acto *<input name="supports[]" type="file" accept=".pdf,.jpg,.jpeg,.png" multiple required></label><button class="button full">Enviar a validación</button></form><p class="fine">El saldo vence en la fecha indicada. Reservar horas no permite disfrutarlas después del vencimiento.</p></aside></div>

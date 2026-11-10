@@ -44,9 +44,10 @@ function searchDesignationHistory(array $actor,array $input): array {
     if($to!==''){$where[]='a.start_date<=?';$params[]=$to;}
     return listingRows('SELECT a.*,u.name principal,v.name alternate,d.name department,c.name creator FROM designations a JOIN user_profiles u ON u.id=a.user_id LEFT JOIN user_profiles v ON v.id=a.alternate_id LEFT JOIN departments d ON d.id=a.department_id JOIN user_profiles c ON c.id=a.created_by WHERE '.implode(' AND ',$where).' ORDER BY a.start_date DESC,a.id DESC',$params,$input);
 }
-function searchRegisteredActs(array $actor,array $input): array {
+function searchRegisteredActs(array $actor,array $input,?string $status=null): array {
     $institutional=can($actor,'data.acts_all');$where=['1=1'];$params=[];
     if(!$institutional){$where[]='a.user_id=?';$params[]=$actor['id'];}
+    if($status!==null){$where[]='a.status=?';$params[]=$status;}
     listingMatch($where,$params,'a.number',listingText($input,'q_number'));
     if($institutional)foreach(['q_name'=>'u.name','q_identification'=>'u.identification'] as $key=>$column)listingMatch($where,$params,$column,listingText($input,$key));
     $base=' FROM acts a JOIN user_profiles u ON u.id=a.user_id WHERE '.implode(' AND ',$where);

@@ -15,5 +15,5 @@ check(http('permissions')['code']===403,'URL directa a matriz denegada');
 $r=http('permissions',['csrf'=>$csrf,'action'=>'permissions_save','role'=>'employee','version'=>'3']);check(str_contains($r['body'],'Solo el superadministrador'),'POST no permite autoasignarse permisos');
 $r=http('jobs',['csrf'=>$csrf,'action'=>'job','title'=>'Cargo no autorizado','code'=>'99']);check(str_contains($r['body'],'No tiene permiso'),'POST directo no modifica cargos');
 $csrf=login('qa5');check(http('permissions')['code']===403,'Talento Humano tampoco gestiona permisos');
-$r=http('users',['csrf'=>$csrf,'action'=>'reset_password','id'=>'7','initial_password'=>'TemporalSoloPrueba123']);check(str_contains($r['body'],'Solo un superadministrador'),'Bloquea restablecimiento de contraseña del superadministrador');
+$r=http('users',['csrf'=>$csrf,'action'=>'reset_password','id'=>'7','initial_password'=>'TemporalQA123']);check(str_contains($r['body'],'Solo un superadministrador'),'Bloquea restablecimiento de contraseña del superadministrador');
 echo $checks." comprobaciones HTTP de permisos correctas.\n";

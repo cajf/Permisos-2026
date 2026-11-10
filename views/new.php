@@ -50,7 +50,42 @@ $isRecess=($selectedCategory['slug']??'')==='receso';
     <?php endif; ?>
 <?php endif; ?>
 </section><p class="muted" id="annual-days-guide" role="status" hidden></p><div id="slots"><?php require ROOT.'/views/slot-fields.php'; ?></div><label>Justificación de urgencia o excepción de anticipación<textarea name="exception_reason" rows="2" maxlength="3000" placeholder="Justifica si no se cumplen las 48 horas calendario en días hábiles."><?=e($form['exception_reason']??'')?></textarea><small>El plazo cuenta todas las horas de lunes a viernes y excluye sábados, domingos y festivos. Si no se cumplen las 48 horas, justifica la excepción para revisión del aprobador. Puedes registrar un periodo que ya comenzó si aún no ha terminado, explicando la urgencia. No se admiten periodos completamente terminados.</small></label></section>
-<section class="panel form-panel" id="allocation-panel" data-daily-limit="<?=intdiv(ordinaryQuotaLimit($u),3)?>" hidden><h2>Horas por acto administrativo</h2><p class="muted">Puedes combinar horas de uno o varios actos aprobados por Nómina. Deja en cero los que no utilizarás. La suma debe coincidir con el total de tiempo solicitado en todas las fechas agregadas, exclusivamente en modalidad por horas y dentro de la jornada vigente de cada día. Máximo diario: <?=e(hours(intdiv(ordinaryQuotaLimit($u),3)))?>, incluso con horario temporal.</p><p id="allocation-summary" role="status" aria-live="polite"></p><?php $allocationValues=[];foreach(($form['allocations']??($edit?rows('SELECT act_id id,minutes/60 hours FROM allocations WHERE request_id=?',[$edit['id']]):[])) as $allocationValue)$allocationValues[(int)$allocationValue['id']]=$allocationValue['hours'];$acts=rows("SELECT * FROM acts WHERE user_id=? AND status='approved' AND expires_on>=? ORDER BY expires_on",[$u['id'],date('Y-m-d')]); if(!$acts): ?><p>No tienes actos vigentes aprobados. <a href="/?page=acts">Registra uno para su validación.</a></p><?php else: foreach($acts as $i=>$a): $ownReserved=$edit?(int)row("SELECT COALESCE(SUM(minutes-returned_minutes),0) n FROM allocations WHERE request_id=? AND act_id=? AND state='reserved'",[$edit['id'],$a['id']])['n']:0;$selectable=max(0,$wf->available($a)+$ownReserved); ?><div class="allocation-row"><div><strong><?=e($a['number'])?></strong><small>Vence <?=e($a['expires_on'])?> · Disponible: <?=e(hours($selectable))?></small></div><input type="hidden" name="allocations[<?=$i?>][id]" value="<?=(int)$a['id']?>"><label>Horas a usar<input type="number" name="allocations[<?=$i?>][hours]" data-allocation-hours min="0" max="<?=e($selectable/60)?>" step="0.05" value="<?=e($allocationValues[(int)$a['id']]??'0')?>"></label></div><?php endforeach; endif; ?></section>
-<section class="panel form-panel"><h2><span class="section-number">04</span> Documentos de soporte</h2><p class="alert warning" id="electoral-guide" hidden>Para Sufragar, el sistema leerá el certificado electoral colombiano y contrastará cédula y fecha de elecciones. El disfrute debe estar entre el día siguiente y el día 30 calendario. Una inconsistencia detectada impide el envío; si no puede leer el soporte, se registrará con revisión manual obligatoria.</p><p id="supports-guide" class="muted">Selecciona un tipo para consultar los soportes.</p><label class="upload-zone"><?=icon('download')?><strong id="supports-label"><?=$selectedCategory?($supportRequired?'Selecciona tus archivos *':'Selecciona tus archivos (opcional)'):'Selecciona tus archivos'?></strong><span>PDF, JPG o PNG · Hasta 12 MB por archivo · Máximo 10 por carga</span><input name="supports[]" type="file" accept=".pdf,.jpg,.jpeg,.png" multiple data-existing-supports="<?=$existingSupports?>" <?=$supportRequired && !$existingSupports?'required':''?>></label><p class="fine" id="supports-retention-note" hidden>Si hay un error de validación, los archivos seguirán seleccionados mientras mantengas este formulario abierto. Corrige los datos y vuelve a enviar.</p><?php if($edit): ?><p class="fine">Los soportes existentes se conservarán junto con los nuevos.</p><?php endif; ?></section>
+<section class="panel form-panel" id="allocation-panel" data-daily-limit="<?=intdiv(ordinaryQuotaLimit($u),3)?>" hidden>
+<h2>Horas por acto administrativo</h2>
+<p class="muted">La suma de las horas elegidas debe coincidir con el tiempo solicitado. Máximo diario <?=e(hours(intdiv(ordinaryQuotaLimit($u),3)))?>, incluso con horario temporal.</p>
+<p id="allocation-summary" role="status" aria-live="polite"></p>
+<?php
+$allocationValues=[];
+foreach(($form['allocations']??($edit?rows('SELECT act_id id,minutes/60 hours FROM allocations WHERE request_id=?',[$edit['id']]):[])) as $value) {
+    $allocationValues[(int)$value['id']]=$value['hours'];
+}
+$today=date('Y-m-d');
+$availableActs=[];
+$unavailableActs=[];
+foreach(rows("SELECT * FROM acts WHERE user_id=? AND status='approved' ORDER BY expires_on,id",[$u['id']]) as $act) {
+    $ownReserved=$edit?(int)row("SELECT COALESCE(SUM(minutes-returned_minutes),0) n FROM allocations WHERE request_id=? AND act_id=? AND state='reserved'",[$edit['id'],$act['id']])['n']:0;
+    $balance=max(0,$wf->available($act)+$ownReserved);
+    if ($balance>0 && $act['expires_on']>=$today) $availableActs[]=$act+['available_minutes'=>$balance];
+    else $unavailableActs[]=$act;
+}
+?>
+<h3>Con horas disponibles para disfrutar</h3>
+<?php if(!$availableActs): ?><p>No tienes actos vigentes con saldo disponible. <a href="/?page=acts">Consultar actos administrativos</a></p><?php endif; ?>
+<?php foreach($availableActs as $i=>$act): ?>
+<div class="allocation-row">
+    <div><strong><?=e($act['number'])?></strong><small>Vence <?=e($act['expires_on'])?> · Disponible <?=e(hours($act['available_minutes']))?></small></div>
+    <input type="hidden" name="allocations[<?=$i?>][id]" value="<?=(int)$act['id']?>">
+    <label>Horas a usar<input type="number" name="allocations[<?=$i?>][hours]" data-allocation-hours min="0" max="<?=e($act['available_minutes']/60)?>" step="0.05" value="<?=e($allocationValues[(int)$act['id']]??'0')?>"></label>
+</div>
+<?php endforeach; ?>
+<h3>Sin horas disponibles para asignar</h3>
+<?php if(!$unavailableActs): ?><p>No hay actos en este grupo.</p><?php endif; ?>
+<ul class="plain-list">
+<?php foreach($unavailableActs as $act): ?>
+<li><strong><?=e($act['number'])?></strong><span><?=$act['expires_on']<$today?'Vencido el '.e($act['expires_on']):'Horas totalmente asignadas o reservadas'?></span></li>
+<?php endforeach; ?>
+</ul>
+</section>
+<section class="panel form-panel"><h2><span class="section-number">04</span> Documentos de soporte</h2><p class="alert warning" id="electoral-guide" hidden>Para Sufragar, el sistema leerá el certificado electoral colombiano y contrastará cédula y fecha de elecciones. El disfrute debe estar entre el día siguiente y el día 30 calendario. Una inconsistencia detectada impide el envío; si no puede leer el soporte, se registrará con revisión manual obligatoria.</p><p id="supports-guide" class="muted">Selecciona un tipo para consultar los soportes.</p><label class="upload-zone"><?=icon('download')?><strong id="supports-label"><?=$selectedCategory?($supportRequired?'Selecciona tus archivos *':'Selecciona tus archivos (opcional)'):'Selecciona tus archivos'?></strong><span>PDF, JPG o PNG · Hasta 2 MB por archivo · Máximo 5 por solicitud</span><input name="supports[]" type="file" accept=".pdf,.jpg,.jpeg,.png" multiple data-existing-supports="<?=$existingSupports?>" <?=$supportRequired && !$existingSupports?'required':''?>></label><p class="fine" id="supports-retention-note" hidden>Si hay un error de validación, los archivos seguirán seleccionados mientras mantengas este formulario abierto. Corrige los datos y vuelve a enviar.</p><?php if($edit): ?><p class="fine">Los soportes existentes se conservarán junto con los nuevos.</p><?php endif; ?></section>
 <div class="form-actions"><a class="button secondary" href="/?page=requests">Volver</a><button class="button" type="submit">Enviar a aprobación <?=icon('arrow')?></button></div></div>
 <aside class="request-summary panel"><span class="eyebrow">RESUMEN DEL TRÁMITE</span><h2>Tu solicitud</h2><div class="summary-total" id="total-minutes" aria-live="polite">0 h 00 min</div><span class="muted">Tiempo laborable solicitado</span><hr><p><strong>Ruta de aprobación</strong></p><p id="route-guide" data-high-rank="<?=e($u['high_rank'])?>">Selecciona el tipo y las fechas.</p><hr><p><strong>Antes de enviar</strong></p><p class="fine">Revisa las fechas y los soportes. Las novedades se enviarán a <?=e($u['email'])?>.</p><p class="fine">Las citas médicas con soporte están exentas del cupo semestral de Ordinario-Remunerado.</p></aside></form>

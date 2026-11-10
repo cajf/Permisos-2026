@@ -1,18 +1,21 @@
 <?php
 declare(strict_types=1);
 
-function validateUploads(array $files): array {
+const REQUEST_UPLOAD_MAX_BYTES = 2 * 1024 * 1024;
+const REQUEST_UPLOAD_MAX_FILES = 5;
+
+function validateUploads(array $files,int $maxFiles=10,int $maxBytes=12*1024*1024): array {
     if (!isset($files['name'])) return [];
     $out=[];
     $names=is_array($files['name'])?$files['name']:[$files['name']];
-    ensure(count($names)<=10,'Se permiten hasta diez soportes por carga.');
+    ensure(count($names)<=$maxFiles,'Se permiten hasta '.$maxFiles.' soportes por carga.');
     foreach ($names as $i=>$name) {
         $get=fn($k)=>is_array($files[$k])?$files[$k][$i]:$files[$k];
         if ($get('error')===UPLOAD_ERR_NO_FILE) continue;
         ensure($get('error')===UPLOAD_ERR_OK,'No se pudo recibir uno de los archivos. Revise su tamaño.');
         $path=$get('tmp_name');
         ensure(is_uploaded_file($path),'El archivo no proviene de una carga válida.');
-        ensure($get('size')>0 && $get('size')<=12*1024*1024,'Cada soporte debe pesar entre 1 byte y 12 MB.');
+        ensure($get('size')>0 && $get('size')<=$maxBytes,'Cada soporte debe pesar entre 1 byte y '.($maxBytes/1024/1024).' MB.');
         $mime=(new finfo(FILEINFO_MIME_TYPE))->file($path);
         ensure(in_array($mime,['application/pdf','image/jpeg','image/png'],true),'Solo se admiten PDF, JPG y PNG.');
         if ($mime==='application/pdf') {
