@@ -3,21 +3,25 @@
  const families=[['permiso','Permisos'],['compensatorio','Compensatorios'],['licencia','Licencias']];
  const quantity=new Intl.NumberFormat('es-CO');
  const percentage=new Intl.NumberFormat('es-CO',{style:'percent',maximumFractionDigits:1});
+ const departmentOrder=new Intl.Collator('es-CO');
  document.querySelectorAll('[data-analytics-board], [data-analytics-distribution]').forEach(board=>{
  const form=board.querySelector('form'),status=board.querySelector('[role=status]');let busy=false,sequence=0;
  const distribution=board.hasAttribute('data-analytics-distribution');
  const text=(tag,value)=>{const node=document.createElement(tag);node.textContent=String(value);return node;};
  function renderDistribution(data){
   const chart=board.querySelector('.analytics-distribution-chart'),fragment=document.createDocumentFragment();
-  if(!data.counts.total)fragment.append(text('p','No hay solicitudes aprobadas para esta selección.'));
-  for(const department of data.departments){
-   const group=document.createElement('article');group.className='analytics-distribution-group';group.append(text('h3',department.name));
-   for(const [key,label] of families){
-    const count=department[key],total=data.counts[key],share=total?count/total:0;
+  for(const [key,label] of families){
+   const group=document.createElement('section');group.className='analytics-distribution-group';group.append(text('h3',label));
+   const total=data.counts[key];
+   if(!total)group.append(text('p','No hay solicitudes aprobadas de este tipo en la vigencia seleccionada.'));
+   // Dentro de cada tipo el denominador es común: ordenar por cantidad equivale a ordenar por porcentaje exacto.
+   const ranked=[...data.departments].sort((a,b)=>b[key]-a[key]||departmentOrder.compare(a.name,b.name));
+   for(const department of ranked){
+    const count=department[key],share=total?count/total:0;
     const row=document.createElement('div');row.className='analytics-distribution-row';
     const bar=document.createElement('progress');bar.max=100;bar.value=share*100;bar.className=`analytics-progress-${key}`;bar.setAttribute('aria-hidden','true');
     const value=text('strong',total?`${quantity.format(count)} · ${share>0&&share<0.0005?`<${percentage.format(0.001)}`:percentage.format(share)}`:'0 · Sin datos');
-    row.append(text('span',label),bar,value);group.append(row);
+    row.append(text('span',department.name),bar,value);group.append(row);
    }
    fragment.append(group);
   }

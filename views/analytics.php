@@ -15,7 +15,7 @@ $distribution=$approvedData['year']===$distributionYear && $approvedData['depart
 ?>
 <section class="panel form-panel" id="analytics-distribution" data-analytics-distribution aria-labelledby="analytics-distribution-title">
     <h2 id="analytics-distribution-title">Solicitudes aprobadas por dependencia</h2>
-    <p>Cada barra muestra qué porcentaje aporta la dependencia al total de solicitudes aprobadas de ese tipo en la vigencia seleccionada. Al lado se indica la cantidad.</p>
+    <p>En cada tipo, las dependencias se ordenan de mayor a menor participación. Cada barra muestra la cantidad aprobada y su porcentaje del total de ese tipo en la vigencia seleccionada.</p>
     <form method="get" action="/#analytics-distribution" class="filter-form">
         <input type="hidden" name="page" value="analytics">
         <label>Vigencia <select name="distribution_year">
