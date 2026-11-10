@@ -1,5 +1,5 @@
 <?php authorizeAnalytics($u); ?>
-<p class="page-intro">Totales de solicitudes aprobadas y de disfrute efectivo, con filtros independientes por tablero.</p>
+<p class="page-intro">Selecciona el título de un tablero para abrirlo o cerrarlo. Cada tablero tiene sus propios filtros.</p>
 <?php foreach(['approved','enjoyed'] as $metric):
 $data=analyticsData(array_replace($_GET,['metric'=>$metric]));
 $heading=$metric==='approved'?'Solicitudes aprobadas':'Solicitudes disfrutadas';
@@ -13,8 +13,9 @@ ensure(is_string($distributionYear),'Seleccione una vigencia válida.');
 $distribution=$approvedData['year']===$distributionYear && $approvedData['department']==='all'
     ?$approvedData:analyticsData(['metric'=>'approved','year'=>$distributionYear,'department'=>'all']);
 ?>
-<section class="panel form-panel" id="analytics-distribution" data-analytics-distribution aria-labelledby="analytics-distribution-title">
-    <h2 id="analytics-distribution-title">Solicitudes aprobadas por dependencia</h2>
+<details class="panel analytics-panel" id="analytics-distribution" data-analytics-distribution<?=isset($_GET['distribution_year'])?' open':''?>>
+    <summary>Solicitudes aprobadas por dependencia</summary>
+    <div class="form-panel analytics-panel-content">
     <p>En cada tipo, las dependencias se ordenan de mayor a menor participación. Cada barra muestra la cantidad aprobada y su porcentaje del total de ese tipo en la vigencia seleccionada.</p>
     <form method="get" action="/#analytics-distribution" class="filter-form">
         <input type="hidden" name="page" value="analytics">
@@ -30,5 +31,6 @@ $distribution=$approvedData['year']===$distributionYear && $approvedData['depart
     <div class="analytics-distribution-chart"></div>
     <noscript><p>Activa JavaScript para ver la gráfica. Puedes consultar los conteos en el tablero de solicitudes aprobadas.</p></noscript>
     <script type="application/json" class="analytics-initial"><?=json_encode($distribution,JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_UNESCAPED_UNICODE)?></script>
-</section>
+    </div>
+</details>
 <section class="panel form-panel"><h2>Integración futura con Power BI</h2><p>Los tableros se consultan directamente en la aplicación. Power BI aún no está configurado. Las exportaciones no incluyen nombres, cédulas ni soportes.</p></section>
