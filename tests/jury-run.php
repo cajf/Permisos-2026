@@ -5,15 +5,15 @@ require __DIR__.'/../app/bootstrap.php';require ROOT.'/app/Admin.php';require RO
 installMysqlSchema(db());
 require_once ROOT.'/app/LegacySqlite.php';
 insert('departments',['name'=>'Dependencia de prueba']);
-foreach ([['Funcionario','[]',''],['Jefe','["manager"]',''],['Subsecretario','["subsecretary","manager"]',''],['Alcalde','["mayor","manager"]',''],['Administrador','["admin","payroll"]',''],['Asesor','[]','Asesor de Despacho'],['Otro administrador','["admin","manager"]',''],['Otro funcionario','[]','']] as $i=>$p) insert('users',['name'=>$p[0],'identification'=>'PRUEBA-'.($i+1),'username'=>'qa'.($i+1),'email'=>'qa'.($i+1).'@ejemplo.invalid','password'=>password_hash('PruebaLocal!9876',PASSWORD_DEFAULT),'job_title'=>$p[0],'department_id'=>1,'manager_id'=>null,'roles'=>$p[1],'high_rank'=>$p[2],'force_password'=>0]);
-run('UPDATE users SET manager_id=2');
+foreach ([['Funcionario','[]',''],['Jefe','["manager"]',''],['Subsecretario','["subsecretary","manager"]',''],['Alcalde','["mayor","manager"]',''],['Administrador','["admin","payroll"]',''],['Asesor','[]','Asesor de Despacho'],['Otro administrador','["admin","manager"]',''],['Otro funcionario','[]','']] as $i=>$p) fixtureUser(['name'=>$p[0],'identification'=>'PRUEBA-'.($i+1),'username'=>'qa'.($i+1),'email'=>'qa'.($i+1).'@ejemplo.invalid','password'=>password_hash('PruebaLocal!9876',PASSWORD_DEFAULT),'job_title'=>$p[0],'department_id'=>1,'manager_id'=>null,'roles'=>$p[1],'high_rank'=>$p[2],'force_password'=>0]);
+run('UPDATE person_employments SET manager_id=2');
 setSetting('subsecretary_id','3');setSetting('mayor_id','4');
 foreach(require ROOT.'/database/catalog.php' as $c)insert('categories',array_combine(['family','name','slug','supports','max_minutes','policy_confirmed','notes'],$c));
 for($y=2026;$y<=2028;$y++)foreach(nationalHolidays($y)as $date=>$name)run('INSERT INTO holidays(date,name)VALUES(?,?) ON DUPLICATE KEY UPDATE name=name',[$date,$name]);
 $wf=new Workflow();$checks=0;
 function check(bool $condition,string $label):void{global $checks;ensure($condition,'FALLO: '.$label);$checks++;echo 'OK '.$label."\n";}
 function refuses(callable $fn,string $label):void{try{$fn();}catch(DomainException){check(true,$label);return;}throw new RuntimeException('FALLO: '.$label);}
-function person(int $id):array{return row('SELECT u.*,d.name department FROM users u JOIN departments d ON d.id=u.department_id WHERE u.id=?',[$id]);}
+function person(int $id):array{return row('SELECT u.*,d.name department FROM user_profiles u JOIN departments d ON d.id=u.department_id WHERE u.id=?',[$id]);}
 function cat(string $slug):array{return row('SELECT * FROM categories WHERE slug=?',[$slug]);}
 function testSubmit(int $uid,string $slug,array $slots,array $allocations=[],?DateTimeImmutable $clock=null):int{
  global $wf;$u=person($uid);$c=cat($slug);

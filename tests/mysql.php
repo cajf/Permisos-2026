@@ -5,7 +5,7 @@ check(db()->getAttribute(PDO::ATTR_DRIVER_NAME)==='mysql' && stripos(db()->query
 check((int)row("SELECT COUNT(*) n FROM information_schema.tables WHERE table_schema=DATABASE() AND ENGINE!='InnoDB'")['n']===0,'Todas las tablas de la aplicación usan InnoDB');
 refuses(fn()=>atomic(function(){setSetting('rollback_probe','no debe persistir');throw new DomainException('Prueba de reversión');}),'Una operación fallida revierte su transacción MySQL');
 check(setting('rollback_probe')==='','La reversión no deja cambios parciales');
-try {insert('users',['name'=>'Usuario inválido','identification'=>'FK-INVALID','username'=>'fk.invalid','email'=>'fk@ejemplo.invalid','password'=>'hash','job_title'=>'Prueba','department_id'=>999999]);throw new RuntimeException('No se aplicó la clave foránea.');}catch(PDOException){check(true,'MySQL impide crear funcionarios con dependencia inexistente');}
+try {fixtureUser(['name'=>'Usuario inválido','identification'=>'FK-INVALID','username'=>'fk.invalid','email'=>'fk@ejemplo.invalid','password'=>'hash','job_title'=>'Prueba','department_id'=>999999]);throw new RuntimeException('No se aplicó la clave foránea.');}catch(PDOException){check(true,'MySQL impide crear funcionarios con dependencia inexistente');}
 
 function concurrentJobs(array $jobs):array {
     $stem=ROOT.'/.work/race-'.bin2hex(random_bytes(5));$processes=[];
@@ -19,7 +19,7 @@ function concurrentJobs(array $jobs):array {
     foreach($processes as [$process,$pipes,$ready]){$output=stream_get_contents($pipes[1]);$errors=stream_get_contents($pipes[2]);fclose($pipes[1]);fclose($pipes[2]);$exit=proc_close($process);if($exit!==0)throw new RuntimeException('Falló el trabajador: '.$errors);$results[]=json_decode($output,true,512,JSON_THROW_ON_ERROR);}
     return $results;
 }
-$raceUser=insert('users',['name'=>'Funcionario de concurrencia','identification'=>'RACE-QA','username'=>'race.qa','email'=>'race@ejemplo.invalid','password'=>'hash','job_title'=>'Funcionario','department_id'=>2,'manager_id'=>2,'birth_date'=>'1988-06-20']);
+$raceUser=fixtureUser(['name'=>'Funcionario de concurrencia','identification'=>'RACE-QA','username'=>'race.qa','email'=>'race@ejemplo.invalid','password'=>'hash','job_title'=>'Funcionario','department_id'=>2,'manager_id'=>2,'birth_date'=>'1988-06-20']);
 foreach(['ordinario','acto','cumpleanos','academico'] as $slug)run('UPDATE categories SET supports_required=0 WHERE slug=?',[$slug]);
 $base=['justification'=>'Solicitud simultánea para verificar los límites transaccionales'];
 $quotaJobs=[];foreach([['2026-12-21','2026-12-22'],['2026-12-23','2026-12-24']] as $dates)$quotaJobs[]=['action'=>'submit','actor'=>$raceUser,'input'=>$base+['category_id'=>cat('ordinario')['id'],'medical_appointment'=>'0','slots'=>array_map(fn($date)=>['date'=>$date,'mode'=>'full'],$dates)]];
@@ -40,7 +40,7 @@ foreach(['ordinario','acto','cumpleanos','academico'] as $slug)run('UPDATE categ
 $adminConfiguration=require ROOT.'/storage/mysql/admin.php';$admin=mysqlConnection($adminConfiguration,false);
 $transferName='permisos_test_transfer_'.bin2hex(random_bytes(4));$restoreName='permisos_test_restore_'.bin2hex(random_bytes(4));
 foreach([$transferName,$restoreName] as $database)$admin->exec('CREATE DATABASE '.mysqlIdentifier($database).' CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_bin');
-$target=mysqlConnection(array_replace($adminConfiguration,['database'=>$transferName]));installMysqlSchema($target);
+$target=mysqlConnection(array_replace($adminConfiguration,['database'=>$transferName]));installMysqlSchema($target,true);
 $sourceUploads=ROOT.'/.work/transfer-'.bin2hex(random_bytes(4));mkdir($sourceUploads);$fileName=bin2hex(random_bytes(24));file_put_contents($sourceUploads.'/'.$fileName,"Soporte íntegro de migración\n");
 $statement=$oldDatabase->prepare('INSERT INTO attachments(user_id,request_id,original_name,stored_name,mime,size,sha256,created_at) VALUES(1,1,?,?,?,?,?,?)');$statement->execute(['soporte.txt',$fileName,'application/pdf',filesize($sourceUploads.'/'.$fileName),hash_file('sha256',$sourceUploads.'/'.$fileName),now()]);
 $badChecksum=$oldDatabase->prepare('UPDATE attachments SET sha256=?');$badChecksum->execute([str_repeat('0',64)]);
@@ -49,6 +49,7 @@ $badChecksum->execute([hash_file('sha256',$sourceUploads.'/'.$fileName)]);
 $result=transferSqliteToMysql($oldDatabase,$target,$sourceUploads,$sourceUploads.'-target');
 check($result['tables']['users']===3 && $result['tables']['approvals']===2 && $result['files_verified']===1 && $result['files_copied']===1,'La migración a MySQL conserva usuarios, aprobaciones y soportes con verificación');
 try{transferSqliteToMysql($oldDatabase,$target,$sourceUploads,$sourceUploads.'-target');throw new RuntimeException('Se sobrescribió el destino.');}catch(RuntimeException $error){check(str_contains($error->getMessage(),'vacía'),'La migración impide sobrescribir una base MySQL con registros');}
+migrateDatabase($target);
 $backupDirectory=ROOT.'/.work/mysql-backup-'.bin2hex(random_bytes(4));$manifest=createMysqlBackup($target,$sourceUploads.'-target',$backupDirectory);
 $restored=mysqlConnection(array_replace($adminConfiguration,['database'=>$restoreName]),true,true);restoreMysqlBackup($restored,$backupDirectory,$sourceUploads.'-restored');
 check((int)$restored->query('SELECT COUNT(*) FROM users')->fetchColumn()===3 && hash_file('sha256',$sourceUploads.'-restored/'.$fileName)===$manifest['files'][$fileName],'El respaldo MySQL se restaura con conteos e integridad de soportes verificados');

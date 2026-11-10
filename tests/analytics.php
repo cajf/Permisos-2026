@@ -34,13 +34,13 @@ check($data['counts']===['total'=>4,'permiso'=>2,'compensatorio'=>1,'licencia'=>
 check(analyticsData(['year'=>'all'],$clock)['counts']['total']===4,'Total multivigencia no duplica solicitudes');
 check(analyticsData(['year'=>'2025'],$clock)['counts']['total']===1,'Filtro de vigencia anterior');
 check(analyticsData(['year'=>'2026','department'=>'2'],$clock)['counts']['licencia']===1,'Filtro por dependencia');
-run('UPDATE users SET department_id=2 WHERE id=1');
+run('UPDATE person_employments SET department_id=2 WHERE person_id=1');
 check($find($started,2026)['department_id']===1&&analyticsData(['year'=>'2026','department'=>'1'],$clock)['counts']['total']===3,'Traslado del funcionario no altera dependencia histórica');
 check(!str_contains(json_encode($data),'PRUEBA-')&&!str_contains(json_encode($data),'qa1@'),'Datos sin identificaciones ni correos');
 foreach(['year'=>"2026 OR 1=1",'department'=>'1 UNION SELECT'] as $key=>$value)refuses(fn()=>analyticsSelection([$key=>$value]),'Rechaza filtro inválido '.$key);
 check(canAccessAnalytics(person(3)),'Responsable institucional vigente accede');
 foreach([1,2,4,5,7] as $id)check(!canAccessAnalytics(person($id)),'Rol distinto no accede: '.$id);
-run("UPDATE users SET roles='[\"subsecretary\"]' WHERE id=8");
+atomic(fn()=>replaceUserRoles(8,['subsecretary']));
 insert('designations',['role'=>'subsecretary','user_id'=>8,'alternate_id'=>3,'start_date'=>date('Y-m-d'),'created_by'=>5,'created_at'=>now()]);
 check(canAccessAnalytics(person(8))&&!canAccessAnalytics(person(3)),'Solo titular vigente: excluye anterior y suplente');
 run('UPDATE users SET active=0 WHERE id=8');check(!canAccessAnalytics(person(8)),'Titular inactivo no accede');

@@ -11,7 +11,7 @@ $several=testSubmit(1,'acto',[slot('2026-12-14','07:30','08:30'),slot('2026-12-1
 refuses(fn()=>testSubmit(1,'acto',[slot('2026-12-02','07:30','09:30')],[['id'=>$a,'hours'=>'1'],['id'=>$b,'hours'=>'2']]),'La suma seleccionada debe coincidir con el disfrute');
 $split=testSubmit(1,'acto',[slot('2026-12-03','07:30','10:30'),slot('2026-12-03','13:00','17:00')],[['id'=>$a,'hours'=>'3'],['id'=>$b,'hours'=>'4']]);
 check((int)row('SELECT total_minutes FROM requests WHERE id=?',[$split])['total_minutes']===420,'Admite franjas separadas dentro de la misma fecha');
-run("UPDATE users SET appointment_type='Trabajador oficial' WHERE id=8");$c=approvedAct(8,'OFICIAL-A');$d=approvedAct(8,'OFICIAL-B');
+fixtureOfficialWorker(8);$c=approvedAct(8,'OFICIAL-A');$d=approvedAct(8,'OFICIAL-B');
 $worker=testSubmit(8,'acto',[slot('2026-12-02','07:00','15:00')],[['id'=>$c,'hours'=>'3'],['id'=>$d,'hours'=>'5']]);
 check((int)row('SELECT total_minutes FROM requests WHERE id=?',[$worker])['total_minutes']===480,'Combina actos en una jornada oficial continua de ocho horas');
 refuses(fn()=>testSubmit(8,'acto',[slot('2026-12-03','07:00','15:30')],[['id'=>$c,'hours'=>'8.5']]),'Impide disfrute fuera del horario oficial');

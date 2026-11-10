@@ -8,7 +8,7 @@ for($i=1;$i<=12;$i++){
  insert('designations',['role'=>'manager','department_id'=>1,'user_id'=>2,'alternate_id'=>8,'start_date'=>$date,'end_date'=>$date,'created_by'=>5,'created_at'=>now()]);
 }
 insert('acts',['user_id'=>8,'number'=>'RES-001','issued_on'=>'2026-01-01','expires_on'=>'2027-01-01','granted_minutes'=>60,'created_at'=>now()]);
-for($i=1;$i<=14;$i++)insert('users',['name'=>'Listado '.$i,'identification'=>'LIST-'.$i,'username'=>'listado'.$i,'email'=>'listado'.$i.'@ejemplo.invalid','job_title'=>'Cargo de listado','department_id'=>1,'roles'=>'[]','password'=>'sin-acceso']);
+for($i=1;$i<=14;$i++)fixtureUser(['name'=>'Listado '.$i,'identification'=>'LIST-'.$i,'username'=>'listado'.$i,'email'=>'listado'.$i.'@ejemplo.invalid','job_title'=>'Cargo de listado','department_id'=>1,'roles'=>'[]','password'=>'sin-acceso']);
 foreach(['usuarios'=>fn($input)=>searchUserDirectory($admin,$input),'cargos'=>fn($input)=>searchJobDirectory($admin,$input),'designaciones'=>fn($input)=>searchDesignationHistory($admin,$input),'resoluciones'=>fn($input)=>searchRegisteredActs($admin,$input)] as $label=>$search){
  $first=$search([]);$second=$search(['list_page'=>2]);
  check(count($first['items'])===10&&$first['more']&&count($second['items'])>0,'Paginación de diez en '.$label);

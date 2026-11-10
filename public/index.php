@@ -17,6 +17,12 @@ header('Cache-Control: no-store');
 if(getenv('APP_TESTING')==='1')header('X-TH-Test-Environment: isolated');
 try {
     if (!tableExists('users')) { http_response_code(503); exit('Inicialice la aplicación con scripts/install.php. Consulte README.md.'); }
+    if (!tableExists('user_profiles') || setting('identity_migration_in_progress')==='1') {
+        http_response_code(503);
+        header('Content-Type: text/plain; charset=utf-8');
+        header('Retry-After: 120');
+        exit('El portal está en mantenimiento por una actualización de la base de datos. Vuelva a intentarlo en unos minutos.');
+    }
     initializeBalanceHistory();
     $generation=setting('session_generation');
     if (($_SESSION['generation']??null)!==$generation) {
@@ -38,7 +44,7 @@ try {
         $action=(string)($_POST['action']??'');
         if ($action==='login') {
             ensure((int)($_SESSION['login_lock']??0)<time(),'Espere unos minutos antes de intentar ingresar nuevamente.');
-            $candidate=row('SELECT * FROM users WHERE username=?',[trim($_POST['username']??'')]);
+            $candidate=row('SELECT p.*,u.password,u.locked_until FROM user_profiles p JOIN users u ON u.id=p.id WHERE p.username=?',[trim($_POST['username']??'')]);
             $valid=password_verify($_POST['password']??'',$candidate['password']??'$2y$10$hX00fAKXNV5VvepSg4J1Pev92FyeTwPa1bUKSfNWpOqAelgeT/JES');
             if (!$candidate || !$valid || !(int)$candidate['active'] || ($candidate['locked_until'] && $candidate['locked_until']>now())) {
                 if ($candidate) run('UPDATE users SET failures=failures+1,locked_until=CASE WHEN failures>=7 THEN ? ELSE locked_until END WHERE id=?',[date('Y-m-d H:i:s',time()+900),$candidate['id']]);
@@ -53,11 +59,12 @@ try {
         $u=user();
         if ($action==='logout') { $_SESSION=[]; session_destroy(); redirect('/?page=login'); }
         if ($action==='password') {
-            ensure(password_verify($_POST['current_password']??'',$u['password']),'La contraseña actual no coincide.');
+            $account=row('SELECT password FROM users WHERE id=? AND active=1',[$u['id']]);
+            ensure($account!==null && password_verify($_POST['current_password']??'',$account['password']),'La contraseña actual no coincide.');
             $new=$_POST['new_password']??''; validatePassword($new);
             ensure($new===($_POST['confirm_password']??''),'La confirmación no coincide.');
-            ensure(!password_verify($new,$u['password']),'La nueva contraseña debe ser diferente.');
-            run('UPDATE users SET password=?,force_password=0 WHERE id=?',[password_hash($new,PASSWORD_DEFAULT),$u['id']]);
+            ensure(!password_verify($new,$account['password']),'La nueva contraseña debe ser diferente.');
+            ensure(run('UPDATE users SET password=?,force_password=0 WHERE id=? AND active=1 AND password=?',[password_hash($new,PASSWORD_DEFAULT),$u['id'],$account['password']])===1,'La cuenta cambió durante la operación. Inténtelo nuevamente.');
             session_regenerate_id(true); event((int)$u['id'],'Contraseña actualizada','Cambio realizado por el titular'); $_SESSION['flash']='Contraseña actualizada.'; redirect('/');
         }
         ensure(!(int)$u['force_password'],'Debe cambiar su contraseña antes de continuar.');
@@ -84,7 +91,7 @@ try {
             case 'designation': saveDesignation($u,$_POST); $destination='/?page=designations'; break;
             case 'reset_password':
                  validatePassword($_POST['initial_password']??'');
-                $targetUser=row('SELECT * FROM users WHERE id=?',[(int)$_POST['id']]);ensure($targetUser!==null,'Funcionario no encontrado.');ensure(!isSuperadmin($targetUser)||isSuperadmin($u),'Solo un superadministrador puede restablecer esa cuenta.');
+                $targetUser=row('SELECT * FROM user_profiles WHERE id=?',[(int)$_POST['id']]);ensure($targetUser!==null,'Funcionario no encontrado.');ensure(!isSuperadmin($targetUser)||isSuperadmin($u),'Solo un superadministrador puede restablecer esa cuenta.');
                 run('UPDATE users SET password=?,force_password=1,failures=0,locked_until=NULL WHERE id=?',[password_hash($_POST['initial_password'],PASSWORD_DEFAULT),(int)$_POST['id']]);
                 event((int)$u['id'],'Contraseña restablecida','Funcionario '.(int)$_POST['id']); $destination='/?page=users'; break;
             case 'department':  ensure(trim($_POST['name']??'')!=='','Indique el nombre de la dependencia.'); insert('departments',['name'=>trim($_POST['name'])]); $destination='/?page=users'; break;
@@ -93,7 +100,7 @@ try {
                 atomic(function() use($u,$wf) {
                     foreach (['mayor'] as $role) foreach (['_id','_alternate_id'] as $suffix) {
                         $id=(int)($_POST[$role.$suffix]??0);
-                        if ($id) { $p=row('SELECT * FROM users WHERE id=? AND active=1',[$id]); ensure($p && hasRole($p,$role),'Seleccione un responsable activo con el rol correspondiente.'); }
+                        if ($id) { $p=row('SELECT * FROM user_profiles WHERE id=? AND active=1',[$id]); ensure($p && hasRole($p,$role),'Seleccione un responsable activo con el rol correspondiente.'); }
                         else ensure($suffix==='_alternate_id','Debe asignar los responsables principales.');
                         setSetting($role.$suffix,(string)$id);
                     }
@@ -204,7 +211,7 @@ if ($page!=='login') {
              $from=$_GET['from']??date('Y-01-01'); $to=$_GET['to']??date('Y-12-31'); ensure(validDate($from)&&validDate($to)&&$from<=$to,'Revise las fechas del reporte.');
             header('Content-Type: text/csv; charset=utf-8'); header('Content-Disposition: attachment; filename="solicitudes.csv"'); echo "\xEF\xBB\xBF"; $out=fopen('php://output','w');
             fputcsv($out,['radicado','funcionario','cedula','dependencia','tipo','estado','minutos','fecha_solicitada','inicio','fin','registro'],';','"','');
-            foreach (rows('SELECT r.*,u.name,u.identification,d.name department,c.name category,s.date,s.start_time,s.end_time,s.minutes FROM requests r JOIN users u ON u.id=r.user_id JOIN departments d ON d.id=u.department_id JOIN categories c ON c.id=r.category_id JOIN request_slots s ON s.request_id=r.id WHERE s.date BETWEEN ? AND ? ORDER BY r.id,s.date',[$from,$to]) as $r) {
+            foreach (rows('SELECT r.*,u.name,u.identification,d.name department,c.name category,s.date,s.start_time,s.end_time,s.minutes FROM requests r JOIN user_profiles u ON u.id=r.user_id JOIN departments d ON d.id=u.department_id JOIN categories c ON c.id=r.category_id JOIN request_slots s ON s.request_id=r.id WHERE s.date BETWEEN ? AND ? ORDER BY r.id,s.date',[$from,$to]) as $r) {
                 $values=['TH-'.$r['id'],$r['name'],$r['identification'],$r['department'],$r['category'],statusLabel($r['status']),$r['minutes'],$r['date'],$r['start_time'],$r['end_time'],$r['created_at']];
                 $values=array_map(fn($v)=>preg_match('/^[=+\-@\t\r]/',(string)$v)?"'".$v:$v,$values); fputcsv($out,$values,';','"','');
             } fclose($out); exit;

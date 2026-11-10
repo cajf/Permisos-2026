@@ -87,7 +87,7 @@ function requestPdf(array $r): string {
     }
     if($c['slug']==='jurado') $html.='<p>Modalidad: '.e($snap['jury_role']??'Sin clasificar').'</p>';
     $html.='<h3>Constancias e historial</h3><p>Las actuaciones se registran con fecha y hora de Bogotá. Este documento no contiene firma digital.</p>';
-    foreach (rows('SELECT e.*,u.name FROM events e JOIN users u ON u.id=e.actor_id WHERE request_id=? ORDER BY e.id',[$r['id']]) as $ev) $html.='<p><b>'.e($ev['created_at'].' · '.$ev['name']).'</b><br>'.e($ev['action'].' · '.$ev['detail']).'</p>';
+    foreach (rows('SELECT e.*,u.name FROM events e JOIN user_profiles u ON u.id=e.actor_id WHERE request_id=? ORDER BY e.id',[$r['id']]) as $ev) $html.='<p><b>'.e($ev['created_at'].' · '.$ev['name']).'</b><br>'.e($ev['action'].' · '.$ev['detail']).'</p>';
     $acts=rows('SELECT a.number,l.minutes,l.returned_minutes,l.state FROM allocations l JOIN acts a ON a.id=l.act_id WHERE request_id=?',[$r['id']]);
     if ($acts) { $html.='<h3>Actos administrativos</h3>'; foreach ($acts as $a) $html.='<p>'.e($a['number'].' · '.hours((int)$a['minutes']).' · '.statusLabel($a['state']).' · Reintegrado: '.hours((int)$a['returned_minutes'])).'</p>'; }
     $attachments=rows('SELECT * FROM attachments WHERE request_id=? OR act_id IN (SELECT act_id FROM allocations WHERE request_id=?) ORDER BY id',[$r['id'],$r['id']]);

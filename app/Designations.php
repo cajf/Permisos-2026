@@ -13,7 +13,7 @@ function saveDesignation(array $actor,array $data): void {
     $principal=(int)($data['user_id']??0);$alternate=(int)($data['alternate_id']??0);
     foreach ([$principal,$alternate] as $i=>$id) {
         if (!$id && $i===1) continue;
-        $person=row('SELECT * FROM users WHERE id=? AND active=1',[$id]);
+        $person=row('SELECT * FROM user_profiles WHERE id=? AND active=1',[$id]);
         ensure($person!==null && hasRole($person,$role),'El responsable y su suplente deben estar activos y tener el rol correspondiente.');
     }
     ensure(!$alternate || $alternate!==$principal,'El responsable y el suplente deben ser diferentes.');
@@ -35,7 +35,7 @@ function saveDesignation(array $actor,array $data): void {
 
 /** Instantáneas inmutables: permiten consultar saldos sin revelar cambios posteriores al periodo autorizado. */
 function captureBalances(int $user): void {
-    $person=row('SELECT * FROM users WHERE id=?',[$user]);if (!$person) return;
+    $person=row('SELECT * FROM user_profiles WHERE id=?',[$user]);if (!$person) return;
     $wf=new Workflow();$types=[];
     foreach (rows('SELECT * FROM categories ORDER BY id') as $category) {
         $reserved=0;$used=0;$benefits=[];
@@ -87,7 +87,7 @@ function searchBalanceSnapshots(array $viewer,array $input): array {
 function initializeBalanceHistory(): void {
     if (!tableExists('balance_snapshots') || setting('balance_history_started')!=='') return;
     atomic(function() {
-        foreach (rows('SELECT id FROM users') as $person) captureBalances((int)$person['id']);
+        foreach (rows('SELECT id FROM user_profiles') as $person) captureBalances((int)$person['id']);
         setSetting('balance_history_started',now());
     });
 }

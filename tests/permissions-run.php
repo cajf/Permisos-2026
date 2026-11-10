@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 require __DIR__.'/mail-run.php';
-run('UPDATE users SET roles=? WHERE id=7',[json_encode(['superadmin'])]);$super=person(7);
+atomic(fn()=>replaceUserRoles(7,['superadmin']));$super=person(7);
 check(!can(person(1),'view.users'),'Funcionario no tiene acceso al directorio');
 check(can(person(5),'users.edit')&&!can(person(5),'permissions.manage'),'Talento Humano conserva gestión sin administrar permisos');
 foreach(array_keys(permissionCatalog()) as $key)check(can($super,$key),'Superadministrador: '.$key);

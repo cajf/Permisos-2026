@@ -112,7 +112,17 @@ Las fechas de prueba de referencia son de 2026 y deben actualizarse al cambiar e
 - `docs/diagramas/`: SVG y fuentes Mermaid.
 - `docs/requerimientos.md`: decisiones funcionales confirmadas.
 - `database/schema.sql`: esquema operativo MySQL.
+- `database/legacy/mysql-users.sql`: estructura anterior de cuentas, para traslados históricos y pruebas de migración.
 - `database/legacy/sqlite-schema.sql`: compatibilidad exclusiva con la migración anterior.
+
+### Migrar una instalación existente a identidades normalizadas
+
+`persons` guarda la identidad y los datos de contacto. `users` conserva la cuenta de acceso con el mismo identificador. `person_employments` relaciona a la persona con su cargo, grado, vinculación y dependencia. `user_roles` relaciona cada cuenta con el catálogo `roles`. La vista `user_profiles` reúne estos datos para las consultas de la aplicación. Las solicitudes y constancias históricas conservan los datos capturados en su momento.
+
+1. Detenga el portal y los procesos que escriben en la base durante la actualización.
+2. Con credenciales administrativas, ejecute `php scripts/migrate.php --offline`. Para una base remota puede indicar `--config=RUTA_PRIVADA` con un archivo de configuración privado en `.work`. El comando verifica y guarda el respaldo previo en `storage/backups`.
+3. Si la migración señala un cargo o código incompatible, revise el catálogo y los datos de origen antes de reintentar. El proceso conserva las cuentas y sus contraseñas, y copia las relaciones antes de retirar las columnas redundantes.
+4. Inicie la versión actualizada y compruebe el inicio de sesión, el directorio y una solicitud histórica. Si necesita volver a la versión anterior después del cambio de esquema, restaure el respaldo en una base vacía y apunte a esa base con la versión anterior de la aplicación.
 - `php scripts/export-schema.php`: exporta solo metadatos MySQL para el diccionario y diagramas.
 
 ## Demostración en Internet y restauración

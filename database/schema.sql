@@ -19,23 +19,55 @@ CREATE TABLE IF NOT EXISTS job_grades (
  UNIQUE KEY uq_job_grade (job_id,grade),
  CONSTRAINT fk_grade_job FOREIGN KEY (job_id) REFERENCES jobs(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_bin;
-CREATE TABLE IF NOT EXISTS users (
+-- BEGIN IDENTITY
+CREATE TABLE IF NOT EXISTS persons (
  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
  name VARCHAR(180) NOT NULL, identification VARCHAR(180) NOT NULL UNIQUE,
- username VARCHAR(80) COLLATE utf8mb4_0900_as_ci NOT NULL UNIQUE,
- email VARCHAR(254) NOT NULL, password VARCHAR(255) NOT NULL, job_title VARCHAR(255) NOT NULL,
- code VARCHAR(180) NOT NULL DEFAULT '', grade VARCHAR(180) NOT NULL DEFAULT '',
- job_category VARCHAR(180) NOT NULL DEFAULT '',
- appointment_type VARCHAR(100) NOT NULL DEFAULT 'Carrera administrativa',
- department_id BIGINT UNSIGNED NOT NULL, manager_id BIGINT UNSIGNED NULL, deputy_manager_id BIGINT UNSIGNED NULL,
- high_rank VARCHAR(80) NOT NULL DEFAULT '', birth_date DATE NULL,
- roles LONGTEXT NOT NULL DEFAULT ('[]'), active TINYINT NOT NULL DEFAULT 1,
- force_password TINYINT NOT NULL DEFAULT 1, failures INT NOT NULL DEFAULT 0, locked_until DATETIME NULL,
- CONSTRAINT fk_users_department FOREIGN KEY (department_id) REFERENCES departments(id),
- CONSTRAINT fk_users_manager FOREIGN KEY (manager_id) REFERENCES users(id),
- CONSTRAINT fk_users_deputy FOREIGN KEY (deputy_manager_id) REFERENCES users(id),
- CHECK(JSON_VALID(roles)), CHECK(active IN (0,1)), CHECK(force_password IN (0,1))
+ email VARCHAR(254) NOT NULL, birth_date DATE NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_bin;
+CREATE TABLE IF NOT EXISTS users (
+ id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+ username VARCHAR(80) COLLATE utf8mb4_0900_as_ci NOT NULL UNIQUE, password VARCHAR(255) NOT NULL,
+ active TINYINT NOT NULL DEFAULT 1, force_password TINYINT NOT NULL DEFAULT 1,
+ failures INT NOT NULL DEFAULT 0, locked_until DATETIME NULL,
+ CONSTRAINT fk_users_person FOREIGN KEY (id) REFERENCES persons(id),
+ CHECK(active IN (0,1)), CHECK(force_password IN (0,1))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_bin;
+CREATE TABLE IF NOT EXISTS employment_types (
+ name VARCHAR(100) NOT NULL PRIMARY KEY
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_bin;
+INSERT INTO employment_types(name) VALUES
+ ('Carrera administrativa'),('Libre nombramiento y remoción'),('Provisional'),('Trabajador oficial')
+ ON DUPLICATE KEY UPDATE name=employment_types.name;
+CREATE TABLE IF NOT EXISTS roles (
+ code VARCHAR(30) NOT NULL PRIMARY KEY, name VARCHAR(100) NOT NULL UNIQUE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_bin;
+INSERT INTO roles(code,name) VALUES
+ ('employee','Funcionario'),('manager','Jefe inmediato'),('subsecretary','Subsecretario'),
+ ('mayor','Alcalde'),('payroll','Nómina'),('admin','Administrador de Talento Humano'),('superadmin','Superadministrador')
+ ON DUPLICATE KEY UPDATE name=roles.name;
+CREATE TABLE IF NOT EXISTS person_employments (
+ person_id BIGINT UNSIGNED NOT NULL PRIMARY KEY,
+ employment_type VARCHAR(100) NOT NULL,
+ department_id BIGINT UNSIGNED NOT NULL, job_id BIGINT UNSIGNED NOT NULL, grade VARCHAR(180) NULL,
+ manager_id BIGINT UNSIGNED NULL, deputy_manager_id BIGINT UNSIGNED NULL,
+ high_rank VARCHAR(80) NOT NULL DEFAULT '',
+ CONSTRAINT fk_employment_person FOREIGN KEY (person_id) REFERENCES persons(id),
+ CONSTRAINT fk_employment_type FOREIGN KEY (employment_type) REFERENCES employment_types(name),
+ CONSTRAINT fk_employment_department FOREIGN KEY (department_id) REFERENCES departments(id),
+ CONSTRAINT fk_employment_job FOREIGN KEY (job_id) REFERENCES jobs(id),
+ CONSTRAINT fk_employment_grade FOREIGN KEY (job_id,grade) REFERENCES job_grades(job_id,grade),
+ CONSTRAINT fk_employment_manager FOREIGN KEY (manager_id) REFERENCES users(id),
+ CONSTRAINT fk_employment_deputy FOREIGN KEY (deputy_manager_id) REFERENCES users(id),
+ CHECK(high_rank IN ('','Asesor de Despacho','Secretario de Despacho','Jefe de Oficina'))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_bin;
+CREATE TABLE IF NOT EXISTS user_roles (
+ user_id BIGINT UNSIGNED NOT NULL, role_code VARCHAR(30) NOT NULL,
+ PRIMARY KEY(user_id,role_code),
+ CONSTRAINT fk_membership_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+ CONSTRAINT fk_membership_role FOREIGN KEY (role_code) REFERENCES roles(code)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_bin;
+-- END IDENTITY
 CREATE TABLE IF NOT EXISTS settings (
  `key` VARCHAR(128) NOT NULL PRIMARY KEY, `value` LONGTEXT NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_bin;
@@ -155,3 +187,13 @@ CREATE TABLE IF NOT EXISTS app_locks (
  id INT NOT NULL PRIMARY KEY
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_bin;
 INSERT INTO app_locks(id) VALUES(1) ON DUPLICATE KEY UPDATE id=id;
+
+-- USER PROFILES
+CREATE OR REPLACE SQL SECURITY INVOKER VIEW user_profiles AS
+ SELECT u.id,p.name,p.identification,u.username,p.email,j.title AS job_title,j.code,
+        COALESCE(e.grade,'') AS grade,COALESCE(c.name,'') AS job_category,e.employment_type AS appointment_type,
+        e.department_id,e.manager_id,e.deputy_manager_id,e.high_rank,p.birth_date,
+        COALESCE((SELECT JSON_ARRAYAGG(ur.role_code) FROM user_roles ur WHERE ur.user_id=u.id),JSON_ARRAY()) AS roles,
+        u.active,u.force_password
+ FROM users u JOIN persons p ON p.id=u.id JOIN person_employments e ON e.person_id=p.id
+ JOIN jobs j ON j.id=e.job_id LEFT JOIN official_job_categories c ON c.id=j.official_category_id;

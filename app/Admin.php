@@ -4,7 +4,7 @@ declare(strict_types=1);
 function saveUser(array $actor,array $data,?int $id=null): void {
     requirePermission($actor,'users.edit');
     atomic(function() use($actor,$data,$id) {
-        $existing=$id?row('SELECT * FROM users WHERE id=?',[$id]):null;
+        $existing=$id?row('SELECT * FROM user_profiles WHERE id=?',[$id]):null;
         if ($id) ensure($existing!==null,'Funcionario no encontrado.');
         ensure(!$existing || !isSuperadmin($existing) || isSuperadmin($actor),'Solo un superadministrador puede modificar la cuenta de otro superadministrador.');
         $data=array_replace($data,resolveJob($data));
@@ -17,7 +17,7 @@ function saveUser(array $actor,array $data,?int $id=null): void {
         $newRoles=array_values(array_intersect($data['roles']??[],['admin','manager','subsecretary','mayor','payroll','superadmin']));
         ensure(!in_array('superadmin',$newRoles,true)||isSuperadmin($actor),'Solo un superadministrador puede asignar ese rol.');
         if(!can($actor,'users.roles'))$newRoles=$existing?roles($existing):[];
-        if($existing && isSuperadmin($existing) && (!in_array('superadmin',$newRoles,true)||!(int)($data['active']??1)))ensure((int)row("SELECT COUNT(*) n FROM users WHERE active=1 AND id<>? AND JSON_CONTAINS(roles,?)",[$id,json_encode('superadmin')])['n']>0,'Debe conservar al menos un superadministrador activo.');
+        if($existing && isSuperadmin($existing) && (!in_array('superadmin',$newRoles,true)||!(int)($data['active']??1)))ensure((int)row("SELECT COUNT(*) n FROM user_roles r JOIN users u ON u.id=r.user_id WHERE r.role_code='superadmin' AND u.active=1 AND u.id<>?",[$id])['n']>0,'Debe conservar al menos un superadministrador activo.');
         if ($existing) {
             $pendingRoles=array_column(rows("SELECT DISTINCT a.role FROM approvals a JOIN requests r ON r.id=a.request_id WHERE a.assigned_user_id=? AND a.status='waiting' AND r.status='pending' AND a.revision=r.revision",[$id]),'role');
             if (row("SELECT id FROM requests WHERE cancellation_assignee_id=? AND status='cancel_pending' LIMIT 1",[$id])) $pendingRoles[]='subsecretary';
@@ -28,15 +28,14 @@ function saveUser(array $actor,array $data,?int $id=null): void {
         ensure($birth==='' || (validDate($birth) && $birth<date('Y-m-d')),'La fecha de nacimiento debe ser válida y anterior a hoy.');
         ensure(in_array($data['high_rank']??'',['','Asesor de Despacho','Secretario de Despacho','Jefe de Oficina'],true),'Clasificación de alto rango no válida.');
         if ($id===(int)$actor['id'] && hasRole($actor,'admin')) ensure((in_array('admin',$newRoles,true)||in_array('superadmin',$newRoles,true)) && (int)($data['active']??0)===1,'No puede retirar su propio acceso de administrador.');
-        $manager=(int)($existing['manager_id']??0); $deputy=(int)($existing['deputy_manager_id']??0);
-        $values=[trim($data['name']),trim($data['identification']),trim($data['username']),trim($data['email']),trim($data['job_title']),trim($data['code']??''),trim($data['grade']??''),$data['appointment_type']??'Carrera administrativa',(int)$data['department_id'],$manager?:null,$deputy?:null,$data['high_rank']??'',json_encode($newRoles),(int)($data['active']??1)];
-        if ($id) run('UPDATE users SET name=?,identification=?,username=?,email=?,job_title=?,code=?,grade=?,appointment_type=?,department_id=?,manager_id=?,deputy_manager_id=?,high_rank=?,roles=?,active=? WHERE id=?',[...$values,$id]);
-        else {
+        $person=['name'=>trim($data['name']),'identification'=>trim($data['identification']),'email'=>trim($data['email']),'birth_date'=>$birth?:null];
+        $employment=['job_id'=>$data['job_id'],'grade'=>isOfficialWorker($data)?null:$data['grade'],'employment_type'=>$data['appointment_type']??'Carrera administrativa','department_id'=>(int)$data['department_id'],'high_rank'=>$data['high_rank']??''];
+        $account=['username'=>trim($data['username']),'active'=>(int)($data['active']??1)];
+        if (!$id) {
             $password=$data['initial_password']??''; validatePassword($password);
-            $keys=['name','identification','username','email','job_title','code','grade','appointment_type','department_id','manager_id','deputy_manager_id','high_rank','roles','active'];
-            $id=insert('users',array_combine($keys,$values)+['password'=>password_hash($password,PASSWORD_DEFAULT)]);
+            $account['password']=password_hash($password,PASSWORD_DEFAULT);
         }
-        run('UPDATE users SET birth_date=?,job_category=? WHERE id=?',[$birth?:null,$data['job_category'],$id]);
+        $id=saveUserIdentity($id,$person,$employment,$account,$newRoles);
         captureBalances((int)$id);
         (new Workflow())->refreshAssignments((int)$actor['id']);
         event((int)$actor['id'],'Funcionario actualizado','Funcionario '.$id);
@@ -83,22 +82,28 @@ function commitImport(array $actor,array $data): array {
             ensure(preg_match('/^[a-zA-Z0-9._@-]{3,80}$/D',$r['usuario'])===1,'Usuario no válido en la fila '.($i+2).'.');
             $rank=$r['alto_rango']??''; ensure(in_array($rank,['','Asesor de Despacho','Secretario de Despacho','Jefe de Oficina'],true),'Alto rango no válido en la fila '.($i+2).'.');
             run('INSERT INTO departments(name) VALUES(?) ON DUPLICATE KEY UPDATE name=name',[$r['dependencia']]); $dep=row('SELECT id FROM departments WHERE name=?',[$r['dependencia']]);
-            $old=row('SELECT * FROM users WHERE identification=?',[$r['cedula']]);
+            $old=row('SELECT * FROM user_profiles WHERE identification=?',[$r['cedula']]);
             ensure(!$old || !isSuperadmin($old) || isSuperadmin($actor),'La importación no puede modificar una cuenta de superadministrador.');
-            $fields=['name'=>$r['nombre'],'username'=>$r['usuario'],'email'=>$r['correo'],'job_title'=>$r['cargo'],'code'=>$r['codigo']??'','grade'=>$r['grado']??'','department_id'=>$dep['id'],'appointment_type'=>$r['vinculacion']??'Carrera administrativa','high_rank'=>$rank];
-            if ($old) { run('UPDATE users SET name=?,username=?,email=?,job_title=?,code=?,grade=?,department_id=?,appointment_type=?,high_rank=? WHERE id=?',[...array_values($fields),$old['id']]); $ids[$r['cedula']]=$old['id']; }
-            else { $pass='Inicio!'.bin2hex(random_bytes(6)); $ids[$r['cedula']]=insert('users',$fields+['identification'=>$r['cedula'],'password'=>password_hash($pass,PASSWORD_DEFAULT)]); $passwords[]=[$r['usuario'],$pass]; }
-            run('UPDATE users SET job_category=? WHERE id=?',[$job['job_category'],$ids[$r['cedula']]]);
+            $person=['name'=>$r['nombre'],'identification'=>$r['cedula'],'email'=>$r['correo']];
+            $type=$r['vinculacion']??'Carrera administrativa';
+            $employment=['job_id'=>$job['job_id'],'grade'=>$type==='Trabajador oficial'?null:$job['grade'],'employment_type'=>$type,'department_id'=>$dep['id'],'high_rank'=>$rank];
+            $account=['username'=>$r['usuario']];
+            if (!$old) {
+                $pass='Inicio!'.bin2hex(random_bytes(6));
+                $account['password']=password_hash($pass,PASSWORD_DEFAULT);
+                $passwords[]=[$r['usuario'],$pass];
+            }
             if (array_key_exists('fecha_nacimiento',$r) && $r['fecha_nacimiento']!=='') {
                 ensure(validDate($r['fecha_nacimiento']) && $r['fecha_nacimiento']<date('Y-m-d'),'Fecha de nacimiento no válida en la fila '.($i+2).'. Use AAAA-MM-DD.');
-                run('UPDATE users SET birth_date=? WHERE id=?',[$r['fecha_nacimiento'],$ids[$r['cedula']]]);
+                $person['birth_date']=$r['fecha_nacimiento'];
             }
+            $ids[$r['cedula']]=saveUserIdentity($old?(int)$old['id']:null,$person,$employment,$account);
         }
         foreach ($data as $r) {
-            $manager=$r['cedula_jefe']!==''?row('SELECT * FROM users WHERE identification=? AND active=1',[$r['cedula_jefe']]):null;
+            $manager=$r['cedula_jefe']!==''?row('SELECT * FROM user_profiles WHERE identification=? AND active=1',[$r['cedula_jefe']]):null;
             ensure($r['cedula_jefe']===''||$manager!==null,'No se encontró el jefe con cédula '.$r['cedula_jefe'].'. Importe también ese funcionario.');
-            if ($manager) { $roles=roles($manager); if (!in_array('manager',$roles,true)) { $roles[]='manager'; run('UPDATE users SET roles=? WHERE id=?',[json_encode($roles),$manager['id']]); } }
-            run('UPDATE users SET manager_id=? WHERE id=?',[$manager['id']??null,$ids[$r['cedula']]]);
+            if ($manager) run("INSERT INTO user_roles(user_id,role_code) VALUES(?,'manager') ON DUPLICATE KEY UPDATE role_code=user_roles.role_code",[$manager['id']]);
+            run('UPDATE person_employments SET manager_id=? WHERE person_id=?',[$manager['id']??null,$ids[$r['cedula']]]);
         }
         foreach ($ids as $userId) captureBalances((int)$userId);
         (new Workflow())->refreshAssignments((int)$actor['id']); event((int)$actor['id'],'Importación de funcionarios',count($data).' registros');

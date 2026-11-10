@@ -5,6 +5,7 @@ require __DIR__.'/../app/bootstrap.php';
 try {
     $connection=db();
     ensure(tableExists('users') && tableExists('app_locks'),'Falta inicializar el esquema. Consulte las instrucciones de instalacion.');
+    ensure(tableExists('user_profiles'),'Ejecute la migración de identidades antes de iniciar la aplicación.');
     ensure($connection->query('SELECT id FROM app_locks WHERE id=1')->fetchColumn()!==false,'Falta inicializar el control de transacciones.');
     echo 'Conexion MySQL verificada en '.$GLOBALS['config']['mysql']['host'].':'.(int)$GLOBALS['config']['mysql']['port'].".\n";
 } catch (Throwable $error) {

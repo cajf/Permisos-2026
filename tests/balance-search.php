@@ -3,7 +3,7 @@ $day=date('Y-m-d');$input=['from'=>$day,'to'=>$day,'department'=>'all'];
 $data=json_encode(['name'=>'María Pérez Gómez','types'=>[],'quotas'=>[],'acts'=>[]]);
 foreach([1,2] as $id)insert('balance_snapshots',['user_id'=>$id,'department_id'=>1,'created_at'=>$day.' 08:00:00','data'=>$data]);
 check(count(searchBalanceSnapshots(person(5),$input)['items'])===2,'Administrador consulta saldos del intervalo');
-run("UPDATE users SET roles='[\"subsecretary\"]' WHERE id=3");
+atomic(fn()=>replaceUserRoles(3,['subsecretary']));
 check(balanceScope(person(3),$day)['all']&&canFilterBalanceDepartment(person(3)),'Subsecretario sin rol adicional de jefe obtiene alcance institucional y filtros');
 check(count(searchBalanceSnapshots(person(3),$input)['items'])===2,'Subsecretario consulta funcionarios de otras dependencias sin designación de jefe');
 check(count(searchBalanceSnapshots(person(3),$input+['name'=>'perez'])['items'])===2,'Subsecretario puede buscar por nombres y apellidos');
@@ -25,14 +25,14 @@ check(count(searchBalanceSnapshots(person(2),$input)['items'])===2,'Jefe consult
 insert('balance_snapshots',['user_id'=>1,'department_id'=>1,'created_at'=>$day.' 09:00:00','data'=>$data]);
 check(count(searchBalanceSnapshots(person(5),$input)['items'])===2,'Múltiples movimientos no duplican al funcionario');
 check(searchBalanceSnapshots(person(5),$input)['items'][0]['created_at']===$day.' 09:00:00','Selecciona el último saldo del intervalo');
-insert('departments',['name'=>'Dependencia de traslado']);run('UPDATE users SET department_id=2 WHERE id=1');
+insert('departments',['name'=>'Dependencia de traslado']);run('UPDATE person_employments SET department_id=2 WHERE person_id=1');
 insert('balance_snapshots',['user_id'=>1,'department_id'=>2,'created_at'=>$day.' 11:00:00','data'=>$data]);
 $personal=searchBalanceSnapshots(person(1),array_replace($input,['department'=>'1']));
 check(count($personal['items'])===1&&(int)$personal['items'][0]['department_id']===2,'Traslado no oculta el saldo personal aunque el enlace conserve dependencia anterior');
 check(count(searchBalanceSnapshots(person(3),array_replace($input,['department'=>'2']))['items'])===1,'Subsecretario puede seleccionar otra dependencia');
 check(count(searchBalanceSnapshots(person(2),array_replace($input,['department'=>'2']))['items'])===0,'Acceso institucional no se extiende al jefe de otra dependencia');
 for($i=0;$i<22;$i++){
- $id=insert('users',['name'=>'Prueba paginación '.$i,'username'=>'balance'.$i,'identification'=>'BAL-'.$i,'email'=>'b'.$i.'@ejemplo.invalid','job_title'=>'Prueba','password'=>'sin-acceso','department_id'=>1,'roles'=>'[]']);
+ $id=fixtureUser(['name'=>'Prueba paginación '.$i,'username'=>'balance'.$i,'identification'=>'BAL-'.$i,'email'=>'b'.$i.'@ejemplo.invalid','job_title'=>'Prueba','password'=>'sin-acceso','department_id'=>1,'roles'=>'[]']);
  insert('balance_snapshots',['user_id'=>$id,'department_id'=>1,'created_at'=>$day.' 10:00:00','data'=>$data]);
 }
 $first=searchBalanceSnapshots(person(5),$input);$second=searchBalanceSnapshots(person(5),$input+['results_page'=>2]);

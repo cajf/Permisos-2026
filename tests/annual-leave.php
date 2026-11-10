@@ -7,15 +7,16 @@ installMysqlSchema(db());
 insert('departments',['name'=>'Dependencia de prueba']);
 foreach (['[]','["manager"]','["subsecretary"]','["admin"]'] as $index=>$roles) {
     $id=$index+1;
-    insert('users',['name'=>"Persona $id",'identification'=>"PR-$id",'username'=>"pr$id",'email'=>"pr$id@example.invalid",'password'=>'unused','job_title'=>'Prueba','department_id'=>1,'roles'=>$roles,'active'=>1,'force_password'=>0]);
+    fixtureUser(['name'=>"Persona $id",'identification'=>"PR-$id",'username'=>"pr$id",'email'=>"pr$id@example.invalid",'password'=>'unused','job_title'=>'Prueba','department_id'=>1,'roles'=>$roles,'active'=>1,'force_password'=>0]);
 }
-run("UPDATE users SET manager_id=2,birth_date='1990-12-12' WHERE id=1");
+run("UPDATE person_employments SET manager_id=2 WHERE person_id=1");
 setSetting('subsecretary_id','3');
 foreach (require ROOT.'/database/catalog.php' as $category) {
     insert('categories',array_combine(['family','name','slug','supports','max_minutes','policy_confirmed','notes'],$category)+['supports_required'=>0]);
 }
-$employee=row("SELECT * FROM users WHERE id=1");
-$admin=row("SELECT * FROM users WHERE id=4");
+run("UPDATE persons SET birth_date='1990-12-12' WHERE id=1");
+$employee=row("SELECT * FROM user_profiles WHERE id=1");
+$admin=row("SELECT * FROM user_profiles WHERE id=4");
 $workflow=new Workflow();
 $clock=new DateTimeImmutable('2026-11-09 08:00:00');
 $categories=array_column(rows('SELECT * FROM categories'),null,'slug');

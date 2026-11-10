@@ -20,7 +20,7 @@ refuses(fn()=>saveUser(person(5),array_replace(person(8),['code'=>'ERROR','roles
 saveJob(person(5),['job_id'=>$job,'title'=>'Profesional','code'=>'219']);
 check(person(8)['code']==='219' && row('SELECT snapshot FROM requests WHERE user_id=8 LIMIT 1')===$snapshot,'Editar el catálogo actualiza el funcionario y preserva las solicitudes históricas');
 refuses(fn()=>commitImport(person(5),[['cedula'=>'INVALID-CATALOG','nombre'=>'Dato inválido','usuario'=>'invalid.catalog','correo'=>'x@ejemplo.invalid','cargo'=>'No existe','codigo'=>'1','grado'=>'1','dependencia'=>'Dependencia de prueba','cedula_jefe'=>'']]),'Excel exige cargos y grados previamente registrados');
-check(row('SELECT id FROM users WHERE identification=?',['INVALID-CATALOG'])===null,'Una importación inválida no deja registros parciales');
+check(row('SELECT id FROM user_profiles WHERE identification=?',['INVALID-CATALOG'])===null,'Una importación inválida no deja registros parciales');
 
 // Mismos rechazos por la ruta individual y masiva, en ambas etapas, y continuidad del lote.
 run("UPDATE categories SET supports_required=0 WHERE slug='academico'");

@@ -3,6 +3,8 @@ $testRoot = Split-Path -Parent $PSScriptRoot
 Set-Location -LiteralPath $testRoot
 $testPhp = Join-Path $testRoot '.runtime\php\php.exe'
 $testIni = Join-Path $testRoot '.runtime\php\php.ini'
+& $testPhp -c $testIni tests/normalize-identity.php
+if ($LASTEXITCODE -ne 0) { throw 'Falló la migración de identidades a tercera forma normal.' }
 & $testPhp -c $testIni -d display_errors=1 tests/core.php
 if ($LASTEXITCODE -ne 0) { throw 'Fallaron las comprobaciones funcionales.' }
 & $testPhp -c $testIni -d display_errors=1 tests/jury-run.php

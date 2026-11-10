@@ -53,11 +53,11 @@ function roles(array $u): array { return json_decode($u['roles'],true,512,JSON_T
 function hasRole(array $u,string $role): bool { return in_array($role,roles($u),true); }
 function event(int $actor, string $action, string $detail, ?int $request=null): void { insert('events',['actor_id'=>$actor,'request_id'=>$request,'action'=>$action,'detail'=>$detail,'created_at'=>now()]); }
 function notify(int $userId,string $subject,string $body): void {
-    $u=row('SELECT * FROM users WHERE id=?',[$userId]);
+    $u=row('SELECT * FROM user_profiles WHERE id=?',[$userId]);
     if ($u) insert('outbox',['recipient'=>$u['email'],'subject'=>$subject,'body'=>$body,"created_at"=>now()]);
 }
 function user(): array {
-    $u=row('SELECT u.*,d.name department FROM users u JOIN departments d ON d.id=u.department_id WHERE u.id=? AND active=1',[(int)($_SESSION['uid']??0)]);
+    $u=row('SELECT u.*,d.name department FROM user_profiles u JOIN departments d ON d.id=u.department_id WHERE u.id=? AND active=1',[(int)($_SESSION['uid']??0)]);
     if (!$u) { header('Location: /?page=login'); exit; }
     return $u;
 }
@@ -75,6 +75,7 @@ require_once __DIR__.'/Files.php';
 require_once __DIR__.'/ElectoralCertificate.php';
 require_once __DIR__.'/Designations.php';
 require_once __DIR__.'/JobCatalog.php';
+require_once __DIR__.'/UserIdentity.php';
 require_once __DIR__.'/Analytics.php';
 require_once __DIR__ . '/Listings.php';
 require_once __DIR__ . '/NotificationMail.php';

@@ -10,7 +10,7 @@ assert((int)row('SELECT COUNT(*) n FROM users')['n']===6);
 assert((int)row('SELECT COUNT(*) n FROM departments')['n']===3);
 assert((int)row('SELECT COUNT(*) n FROM categories')['n']===17);
 $generation=setting('session_generation');
-foreach (rows('SELECT * FROM users') as $person) {
+foreach (rows('SELECT p.*,u.password FROM user_profiles p JOIN users u ON u.id=p.id') as $person) {
     assert(password_verify($credentials[$person['username']],$person['password']));
     assert((int)$person['force_password']===1);
     assert($person['identification']==='DEMO-'.$person['id']);

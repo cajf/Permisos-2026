@@ -10,7 +10,7 @@ function createMysqlBackup(PDO $pdo,string $uploads,string $destination): array 
     try {
         $pdo->query('SELECT id FROM app_locks WHERE id=1 FOR UPDATE')->fetchColumn();
         fwrite($handle,"SET NAMES utf8mb4;\nSET FOREIGN_KEY_CHECKS=0;\nSET SQL_MODE=".$pdo->quote($pdo->query('SELECT @@SESSION.sql_mode')->fetchColumn()).";\n");
-        foreach (array_merge(applicationTables(),['app_locks']) as $table) {
+        foreach (array_merge(applicationTables(legacyUserSchema($pdo)),['app_locks']) as $table) {
             if (in_array($table,['attachment_contents','official_job_categories','jobs','job_grades'],true) && !tableExists($table,$pdo)) continue;
             $quoted=mysqlIdentifier($table);$create=$pdo->query('SHOW CREATE TABLE '.$quoted)->fetch(PDO::FETCH_NUM)[1];
             fwrite($handle,$create.";\n");
@@ -22,6 +22,10 @@ function createMysqlBackup(PDO $pdo,string $uploads,string $destination): array 
                 $values=implode(',',array_map(fn($value)=>$value===null?'NULL':$pdo->quote((string)$value),array_values($record)));
                 fwrite($handle,'INSERT INTO '.$quoted.' ('.$columns.') VALUES('.$values.");\n");
             }
+        }
+        if (!legacyUserSchema($pdo)) {
+            [,,, $profiles]=mysqlSchemaParts();
+            fwrite($handle,$profiles."\n");
         }
         foreach ($pdo->query('SELECT id,stored_name,sha256,size FROM attachments')->fetchAll() as $file) {
             $name=$file['stored_name'];if (!preg_match('/^[A-Za-z0-9_-]{1,120}$/D',$name)) throw new RuntimeException('Nombre interno de soporte inválido.');

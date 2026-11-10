@@ -6,8 +6,9 @@ $suffix=bin2hex(random_bytes(5));$name='permisos_test_'.$suffix;$username='th_te
 $admin->exec('CREATE DATABASE '.mysqlIdentifier($name).' CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_bin');
 $account=$admin->quote($username)."@'127.0.0.1'";
 $admin->exec('CREATE USER '.$account.' IDENTIFIED BY '.$admin->quote($password));
-$admin->exec('GRANT SELECT,INSERT,UPDATE,DELETE,CREATE,ALTER,INDEX,DROP,REFERENCES ON '.mysqlIdentifier($name).'.* TO '.$account);
+$admin->exec('GRANT SELECT,INSERT,UPDATE,DELETE,CREATE,ALTER,INDEX,DROP,REFERENCES,CREATE VIEW ON '.mysqlIdentifier($name).'.* TO '.$account);
 $configuration=['mysql'=>array_replace($adminConfig,['database'=>$name,'username'=>$username,'password'=>$password]),'uploads'=>$project.'/.work/uploads-'.$suffix,'access_file'=>$project.'/.work/access-'.$suffix.'.txt','attachment_storage'=>getenv('APP_TEST_ATTACHMENT_STORAGE')?:'filesystem'];
 $path=$project.'/.work/mysql-test-'.$suffix.'.php';file_put_contents($path,"<?php\nreturn ".var_export($configuration,true).";\n");
 putenv('APP_TESTING=1');putenv('APP_DATABASE_CONFIG='.$path);
 $GLOBALS['test_configuration_file']=$path;
+require_once __DIR__.'/user-fixtures.php';

@@ -38,7 +38,7 @@ $originalOcr=$GLOBALS['config']['electoral_ocr'];$GLOBALS['config']['electoral_o
 $fallback=ElectoralCertificate::readFiles([$file]);
 check($fallback['status']==='manual' && count($fallback['reasons'])>0,'Ausencia del motor genera revisión manual sin excepción de registro');
 $GLOBALS['config']['electoral_ocr']=$originalOcr;
-$uid=insert('users',['name'=>'Solicitante electoral ficticio','identification'=>'1234567890','username'=>'electoral.qa','email'=>'electoral@ejemplo.invalid','password'=>password_hash('PruebaLocal!9876',PASSWORD_DEFAULT),'job_title'=>'Profesional','department_id'=>1,'manager_id'=>2,'roles'=>'[]','force_password'=>0]);
+$uid=fixtureUser(['name'=>'Solicitante electoral ficticio','identification'=>'1234567890','username'=>'electoral.qa','email'=>'electoral@ejemplo.invalid','password'=>password_hash('PruebaLocal!9876',PASSWORD_DEFAULT),'job_title'=>'Profesional','department_id'=>1,'manager_id'=>2,'roles'=>'[]','force_password'=>0]);
 $input=['category_id'=>cat('sufragar')['id'],'slots'=>[slot('2026-11-17','07:30','08:30')],'justification'=>'Prueba aislada de certificado electoral','exception_reason'=>'Excepción de prueba funcional'];
 $GLOBALS['config']['electoral_ocr']['tesseract']=ROOT.'/.work/motor-inexistente.exe';
 // Sin archivos temporales inventados: en modo mysql se conserva el original de muestra.

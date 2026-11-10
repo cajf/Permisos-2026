@@ -8,7 +8,7 @@ final class Workflow {
         $designation=in_array($role,['manager','subsecretary'],true)?designation($role,$role==='manager'?(int)$owner['department_id']:null,$date):null;
         $id=$designation?(int)$designation['user_id']:($role==='manager'?(int)$owner['manager_id']:(int)setting($role.'_id'));
         if ($id===(int)$owner['id']) $id=$designation?(int)$designation['alternate_id']:($role==='manager'?(int)$owner['deputy_manager_id']:(int)setting($role.'_alternate_id'));
-        $u=row('SELECT * FROM users WHERE id=? AND active=1',[$id]);
+        $u=row('SELECT * FROM user_profiles WHERE id=? AND active=1',[$id]);
         ensure($u!==null && hasRole($u,$role) && $id!==(int)$owner['id'],'Falta un aprobador activo o suplente válido para el rol '.['manager'=>'jefe inmediato','subsecretary'=>'subsecretario','mayor'=>'alcalde'][$role].'. Talento Humano debe configurar la asignación.');
         return $id;
     }
@@ -201,13 +201,13 @@ final class Workflow {
             $id=insert('acts',['user_id'=>$u['id'],'number'=>$number,'issued_on'=>$issued,'expires_on'=>$expires,'granted_minutes'=>self::hourInput($input['hours']??''),'created_at'=>now()]);
             saveUploads($files,(int)$u['id'],null,$id);
             event((int)$u['id'],'Acto registrado','Acto '.$id.' · '.$number);
-            foreach (rows('SELECT * FROM users WHERE active=1') as $admin) if (hasRole($admin,'payroll') && $admin['id']!==$u['id']) notify((int)$admin['id'],'Acto administrativo por revisar','Hay un acto administrativo pendiente de validación por Nómina.');
+            foreach (rows('SELECT * FROM user_profiles WHERE active=1') as $admin) if (hasRole($admin,'payroll') && $admin['id']!==$u['id']) notify((int)$admin['id'],'Acto administrativo por revisar','Hay un acto administrativo pendiente de validación por Nómina.');
             return $id;
         });
     }
     public function reviewAct(array $admin,int $id,string $decision,string $comment): void {
         authorizeAction($admin,'review_act',['decision'=>$decision]);
-        $current=row('SELECT * FROM users WHERE id=? AND active=1',[$admin['id']]);
+        $current=row('SELECT * FROM user_profiles WHERE id=? AND active=1',[$admin['id']]);
         ensure($current!==null && (hasRole($current,'payroll')||isSuperadmin($current)),'La validación de actos administrativos requiere el rol de Nómina.');
         atomic(function() use($admin,$id,$decision,$comment) {
             $act=row('SELECT * FROM acts WHERE id=?',[$id]);
@@ -232,7 +232,7 @@ final class Workflow {
             ensure($r && $r['status']==='pending','La solicitud no está pendiente de aprobación.');
             $step=row("SELECT * FROM approvals WHERE request_id=? AND revision=? AND status='waiting' ORDER BY step LIMIT 1",[$id,$r['revision']]);
             ensure($step && (int)$step['assigned_user_id']===(int)$actor['id'] && hasRole($actor,$step['role']) && (int)$r['user_id']!==(int)$actor['id'],'No le corresponde revisar esta etapa.');
-            $currentActor=row('SELECT * FROM users WHERE id=? AND active=1',[$actor['id']]);
+            $currentActor=row('SELECT * FROM user_profiles WHERE id=? AND active=1',[$actor['id']]);
             ensure($currentActor!==null && hasRole($currentActor,$step['role']),'Su cuenta debe estar activa y conservar el rol de la etapa pendiente.');
             if ($step['designation_id']) {
                 $assignment=row('SELECT * FROM designations WHERE id=?',[$step['designation_id']]);
@@ -241,7 +241,7 @@ final class Workflow {
             if ($bulkApprovalId!==null) {
                 ensure((int)$step['id']===$bulkApprovalId,'La etapa cambió o ya fue revisada. Actualice la bandeja.');
                 ensure(in_array($step['role'],['manager','subsecretary'],true),'La aprobación masiva solo está disponible para jefe inmediato y subsecretario.');
-                $currentActor=row('SELECT * FROM users WHERE id=? AND active=1',[$actor['id']]);
+                $currentActor=row('SELECT * FROM user_profiles WHERE id=? AND active=1',[$actor['id']]);
                 ensure($currentActor!==null && hasRole($currentActor,$step['role']),'Su rol de aprobación cambió. Actualice la sesión.');
             }
             ensure(in_array($decision,['approved','returned','rejected'],true),'Decisión no válida.');
@@ -385,7 +385,7 @@ final class Workflow {
         atomic(function() use($actor,$id,$approve,$comment,$clock) {
             $r=row('SELECT * FROM requests WHERE id=?',[$id]);
             ensure($r && $r['status']==='cancel_pending','No hay una cancelación pendiente.');
-            $owner=row('SELECT * FROM users WHERE id=?',[$r['user_id']]);
+            $owner=row('SELECT * FROM user_profiles WHERE id=?',[$r['user_id']]);
             ensure((int)$actor['id']===(int)$r['cancellation_assignee_id'] && hasRole($actor,'subsecretary'),'Solo el subsecretario asignado al solicitar la cancelación puede resolverla.');
             ensure(mb_strlen(trim($comment))>=5,'Registre el motivo de su decisión.');
             if ($approve) {
@@ -405,7 +405,7 @@ final class Workflow {
     public function refreshAssignments(int $admin): void {
         foreach (rows("SELECT a.*,r.user_id FROM approvals a JOIN requests r ON r.id=a.request_id WHERE a.status='waiting' AND r.status='pending' AND a.revision=r.revision") as $a) {
             if (in_array($a['role'],['manager','subsecretary'],true)) continue; // Cada radicación conserva sus responsables, incluso tras el relevo.
-            $owner=row('SELECT * FROM users WHERE id=?',[$a['user_id']]); $new=$this->approver($a['role'],$owner);
+            $owner=row('SELECT * FROM user_profiles WHERE id=?',[$a['user_id']]); $new=$this->approver($a['role'],$owner);
             if ($new!==(int)$a['assigned_user_id']) {
                 run('UPDATE approvals SET assigned_user_id=? WHERE id=?',[$new,$a['id']]);
                 event($admin,'Aprobador actualizado','Etapa '.roleLabel($a['role']).' · '.$a['assigned_user_id'].' → '.$new,(int)$a['request_id']);

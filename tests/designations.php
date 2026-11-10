@@ -3,7 +3,7 @@ declare(strict_types=1);
 // Se ejecuta desde core.php sobre su base aislada; no modifica el directorio real.
 $departmentA=insert('departments',['name'=>'Dependencia con relevo QA']);
 $departmentB=insert('departments',['name'=>'Segunda dependencia QA']);
-foreach ([['qa9','Funcionario diciembre','[]','1988-12-20'],['qa10','Jefe saliente','["manager"]',null],['qa11','Jefe entrante','["manager"]',null],['qa12','Nómina QA','["payroll"]',null],['qa13','Subsecretario entrante','["subsecretary"]',null],['qa14','Funcionario junio','[]','1988-06-20']] as $p) insert('users',['username'=>$p[0],'name'=>$p[1],'identification'=>'ADICIONAL-'.$p[0],'email'=>$p[0].'@ejemplo.invalid','password'=>password_hash('PruebaLocal!9876',PASSWORD_DEFAULT),'job_title'=>$p[1],'department_id'=>$departmentA,'manager_id'=>2,'roles'=>$p[2],'birth_date'=>$p[3],'force_password'=>0]);
+foreach ([['qa9','Funcionario diciembre','[]','1988-12-20'],['qa10','Jefe saliente','["manager"]',null],['qa11','Jefe entrante','["manager"]',null],['qa12','Nómina QA','["payroll"]',null],['qa13','Subsecretario entrante','["subsecretary"]',null],['qa14','Funcionario junio','[]','1988-06-20']] as $p) fixtureUser(['username'=>$p[0],'name'=>$p[1],'identification'=>'ADICIONAL-'.$p[0],'email'=>$p[0].'@ejemplo.invalid','password'=>password_hash('PruebaLocal!9876',PASSWORD_DEFAULT),'job_title'=>$p[1],'department_id'=>$departmentA,'manager_id'=>2,'roles'=>$p[2],'birth_date'=>$p[3],'force_password'=>0]);
 $today=date('Y-m-d');$tomorrow=date('Y-m-d',strtotime('+1 day'));
 refuses(fn()=>saveDesignation(person(8),['role'=>'manager','user_id'=>10,'start_date'=>$today,'department_ids'=>[$departmentA]]),'Solo Talento Humano registra designaciones');
 saveDesignation(person(5),['role'=>'manager','user_id'=>10,'alternate_id'=>7,'start_date'=>$today,'department_ids'=>[$departmentA,$departmentB]]);
@@ -77,9 +77,9 @@ refuses(fn()=>$wf->submit(person(9),$late,[],null,new DateTimeImmutable($today.'
 refuses(fn()=>$wf->submit(person(14),$carry,[],null,new DateTimeImmutable($today.' 06:00')),'Un nacimiento distinto de diciembre no traslada el beneficio al siguiente año');
 $partial=$duplicateBirthday;$partial['slots']=[slot('2026-12-09','07:30','08:30')];
 refuses(fn()=>$wf->submit(person(14),$partial,[],null,new DateTimeImmutable($today.' 06:00')),'Cumpleaños no se solicita por horas');
-run('UPDATE users SET birth_date=NULL WHERE id=14');
+run('UPDATE persons SET birth_date=NULL WHERE id=14');
 refuses(fn()=>$wf->submit(person(14),$duplicateBirthday,[],null,new DateTimeImmutable($today.' 06:00')),'No se valida Cumpleaños sin fecha de nacimiento');
-run("UPDATE users SET birth_date='1988-06-20' WHERE id=14");
+run("UPDATE persons SET birth_date='1988-06-20' WHERE id=14");
 $partialId=$wf->submit(person(14),$duplicateBirthday,[],null,new DateTimeImmutable($today.' 06:00'));
 $wf->review(person(11),$partialId,'approved','Jefe autoriza');$wf->review(person(13),$partialId,'approved','Subsecretario autoriza');$wf->cancel(person(14),$partialId,'Cancela parcialmente el día');
 $wf->reviewCancellation(person(13),$partialId,true,'Se disfrutó parte de la jornada',new DateTimeImmutable('2026-12-07 08:30'));

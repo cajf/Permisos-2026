@@ -5,15 +5,15 @@ require __DIR__.'/../app/bootstrap.php';require ROOT.'/app/Admin.php';require RO
 installMysqlSchema(db());
 require_once ROOT.'/app/LegacySqlite.php';
 insert('departments',['name'=>'Dependencia de prueba']);
-foreach ([['Funcionario','[]',''],['Jefe','["manager"]',''],['Subsecretario','["subsecretary","manager"]',''],['Alcalde','["mayor","manager"]',''],['Administrador','["admin","payroll"]',''],['Asesor','[]','Asesor de Despacho'],['Otro administrador','["admin","manager"]',''],['Otro funcionario','[]','']] as $i=>$p) insert('users',['name'=>$p[0],'identification'=>'PRUEBA-'.($i+1),'username'=>'qa'.($i+1),'email'=>'qa'.($i+1).'@ejemplo.invalid','password'=>password_hash('PruebaLocal!9876',PASSWORD_DEFAULT),'job_title'=>$p[0],'department_id'=>1,'manager_id'=>null,'roles'=>$p[1],'high_rank'=>$p[2],'force_password'=>0]);
-run('UPDATE users SET manager_id=2');
+foreach ([['Funcionario','[]',''],['Jefe','["manager"]',''],['Subsecretario','["subsecretary","manager"]',''],['Alcalde','["mayor","manager"]',''],['Administrador','["admin","payroll"]',''],['Asesor','[]','Asesor de Despacho'],['Otro administrador','["admin","manager"]',''],['Otro funcionario','[]','']] as $i=>$p) fixtureUser(['name'=>$p[0],'identification'=>'PRUEBA-'.($i+1),'username'=>'qa'.($i+1),'email'=>'qa'.($i+1).'@ejemplo.invalid','password'=>password_hash('PruebaLocal!9876',PASSWORD_DEFAULT),'job_title'=>$p[0],'department_id'=>1,'manager_id'=>null,'roles'=>$p[1],'high_rank'=>$p[2],'force_password'=>0]);
+run('UPDATE person_employments SET manager_id=2');
 setSetting('subsecretary_id','3');setSetting('mayor_id','4');
 foreach(require ROOT.'/database/catalog.php' as $c)insert('categories',array_combine(['family','name','slug','supports','max_minutes','policy_confirmed','notes'],$c));
 for($y=2026;$y<=2028;$y++)foreach(nationalHolidays($y)as $date=>$name)run('INSERT INTO holidays(date,name)VALUES(?,?) ON DUPLICATE KEY UPDATE name=name',[$date,$name]);
 $wf=new Workflow();$checks=0;
 function check(bool $condition,string $label):void{global $checks;ensure($condition,'FALLO: '.$label);$checks++;echo 'OK '.$label."\n";}
 function refuses(callable $fn,string $label):void{try{$fn();}catch(DomainException){check(true,$label);return;}throw new RuntimeException('FALLO: '.$label);}
-function person(int $id):array{return row('SELECT u.*,d.name department FROM users u JOIN departments d ON d.id=u.department_id WHERE u.id=?',[$id]);}
+function person(int $id):array{return row('SELECT u.*,d.name department FROM user_profiles u JOIN departments d ON d.id=u.department_id WHERE u.id=?',[$id]);}
 function cat(string $slug):array{return row('SELECT * FROM categories WHERE slug=?',[$slug]);}
 function testSubmit(int $uid,string $slug,array $slots,array $allocations=[],?DateTimeImmutable $clock=null):int{
  global $wf;$u=person($uid);$c=cat($slug);
@@ -39,7 +39,7 @@ check(array_column($wf->route(person(6),cat('ordinario'),60),'role')===['mayor']
 check(array_column($wf->route(person(6),cat('sufragar'),60),'role')===['manager','subsecretary'],'Alto rango: compensatorio mantiene dos etapas');
 check(array_column($wf->route(person(6),cat('matrimonio'),60),'role')===['manager','subsecretary'],'Alto rango: licencia mantiene dos etapas');
 refuses(fn()=>$wf->route(person(2),cat('ordinario'),60),'No permite autoaprobación sin suplente');
-run('UPDATE users SET deputy_manager_id=7 WHERE id=2');check($wf->route(person(2),cat('ordinario'),60)[0]['assigned_user_id']===7,'Suplente explícito evita autoaprobación');
+run('UPDATE person_employments SET deputy_manager_id=7 WHERE person_id=2');check($wf->route(person(2),cat('ordinario'),60)[0]['assigned_user_id']===7,'Suplente explícito evita autoaprobación');
 refuses(fn()=>$cal->slots([slot('2026-10-27','07:30','09:00'),slot('2026-10-27','08:00','10:00')],new DateTimeImmutable('2026-10-26')),'Rechaza franjas superpuestas');
 $short=testSubmit(1,'ordinario',[slot('2026-11-03','07:30','09:30')]);
 check($wf->quota(1,'2026-2')===120,'Permiso corto reserva el cupo semestral');
@@ -71,7 +71,7 @@ check($wf->available(row('SELECT * FROM acts WHERE id=?',[$act]))===450,'El sald
 $expired=insert('acts',['user_id'=>1,'number'=>'VIGENCIA-QA','issued_on'=>'2026-01-01','expires_on'=>'2026-11-10','granted_minutes'=>510,'status'=>'approved','created_at'=>now()]);
 refuses(fn()=>testSubmit(1,'acto',[slot('2026-11-12','07:30','08:30')],[['id'=>$expired,'hours'=>'1']]),'Vencimiento aplica a las fechas de disfrute');
 $rejected=testSubmit(1,'acto',[slot('2026-11-13','07:00','08:00')],[['id'=>$act,'hours'=>'1']]);$wf->review(person(2),$rejected,'rejected','Soporte no válido');check($wf->available(row('SELECT * FROM acts WHERE id=?',[$act]))===450,'Rechazo libera reserva del acto');
-$pending=testSubmit(1,'academico',[slot('2026-11-17','07:30','08:30')]);run('UPDATE users SET manager_id=7 WHERE id=1');atomic(fn()=>$wf->refreshAssignments(5));check((int)row("SELECT assigned_user_id FROM approvals WHERE request_id=? AND step=1",[$pending])['assigned_user_id']===2,'Cambio de jefe conserva las etapas pendientes con el responsable original');
+$pending=testSubmit(1,'academico',[slot('2026-11-17','07:30','08:30')]);run('UPDATE person_employments SET manager_id=7 WHERE person_id=1');atomic(fn()=>$wf->refreshAssignments(5));check((int)row("SELECT assigned_user_id FROM approvals WHERE request_id=? AND step=1",[$pending])['assigned_user_id']===2,'Cambio de jefe conserva las etapas pendientes con el responsable original');
 check((int)row('SELECT acted_by FROM approvals WHERE request_id=?',[$short])['acted_by']===2,'Cambio de jefe conserva actuaciones históricas');
 $temp=['name'=>'Extensión QA','start_date'=>'2026-12-01','end_date'=>'2026-12-02','periods'=>[]];for($d=1;$d<=5;$d++)$temp['periods'][$d]=[['07:30','12:00'],['13:00','18:00']];saveSchedule(person(5),$temp);check($cal->minutes('2026-12-01','07:30','18:00')===570,'Horario temporal amplía la jornada efectiva');
 check($cal->minutes('2026-12-03','07:30','17:00')===510,'Fuera de vigencia se recupera horario base');
@@ -126,7 +126,7 @@ $wf->approveMany(person(7),[approvalId($bulkComp)]);
 check(row('SELECT state FROM allocations WHERE request_id=?',[$bulkComp])['state']==='reserved','Primera etapa masiva conserva la reserva del acto');
 $wf->approveMany(person(3),[approvalId($bulkComp,2)]);
 check(row('SELECT state FROM allocations WHERE request_id=?',[$bulkComp])['state']==='consumed','Aprobación final masiva descuenta definitivamente el acto');
-run('UPDATE users SET manager_id=3 WHERE id=1');
+run('UPDATE person_employments SET manager_id=3 WHERE person_id=1');
 $dual=testSubmit(1,'academico',[slot('2026-12-30','10:00','11:00')]);
 $firstDual=approvalId($dual);$wf->approveMany(person(3),[$firstDual]);$stale=$wf->approveMany(person(3),[$firstDual]);
 check(count($stale['failed'])===1 && row('SELECT status FROM requests WHERE id=?',[$dual])['status']==='pending','Un doble envío no aprueba la etapa siguiente aunque el usuario tenga ambos roles');

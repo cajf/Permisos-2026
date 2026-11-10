@@ -28,8 +28,24 @@ function tableExists(string $table,?PDO $pdo=null): bool {
 function mysqlIdentifier(string $name): string {
     if (!preg_match('/^[A-Za-z_][A-Za-z0-9_]*$/D',$name)) throw new RuntimeException('Identificador SQL no válido.');return '`'.$name.'`';
 }
-function installMysqlSchema(PDO $pdo): void {
-    foreach (explode(';',file_get_contents(__DIR__.'/../database/schema.sql')) as $statement) if (trim($statement)!=='') $pdo->exec($statement);
+function mysqlSchemaParts(): array {
+    $schema=file_get_contents(__DIR__.'/../database/schema.sql');
+    [$catalog,$identity,$application,$profiles]=preg_split('/-- (?:BEGIN IDENTITY|END IDENTITY|USER PROFILES)/',$schema);
+    return [$catalog,$identity,$application,$profiles];
+}
+function executeMysqlSchema(PDO $pdo,string $schema): void {
+    foreach (explode(';',$schema) as $statement) if (trim($statement)!=='') $pdo->exec($statement);
+}
+function installMysqlSchema(PDO $pdo,bool $legacy=false): void {
+    [$catalog,$identity,$application,$profiles]=mysqlSchemaParts();
+    if ($legacy) {
+        $identity=file_get_contents(__DIR__.'/../database/legacy/mysql-users.sql');
+        $profiles='';
+    }
+    executeMysqlSchema($pdo,$catalog.$identity.$application.$profiles);
+}
+function legacyUserSchema(PDO $pdo): bool {
+    return (bool)$pdo->query("SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='users' AND COLUMN_NAME='identification'")->fetchColumn();
 }
 function administrativeMysqlConnection(): PDO {
     $configuration=$GLOBALS['config']['mysql'];$path=__DIR__.'/../storage/mysql/admin.php';
@@ -40,9 +56,20 @@ function administrativeMysqlConnection(): PDO {
     return mysqlConnection($configuration);
 }
 function verifyMysqlReferences(PDO $pdo): void {
-    $references=$pdo->query('SELECT TABLE_NAME,COLUMN_NAME,REFERENCED_TABLE_NAME,REFERENCED_COLUMN_NAME FROM information_schema.KEY_COLUMN_USAGE WHERE TABLE_SCHEMA=DATABASE() AND REFERENCED_TABLE_NAME IS NOT NULL')->fetchAll();
-    foreach ($references as $reference) {
-        $table=mysqlIdentifier($reference['TABLE_NAME']);$column=mysqlIdentifier($reference['COLUMN_NAME']);$parent=mysqlIdentifier($reference['REFERENCED_TABLE_NAME']);$key=mysqlIdentifier($reference['REFERENCED_COLUMN_NAME']);
-        if ($pdo->query('SELECT 1 FROM '.$table.' child LEFT JOIN '.$parent.' parent ON parent.'.$key.'=child.'.$column.' WHERE child.'.$column.' IS NOT NULL AND parent.'.$key.' IS NULL LIMIT 1')->fetchColumn()) throw new RuntimeException('Referencia inválida en '.$reference['TABLE_NAME'].'.'.$reference['COLUMN_NAME'].'.');
+    $references=$pdo->query('SELECT CONSTRAINT_NAME,TABLE_NAME,COLUMN_NAME,REFERENCED_TABLE_NAME,REFERENCED_COLUMN_NAME FROM information_schema.KEY_COLUMN_USAGE WHERE TABLE_SCHEMA=DATABASE() AND REFERENCED_TABLE_NAME IS NOT NULL ORDER BY ORDINAL_POSITION')->fetchAll();
+    $constraints=[];
+    foreach ($references as $reference) $constraints[$reference['TABLE_NAME']][$reference['CONSTRAINT_NAME']][]=$reference;
+    foreach ($constraints as $table=>$foreignKeys) foreach ($foreignKeys as $name=>$columns) {
+        $join=[];$required=[];
+        foreach ($columns as $reference) {
+            $column='child.'.mysqlIdentifier($reference['COLUMN_NAME']);
+            $key='parent.'.mysqlIdentifier($reference['REFERENCED_COLUMN_NAME']);
+            $join[]="$key=$column";
+            $required[]="$column IS NOT NULL";
+        }
+        $parent=mysqlIdentifier($columns[0]['REFERENCED_TABLE_NAME']);
+        $firstKey=mysqlIdentifier($columns[0]['REFERENCED_COLUMN_NAME']);
+        $sql='SELECT 1 FROM '.mysqlIdentifier($table).' child LEFT JOIN '.$parent.' parent ON '.implode(' AND ',$join).' WHERE '.implode(' AND ',$required)." AND parent.$firstKey IS NULL LIMIT 1";
+        if ($pdo->query($sql)->fetchColumn()) throw new RuntimeException("Referencia inválida en $table ($name).");
     }
 }

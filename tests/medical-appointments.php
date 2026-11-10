@@ -6,7 +6,7 @@ require __DIR__.'/mail-run.php';
 $category=cat('ordinario');
 run('UPDATE categories SET supports_required=0 WHERE id=?',[$category['id']]);
 run("UPDATE requests SET status='rejected' WHERE category_id=? AND user_id IN (1,8)",[$category['id']]);
-run("UPDATE users SET appointment_type='Trabajador oficial' WHERE id=1");
+fixtureOfficialWorker(1);
 $clock=new DateTimeImmutable('2026-11-09 06:00:00');
 $image=tempnam(sys_get_temp_dir(),'th-cita-');
 file_put_contents($image,base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aBP8AAAAASUVORK5CYII='));

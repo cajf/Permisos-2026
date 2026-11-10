@@ -6,7 +6,7 @@ foreach(['2026-12-01','2026-12-04'] as $date){check($calendar->periods($date)===
 check($calendar->minutes('2026-12-01','12:00','13:00')===60,'La jornada continua cuenta el mediodía');
 check($calendar->periods('2026-12-05')===[]&&$calendar->periods('2026-12-08')===[],'Excluye sábado y festivo');
 check($standard->minutes('2026-12-01','07:30','17:00')===510,'Las otras vinculaciones conservan 8,5 horas');
-run("UPDATE requests SET status='rejected' WHERE user_id=1");run("UPDATE users SET appointment_type='Trabajador oficial',birth_date='1990-05-01' WHERE id=1");
+run("UPDATE requests SET status='rejected' WHERE user_id=1");fixtureOfficialWorker(1,'1990-05-01');
 check(ordinaryQuotaLimit(person(1))===1440&&ordinaryQuotaLimit(person(2))===1530,'Cupos semestrales de 24 y 25,5 horas según vinculación');
 $full=fn($date)=>['date'=>$date,'mode'=>'full'];
 $request=testSubmit(1,'ordinario',[$full('2026-12-01'),$full('2026-12-02'),$full('2026-12-03')]);

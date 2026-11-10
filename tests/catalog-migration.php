@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 require __DIR__.'/mysql-environment.php';require __DIR__.'/../app/bootstrap.php';
-installMysqlSchema(db());
+installMysqlSchema(db(),true);
 insert('departments',['name'=>'Migración aislada']);
 $base=['name'=>'Prueba de catálogo','email'=>'prueba@ejemplo.invalid','password'=>'hash','job_title'=>'Auxiliar Administrativo','department_id'=>1];
 insert('users',$base+['identification'=>'CM-1','username'=>'cm1','code'=>'','grade'=>'01']);

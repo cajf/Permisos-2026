@@ -9,8 +9,8 @@ function restoreOriginalDemo(): array {
         foreach (['balance_snapshots','outbox','events','attachments','allocations','approvals','request_slots','requests','acts','schedules','designations','holidays','categories','settings'] as $table) {
             run('DELETE FROM '.mysqlIdentifier($table));
         }
-        run('UPDATE users SET manager_id=NULL,deputy_manager_id=NULL');
-        run('DELETE FROM users');
+        run('DELETE FROM person_employments');
+        run('DELETE FROM users'); run('DELETE FROM persons');
         run('DELETE FROM job_grades');run('DELETE FROM jobs');
         run('DELETE FROM departments');
         foreach (['Secretaría Administrativa','Secretaría de Planeación','Despacho del Alcalde'] as $i=>$name) insert('departments',['id'=>$i+1,'name'=>$name]);
@@ -26,11 +26,11 @@ function restoreOriginalDemo(): array {
         foreach ($people as $i=>$person) {
             $password='Demo!'.bin2hex(random_bytes(10));
             $credentials[$person['username']]=$password;
-            insert('users',array_replace(['id'=>$i+1,'identification'=>'DEMO-'.($i+1),'email'=>$person['username'].'@ejemplo.invalid','department_id'=>1,'force_password'=>1,'password'=>password_hash($password,PASSWORD_DEFAULT)],$person));
+            createDemoIdentity(array_replace(['id'=>$i+1,'identification'=>'DEMO-'.($i+1),'email'=>$person['username'].'@ejemplo.invalid','department_id'=>1,'force_password'=>1,'password'=>password_hash($password,PASSWORD_DEFAULT)],$person));
         }
-        run('UPDATE users SET manager_id=4 WHERE id IN (1,5,6)');
-        run('UPDATE users SET manager_id=2 WHERE id=4');
-        run('UPDATE users SET manager_id=3 WHERE id=2');
+        run('UPDATE person_employments SET manager_id=4 WHERE person_id IN (1,5,6)');
+        run('UPDATE person_employments SET manager_id=2 WHERE person_id=4');
+        run('UPDATE person_employments SET manager_id=3 WHERE person_id=2');
         setSetting('subsecretary_id','2');setSetting('mayor_id','3');
         // Invalida también las sesiones abiertas antes de restaurar los mismos identificadores.
         setSetting('session_generation',bin2hex(random_bytes(24)));
@@ -39,6 +39,5 @@ function restoreOriginalDemo(): array {
         verifyMysqlReferences(db());
         return $credentials;
     });
-    seedJobCatalog(db());
     return $credentials;
 }

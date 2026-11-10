@@ -20,10 +20,10 @@ atomic(function() {
       ['name'=>'Asesor de demostración','username'=>'asesor','roles'=>'[]','job_title'=>'Asesor de Despacho','high_rank'=>'Asesor de Despacho','department_id'=>3],
       ['name'=>'Nómina de demostración','username'=>'nomina','roles'=>'["payroll"]','job_title'=>'Profesional de Nómina'],
     ];
-    foreach ($people as $i=>$p) insert('users',array_replace($base,$p,['identification'=>'DEMO-'.($i+1),'email'=>$p['username'].'@ejemplo.invalid']));
-    run('UPDATE users SET manager_id=4 WHERE id IN (1,5,6)');
-    run('UPDATE users SET manager_id=2 WHERE id=4');
-    run('UPDATE users SET manager_id=3 WHERE id=2');
+    foreach ($people as $i=>$p) createDemoIdentity(array_replace($base,$p,['identification'=>'DEMO-'.($i+1),'email'=>$p['username'].'@ejemplo.invalid']));
+    run('UPDATE person_employments SET manager_id=4 WHERE person_id IN (1,5,6)');
+    run('UPDATE person_employments SET manager_id=2 WHERE person_id=4');
+    run('UPDATE person_employments SET manager_id=3 WHERE person_id=2');
     setSetting('subsecretary_id','2'); setSetting('mayor_id','3');
     foreach ([1=>4,2=>4,3=>3] as $department=>$manager) insert('designations',['role'=>'manager','department_id'=>$department,'user_id'=>$manager,'alternate_id'=>2,'start_date'=>date('Y-m-d'),'created_by'=>1,'created_at'=>now()]);
     insert('designations',['role'=>'subsecretary','user_id'=>2,'start_date'=>date('Y-m-d'),'created_by'=>1,'created_at'=>now()]);
@@ -32,5 +32,4 @@ atomic(function() {
     $text="ACCESO LOCAL DE DEMOSTRACIÓN\n\nURL: http://127.0.0.1:8088\nUsuarios: admin, funcionario, jefe, subsecretario, alcalde, asesor, nomina\nContraseña inicial: $password\n\nTodos los datos son ficticios. Cada cuenta debe cambiar la contraseña al ingresar.\nNo publique estos datos ni esta base de demostración en Internet.\n";
     file_put_contents($GLOBALS['config']['access_file']??ROOT.'/storage/acceso-local.txt',$text);
 });
-seedJobCatalog(administrativeMysqlConnection());
 echo "Base creada. Credenciales en storage/acceso-local.txt.\n";

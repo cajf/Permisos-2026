@@ -26,6 +26,6 @@ check(row('SELECT snapshot FROM requests WHERE id=?',[$request])['snapshot']===$
 $list=searchJobDirectory(person(5),['q_group'=>'official_worker','q_category'=>'Categoría A']);check(count($list['items'])===2,'Filtros combinados de grupo y categoría');
 $jobIds=array_column(jobCatalog(),'job_id');check(in_array($job['id'],$jobIds),'Catálogo incluye cargos oficiales sin grados');
 $passwords=commitImport(person(5),[['cedula'=>'OF-IMPORT','nombre'=>'Importación oficial','usuario'=>'of_import','correo'=>'of@ejemplo.invalid','cargo'=>'Operario de prueba','dependencia'=>'Dependencia de prueba','cedula_jefe'=>'','vinculacion'=>'Trabajador oficial']]);
-$imported=row("SELECT * FROM users WHERE username='of_import'");check($imported['job_category']==='Categoría A'&&$imported['grade']==='','Importa trabajador oficial sin código y grado');
+$imported=row("SELECT * FROM user_profiles WHERE username='of_import'");check($imported['job_category']==='Categoría A'&&$imported['grade']==='','Importa trabajador oficial sin código y grado');
 check((int)row('SELECT COUNT(*) n FROM information_schema.key_column_usage WHERE table_schema=DATABASE() AND table_name=? AND referenced_table_name=?',['jobs','official_job_categories'])['n']===1,'Categoría protegida por clave foránea');
 echo $checks." comprobaciones de cargos y correos correctas, sin envíos reales.\n";

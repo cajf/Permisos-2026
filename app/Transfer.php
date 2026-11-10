@@ -1,19 +1,21 @@
 <?php
 declare(strict_types=1);
 
-function applicationTables(): array {
-    return ['departments','official_job_categories','jobs','job_grades','users','settings','categories','holidays','schedules','acts','requests','request_slots','designations','approvals','allocations','attachments','attachment_contents','events','outbox','balance_snapshots'];
+function applicationTables(bool $legacy=false): array {
+    $identity=$legacy?['users']:['persons','users','employment_types','roles','person_employments','user_roles'];
+    return ['departments','official_job_categories','jobs','job_grades',...$identity,'settings','categories','holidays','schedules','acts','requests','request_slots','designations','approvals','allocations','attachments','attachment_contents','events','outbox','balance_snapshots'];
 }
 function canonicalRows(array $records): string {
     foreach ($records as &$record) {ksort($record);foreach ($record as &$value) if ($value!==null) $value=(string)$value;unset($value);}unset($record);
     return hash('sha256',json_encode($records,JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR));
 }
 function transferSqliteToMysql(PDO $source,PDO $target,string $sourceUploads,string $targetUploads): array {
+    if (!legacyUserSchema($target)) throw new RuntimeException('Prepare un esquema transitorio vacío para importar desde SQLite.');
     if ($source->query('PRAGMA foreign_key_check')->fetchAll()!==[]) throw new RuntimeException('La base de origen tiene referencias inválidas. No se importó ningún registro.');
     $target->beginTransaction();$copied=[];$counts=[];$files=[];
     try {
         $target->query('SELECT id FROM app_locks WHERE id=1 FOR UPDATE')->fetchColumn();
-        foreach (applicationTables() as $table) if ((int)$target->query('SELECT COUNT(*) FROM '.mysqlIdentifier($table))->fetchColumn()!==0) throw new RuntimeException('La base de destino debe estar vacía. No se sobrescriben datos existentes.');
+        foreach (applicationTables(true) as $table) if ((int)$target->query('SELECT COUNT(*) FROM '.mysqlIdentifier($table))->fetchColumn()!==0) throw new RuntimeException('La base de destino debe estar vacía. No se sobrescriben datos existentes.');
         $source->beginTransaction();
         foreach ($source->query('SELECT * FROM attachments')->fetchAll(PDO::FETCH_ASSOC) as $attachment) {
             $stored=$attachment['stored_name'];
@@ -24,7 +26,7 @@ function transferSqliteToMysql(PDO $source,PDO $target,string $sourceUploads,str
         }
         if (!is_dir($targetUploads) && !mkdir($targetUploads,0700,true)) throw new RuntimeException('No se puede crear el directorio de soportes de destino.');
         $target->exec('SET FOREIGN_KEY_CHECKS=0');
-        foreach (applicationTables() as $table) {
+        foreach (applicationTables(true) as $table) {
             $info=$source->query('PRAGMA table_info('.$table.')')->fetchAll(PDO::FETCH_ASSOC);
             if (!$info && in_array($table,['attachment_contents','official_job_categories','jobs','job_grades'],true)) {$counts[$table]=0;continue;}
             if (!$info) throw new RuntimeException('Falta una tabla del origen: '.$table.'.');

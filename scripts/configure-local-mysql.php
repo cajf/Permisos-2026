@@ -12,7 +12,8 @@ if (!is_file($adminFile)) {
     $admin['password']=$password;file_put_contents($adminFile,"<?php\nreturn ".var_export($admin,true).";\n");
 }
 $pdo->exec('CREATE DATABASE IF NOT EXISTS '.mysqlIdentifier($admin['database']).' CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_bin');
-$database=mysqlConnection($admin);installMysqlSchema($database);
+$database=mysqlConnection($admin);
+if (!tableExists('users',$database)) installMysqlSchema($database);
 $app=is_file($connectionFile)?require $connectionFile:['mysql'=>array_replace($admin,['username'=>'permisos_app','password'=>bin2hex(random_bytes(32))]),'uploads'=>ROOT.'/storage/uploads'];
 $account=$pdo->quote($app['mysql']['username'])."@'127.0.0.1'";
 $pdo->exec('CREATE USER IF NOT EXISTS '.$account.' IDENTIFIED BY '.$pdo->quote($app['mysql']['password']));
