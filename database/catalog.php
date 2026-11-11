@@ -14,7 +14,7 @@ return [
  ['compensatorio','Claveros / Jurado de votación','jurado','Certificación de la Registraduría como clavero o jurado de votación.',null,0,'El formato menciona 1 día. Duración y frecuencia pendientes de confirmar.'],
  ['compensatorio','Cumpleaños','cumpleanos','Documento de identidad que permita acreditar la fecha de nacimiento.',null,1,'Cupo anual configurable en jornadas completas. Nacidos en diciembre: disfrute hasta el 30 de enero siguiente con cargo a la vigencia anterior.'],
  ['remunerada','Matrimonio','matrimonio','Registro civil de matrimonio.',null,0,'El formato menciona 5 días. Duración y condiciones pendientes de confirmar.'],
- ['remunerada','Luto','luto','Documentos para acreditar el fallecimiento y el parentesco.',null,0,'El formato menciona 5 días. Matriz de parentesco y documentos pendientes de validar.'],
+ ['remunerada','Luto','luto','Documentos para acreditar el fallecimiento y el parentesco.',null,0,'Seis jornadas laborales consecutivas a partir de la fecha seleccionada.'],
  ['remunerada','Actividades deportivas','deportes','Solicitud o certificación de la entidad deportiva competente.',null,0,'Entidad y duración pendientes de validar con Talento Humano.'],
  ['no_remunerada','Para adelantar estudios','estudios','Duración del programa académico y copia de la matrícula durante la licencia.',null,0,'Duración y condiciones pendientes de validar.'],
  ['no_remunerada','No Remunerada Ordinaria','no_remunerada','Documento que sustente la justificación de la licencia.',null,0,'Soporte propuesto; duración y frecuencia pendientes de validar.'],

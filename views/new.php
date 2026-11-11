@@ -28,6 +28,7 @@ foreach ($cats as $candidate) {
 $recessPeriod=WorkCalendar::schoolBreak($year);
 $recessDates=(new WorkCalendar(isOfficialWorker($u)))->schoolBreakDates(new DateTimeImmutable());
 $isRecess=($selectedCategory['slug']??'')==='receso';
+if(($selectedCategory['slug']??'')==='luto') $slots=[array_replace($slots[0]??['date'=>''],['mode'=>'full'])];
 ?>
 <p class="page-intro"><?=$edit?'Corrige los datos y reenvía la solicitud. Se iniciará una nueva ronda de aprobación.':'Completa los datos de tu solicitud. Los campos con * son obligatorios.'?></p>
 <form method="post" enctype="multipart/form-data" class="request-form" id="request-form" data-year="<?=$year?>" data-annual-availability="<?=e(json_encode($annualAvailability,JSON_THROW_ON_ERROR))?>"><?=csrf()?><input type="hidden" name="action" value="submit"><?php if($edit): ?><input type="hidden" name="id" value="<?=(int)$edit['id']?>"><?php endif; ?>
@@ -49,7 +50,7 @@ $isRecess=($selectedCategory['slug']??'')==='receso';
         <?php if(!in_array(true,$recessDates,true)): ?><p>Todas las jornadas del receso finalizaron. El formulario solo admite jornadas vigentes o futuras.</p><?php endif; ?>
     <?php endif; ?>
 <?php endif; ?>
-</section><p class="muted" id="annual-days-guide" role="status" hidden></p><div id="slots"><?php require ROOT.'/views/slot-fields.php'; ?></div><label>Justificación de urgencia o excepción de anticipación<textarea name="exception_reason" rows="2" maxlength="3000" placeholder="Justifica si no se cumplen las 48 horas calendario en días hábiles."><?=e($form['exception_reason']??'')?></textarea><small>El plazo cuenta todas las horas de lunes a viernes y excluye sábados, domingos y festivos. Si no se cumplen las 48 horas, justifica la excepción para revisión del aprobador. Puedes registrar un periodo que ya comenzó si aún no ha terminado, explicando la urgencia. No se admiten periodos completamente terminados.</small></label></section>
+</section><p class="muted" id="annual-days-guide" role="status" hidden></p><div id="slots"><?php require ROOT.'/views/slot-fields.php'; ?></div><div id="bereavement-guide" hidden><p>Selecciona la primera fecha laborable. La licencia incluye esa jornada completa y las cinco siguientes del calendario laboral.</p><ol aria-label="Cinco jornadas siguientes" aria-live="polite"></ol></div><label>Justificación de urgencia o excepción de anticipación<textarea name="exception_reason" rows="2" maxlength="3000" placeholder="Justifica si no se cumplen las 48 horas calendario en días hábiles."><?=e($form['exception_reason']??'')?></textarea><small>El plazo cuenta todas las horas de lunes a viernes y excluye sábados, domingos y festivos. Si no se cumplen las 48 horas, justifica la excepción para revisión del aprobador. Puedes registrar un periodo que ya comenzó si aún no ha terminado, explicando la urgencia. No se admiten periodos completamente terminados.</small></label></section>
 <section class="panel form-panel" id="allocation-panel" data-daily-limit="<?=intdiv(ordinaryQuotaLimit($u),3)?>" hidden>
 <h2>Horas por acto administrativo</h2>
 <p class="muted">La suma de las horas elegidas debe coincidir con el tiempo solicitado. Máximo diario <?=e(hours(intdiv(ordinaryQuotaLimit($u),3)))?>, incluso con horario temporal.</p>

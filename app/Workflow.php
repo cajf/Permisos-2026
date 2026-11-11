@@ -62,7 +62,10 @@ final class Workflow {
             $medicalAnswer=$input['medical_appointment']??'';
             if ($ordinary) ensure(in_array($medicalAnswer,['0','1'],true),'Indique si el permiso Ordinario-Remunerado es para una cita médica.');
             $medical=$ordinary && $medicalAnswer==='1';
-            $slots=$this->calendar->slots($input['slots']??[],$clock);
+            $bereavement=$category['slug']==='luto';
+            $slots=$bereavement
+                ?$this->calendar->bereavementSlots((string)($input['slots'][0]['date']??''),$clock)
+                :$this->calendar->slots($input['slots']??[],$clock);
             $total=array_sum(array_column($slots,'minutes'));
             if($category['slug']==='acto')$this->validateActWorkday($slots,$owner);
             $reason=trim($input['justification']??''); $exception=trim($input['exception_reason']??'');
@@ -72,7 +75,7 @@ final class Workflow {
             $urgent=new DateTimeImmutable($first['start_at'])<=$clock;
             if ($urgent) ensure(mb_strlen($exception)>=10,'El disfrute ya comenzó. Justifique la urgencia del registro con al menos 10 caracteres.');
             if ($this->calendar->noticeMinutes($clock,new DateTimeImmutable($first['start_at']))<2880) ensure(mb_strlen($exception)>=10,'No se completan 48 horas calendario dentro de días hábiles. Debe justificar la excepción.');
-            if ($category['slug']!=='cumpleanos' && $category['max_minutes']!==null && (int)$category['policy_confirmed']===1) ensure($total<=(int)$category['max_minutes'],'La duración supera el límite configurado para este tipo.');
+            if (!$bereavement && $category['slug']!=='cumpleanos' && $category['max_minutes']!==null && (int)$category['policy_confirmed']===1) ensure($total<=(int)$category['max_minutes'],'La duración supera el límite configurado para este tipo.');
             $relationship=trim($input['relationship']??'');
             if ($category['slug']==='luto') ensure($relationship!=='','Indique el parentesco para la licencia por luto.');
             $existingFiles=$id?(int)row('SELECT COUNT(*) n FROM attachments WHERE request_id=?',[$id])['n']:0;

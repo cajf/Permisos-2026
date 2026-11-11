@@ -64,6 +64,8 @@ if(form){
  const annualAvailability=JSON.parse(form.dataset.annualAvailability),birthdayYear=form.elements.birthday_year;
  const addSlot=document.querySelector('#add-slot'),annualGuide=document.querySelector('#annual-days-guide');
  const recessGuide=document.querySelector('#school-break-guide');
+ const bereavementGuide=document.querySelector('#bereavement-guide');
+ const bereavementDays=bereavementGuide.querySelector('ol');
  const fmt=m=>`${Math.floor(m/60)} h ${String(m%60).padStart(2,'0')} min`;
  function updateSupports(){
   const selected=category.selectedOptions[0],ordinary=selected?.dataset.slug==='ordinario';
@@ -92,7 +94,7 @@ if(form){
   const annual=Object.hasOwn(annualAvailability,slug),recess=slug==='receso',jury=slug==='jurado';
   const year=slug==='cumpleanos'?birthdayYear.value:form.dataset.year;
   const available=annual?annualAvailability[slug][year]:null;
-  const fullOnly=annual||jury,rows=[...slots.children];
+  const bereavement=slug==='luto',fullOnly=annual||jury||bereavement,rows=[...slots.children];
   const dates=rows.map(row=>{
    const date=row.querySelector('input[type=date]'),choice=row.querySelector('[data-recess-date]'),mode=row.querySelector('[data-mode]');
    date.hidden=date.disabled=recess;date.required=!recess;
@@ -101,11 +103,16 @@ if(form){
    mode.querySelector('option[value=hours]').disabled=fullOnly;
    mode.querySelector('option[value=full]').disabled=slug==='acto';
    if(fullOnly)mode.value='full';else if(slug==='acto')mode.value='hours';
+   mode.disabled=bereavement;
+   row.querySelector('.remove-slot').disabled=bereavement;
    return recess?choice:date;
   });
   const recessCount=recess?dates[0].querySelectorAll('option[value]:not([value=""]):not([data-ended])').length:Infinity;
-  const limit=Math.min(jury?1:90,available??Infinity,recessCount);
+  const limit=Math.min(jury||bereavement?1:90,available??Infinity,recessCount);
   addSlot.disabled=rows.length>=limit;
+  addSlot.hidden=bereavement;
+  bereavementGuide.hidden=!bereavement;
+  bereavementDays.replaceChildren();
   annualGuide.hidden=!annual;
   recessGuide.hidden=!recess;
   if(annual){
@@ -130,6 +137,32 @@ if(form){
   await Promise.all([...slots.children].map(async (row,index)=>{
    const date=dates[index],times=row.querySelectorAll('[type=time]'),full=row.querySelector('[data-mode]').value==='full';times.forEach(t=>t.disabled=full);
    if(!date.value){row.dataset.minutes='0';row.querySelector('.slot-result').textContent='';return;}
+   if(slug==='luto'){
+    date.setCustomValidity('Espera a que se calculen las seis jornadas.');
+    row.dataset.minutes='0';
+    row.querySelector('.slot-result').textContent='Calculando las seis jornadas…';
+    try {
+     const params=new URLSearchParams({page:'estimate',kind:'luto',date:date.value});
+     const response=await fetch('/?'+params),data=await response.json();
+     if(seq!==sequence)return;
+     if(!response.ok)throw new Error(data.error||'No se pudieron calcular las jornadas.');
+     for(const day of data.slots.slice(1)){
+      const item=document.createElement('li');
+      item.textContent=day.date.split('-').reverse().join('/')+' · '+fmt(day.minutes);
+      bereavementDays.append(item);
+     }
+     row.dataset.minutes=String(data.slots.reduce((sum,day)=>sum+day.minutes,0));
+     times[0].value=data.slots[0].start_time;times[1].value=data.slots[0].end_time;
+     row.querySelector('.slot-result').textContent=fmt(data.slots[0].minutes);
+     date.setCustomValidity('');
+    }catch(error){
+     if(seq!==sequence)return;
+     const message=error instanceof SyntaxError?'No se pudieron calcular las jornadas.':error.message;
+     row.querySelector('.slot-result').textContent=message;
+     date.setCustomValidity(message);
+    }
+    return;
+   }
    const p=new URLSearchParams({page:'estimate',date:date.value});if(!full){p.set('start',times[0].value);p.set('end',times[1].value);}
    try{const response=await fetch('/?'+p);if(!response.ok)throw new Error();const data=await response.json();if(seq!==sequence)return;if(full&&data.periods.length){times[0].value=data.periods[0][0];times[1].value=data.periods[data.periods.length-1][1];}row.dataset.minutes=String(data.minutes);row.querySelector('.slot-result').textContent=data.periods.length?fmt(data.minutes):'Día no laborable';}
    catch{if(seq===sequence){row.dataset.minutes='0';row.querySelector('.slot-result').textContent='Revisa las fechas y el horario.';}}

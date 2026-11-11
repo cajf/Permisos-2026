@@ -192,6 +192,16 @@ if ($page!=='login') {
             header('Content-Type: application/json; charset=utf-8');
             ensure(empty($_GET['slot']),'Actualice el formulario: use la jornada laboral configurada.');
             $wf->calendar=new WorkCalendar(isOfficialWorker($u));
+            if(($_GET['kind']??'')==='luto') {
+                try {
+                    $slots=$wf->calendar->bereavementSlots((string)($_GET['date']??''),new DateTimeImmutable());
+                    echo json_encode(['slots'=>$slots],JSON_THROW_ON_ERROR);
+                } catch(DomainException $error) {
+                    http_response_code(422);
+                    echo json_encode(['error'=>$error->getMessage()],JSON_THROW_ON_ERROR);
+                }
+                exit;
+            }
             $date=$_GET['date']??''; $p=$wf->calendar->periods($date); $a=$_GET['start']??($p[0][0]??''); $b=$_GET['end']??($p[count($p)-1][1]??'');
             echo json_encode(['periods'=>$p,'minutes'=>$p?$wf->calendar->minutes($date,$a,$b):0],JSON_UNESCAPED_UNICODE); exit;
         }

@@ -13,6 +13,19 @@ final class WorkCalendar {
         if (!$this->isBusinessDay($date)) return [];
         return $this->schedule($date)['periods'][(string)$weekday]??[];
     }
+    public function bereavementSlots(string $start, DateTimeImmutable $clock): array {
+        $latest=$clock->modify('+2 years')->format('Y-m-d');
+        ensure(validDate($start) && $start>=$clock->modify('-2 years')->format('Y-m-d') && $start<=$latest,
+            'Seleccione una primera fecha válida para la licencia por luto.');
+        ensure($this->periods($start)!==[],'La primera fecha de la licencia por luto debe ser laborable.');
+        $days=[];
+        for($day=new DateTimeImmutable($start);count($days)<6;$day=$day->modify('+1 day')) {
+            $date=$day->format('Y-m-d');
+            ensure($date<=$latest,'No se encontraron seis jornadas laborables dentro del rango permitido.');
+            if($this->periods($date)!==[]) $days[]=['date'=>$date,'mode'=>'full'];
+        }
+        return $this->slots($days,$clock);
+    }
     public static function schoolBreak(int $year): array {
         return json_decode(setting('school_break_'.$year,'{}'),true,512,JSON_THROW_ON_ERROR);
     }
