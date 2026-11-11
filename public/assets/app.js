@@ -104,6 +104,7 @@ if(form){
    mode.querySelector('option[value=full]').disabled=slug==='acto';
    if(fullOnly)mode.value='full';else if(slug==='acto')mode.value='hours';
    mode.disabled=bereavement;
+   row.querySelector('[data-slot-date-label]').textContent=bereavement?'Primera fecha de la licencia *':'Fecha de la jornada *';
    row.querySelector('.remove-slot').disabled=bereavement;
    return recess?choice:date;
   });
