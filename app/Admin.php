@@ -14,8 +14,10 @@ function saveUser(array $actor,array $data,?int $id=null): void {
         ensure(preg_match('/^[a-zA-Z0-9._@-]{3,80}$/D',$data['username'])===1,'El usuario admite de 3 a 80 letras, números, puntos, @, guiones y guiones bajos.');
         ensure(row('SELECT id FROM departments WHERE id=?',[(int)$data['department_id']])!==null,'Seleccione una dependencia válida.');
         ensure(is_array($data['roles']??[]),'Los roles no son válidos.');
-        $newRoles=array_values(array_intersect($data['roles']??[],['admin','manager','subsecretary','mayor','payroll','superadmin']));
+        $newRoles=array_values(array_intersect($data['roles']??[],['admin','manager','subsecretary','mayor','payroll','superadmin','labor_records']));
         ensure(!in_array('superadmin',$newRoles,true)||isSuperadmin($actor),'Solo un superadministrador puede asignar ese rol.');
+        ensure(!in_array('labor_records',$newRoles,true)||isSuperadmin($actor),'Solo un superadministrador puede asignar Historias Laborales.');
+        ensure(!$existing || !hasRole($existing,'labor_records') || isSuperadmin($actor),'Solo un superadministrador puede editar esta cuenta de Historias Laborales.');
         if(!can($actor,'users.roles'))$newRoles=$existing?roles($existing):[];
         if($existing && isSuperadmin($existing) && (!in_array('superadmin',$newRoles,true)||!(int)($data['active']??1)))ensure((int)row("SELECT COUNT(*) n FROM user_roles r JOIN users u ON u.id=r.user_id WHERE r.role_code='superadmin' AND u.active=1 AND u.id<>?",[$id])['n']>0,'Debe conservar al menos un superadministrador activo.');
         if ($existing) {
@@ -34,6 +36,10 @@ function saveUser(array $actor,array $data,?int $id=null): void {
         if (!$id) {
             $password=$data['initial_password']??''; validatePassword($password);
             $account['password']=password_hash($password,PASSWORD_DEFAULT);
+        }
+        if(in_array('labor_records',$newRoles,true) && !row('SELECT code FROM roles WHERE code=?',['labor_records'])) {
+            run('INSERT INTO roles(code,name) VALUES(?,?) ON DUPLICATE KEY UPDATE code=roles.code',
+                ['labor_records',roleLabel('labor_records')]);
         }
         $id=saveUserIdentity($id,$person,$employment,$account,$newRoles);
         captureBalances((int)$id);
@@ -84,7 +90,7 @@ function commitImport(array $actor,array $data): array {
             $rank=$r['alto_rango']??''; ensure(in_array($rank,['','Asesor de Despacho','Secretario de Despacho','Jefe de Oficina'],true),'Alto rango no válido en la fila '.($i+2).'.');
             run('INSERT INTO departments(name) VALUES(?) ON DUPLICATE KEY UPDATE name=name',[$r['dependencia']]); $dep=row('SELECT id FROM departments WHERE name=?',[$r['dependencia']]);
             $old=row('SELECT * FROM user_profiles WHERE identification=?',[$r['cedula']]);
-            ensure(!$old || !isSuperadmin($old) || isSuperadmin($actor),'La importación no puede modificar una cuenta de superadministrador.');
+            ensure(!$old || (!isSuperadmin($old) && !hasRole($old,'labor_records')) || isSuperadmin($actor),'Solo un superadministrador puede importar cambios a esta cuenta.');
             $person=['name'=>$r['nombre'],'identification'=>$r['cedula'],'email'=>$r['correo']];
             $type=$r['vinculacion']??'Carrera administrativa';
             $employment=['job_id'=>$job['job_id'],'grade'=>$type==='Trabajador oficial'?null:$job['grade'],'employment_type'=>$type,'department_id'=>$dep['id'],'high_rank'=>$rank];

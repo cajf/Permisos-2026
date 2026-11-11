@@ -2,6 +2,7 @@
 declare(strict_types=1);
 require __DIR__.'/../app/bootstrap.php';
 require ROOT.'/app/Admin.php';
+require ROOT.'/app/LaborRecords.php';
 if ($GLOBALS['config']['trust_proxy'] && ($_SERVER['HTTP_X_FORWARDED_PROTO']??'')==='https') $_SERVER['HTTPS']='on';
 ini_set('session.use_strict_mode','1');
 $sessionScope=substr(hash('sha256',databaseIdentity()),0,16);
@@ -71,6 +72,13 @@ try {
         authorizeAction($u,$action,$_POST);
         $destination='/?page='.$page;
         switch ($action) {
+            case 'labor_records_pdf':
+            case 'labor_records_zip':
+                $page='labor_records';
+                ensure(isset($_GET['from'],$_GET['to']),'Seleccione las fechas de registro antes de descargar.');
+                $id=$action==='labor_records_pdf'?filter_var($_POST['id']??null,FILTER_VALIDATE_INT,['options'=>['min_range'=>1]]):null;
+                ensure($id!==false,'Seleccione un radicado válido.');
+                downloadLaborRecords($u,laborRecordFilters($_GET),$id);
             case 'submit':
                 $id=$wf->submit($u,$_POST,validateUploads($_FILES['supports']??[],REQUEST_UPLOAD_MAX_FILES,REQUEST_UPLOAD_MAX_BYTES),empty($_POST['id'])?null:(int)$_POST['id']); $destination='/?page=request&id='.$id; break;
             case 'review': $wf->review($u,(int)$_POST['id'],$_POST['decision']??'',trim($_POST['comment']??''),(string)($_POST['approval_exception_reason']??''),(string)($_POST['electoral_review']??'')); $destination='/?page=request&id='.(int)$_POST['id']; break;
@@ -92,6 +100,7 @@ try {
             case 'reset_password':
                  validatePassword($_POST['initial_password']??'');
                 $targetUser=row('SELECT * FROM user_profiles WHERE id=?',[(int)$_POST['id']]);ensure($targetUser!==null,'Funcionario no encontrado.');ensure(!isSuperadmin($targetUser)||isSuperadmin($u),'Solo un superadministrador puede restablecer esa cuenta.');
+                ensure(!hasRole($targetUser,'labor_records')||isSuperadmin($u),'Solo un superadministrador puede restablecer esa cuenta de Historias Laborales.');
                 run('UPDATE users SET password=?,force_password=1,failures=0,locked_until=NULL WHERE id=?',[password_hash($_POST['initial_password'],PASSWORD_DEFAULT),(int)$_POST['id']]);
                 event((int)$u['id'],'Contraseña restablecida','Funcionario '.(int)$_POST['id']); $destination='/?page=users'; break;
             case 'department':  ensure(trim($_POST['name']??'')!=='','Indique el nombre de la dependencia.'); insert('departments',['name'=>trim($_POST['name'])]); $destination='/?page=users'; break;

@@ -44,7 +44,8 @@ CREATE TABLE IF NOT EXISTS roles (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_bin;
 INSERT INTO roles(code,name) VALUES
  ('employee','Funcionario'),('manager','Jefe inmediato'),('subsecretary','Subsecretario'),
- ('mayor','Alcalde'),('payroll','Nómina'),('admin','Administrador de Talento Humano'),('superadmin','Superadministrador')
+ ('mayor','Alcalde'),('payroll','Nómina'),('admin','Administrador de Talento Humano'),('superadmin','Superadministrador'),
+ ('labor_records','Historias Laborales')
  ON DUPLICATE KEY UPDATE name=roles.name;
 CREATE TABLE IF NOT EXISTS person_employments (
  person_id BIGINT UNSIGNED NOT NULL PRIMARY KEY,
