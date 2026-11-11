@@ -66,6 +66,7 @@ if(form){
  const recessGuide=document.querySelector('#school-break-guide');
  const bereavementGuide=document.querySelector('#bereavement-guide');
  const bereavementDays=bereavementGuide.querySelector('ol');
+ const fixedLeaveDays=JSON.parse(bereavementGuide.dataset.leaveDays);
  const fmt=m=>`${Math.floor(m/60)} h ${String(m%60).padStart(2,'0')} min`;
  function updateSupports(){
   const selected=category.selectedOptions[0],ordinary=selected?.dataset.slug==='ordinario';
@@ -94,7 +95,7 @@ if(form){
   const annual=Object.hasOwn(annualAvailability,slug),recess=slug==='receso',jury=slug==='jurado';
   const year=slug==='cumpleanos'?birthdayYear.value:form.dataset.year;
   const available=annual?annualAvailability[slug][year]:null;
-  const bereavement=slug==='luto',fullOnly=annual||jury||bereavement,rows=[...slots.children];
+  const bereavement=Object.hasOwn(fixedLeaveDays,slug),fullOnly=annual||jury||bereavement,rows=[...slots.children];
   const dates=rows.map(row=>{
    const date=row.querySelector('input[type=date]'),choice=row.querySelector('[data-recess-date]'),mode=row.querySelector('[data-mode]');
    date.hidden=date.disabled=recess;date.required=!recess;
@@ -114,6 +115,12 @@ if(form){
   addSlot.hidden=bereavement;
   bereavementGuide.hidden=!bereavement;
   bereavementDays.replaceChildren();
+  if(bereavement){
+   const last=slug==='matrimonio'?'quinto':'sexto';
+   bereavementGuide.querySelector('h3').textContent='Segundo al '+last+' día de disfrute';
+   bereavementGuide.querySelector('p').textContent='La fecha que eliges es el primer día. El sistema calcula las fechas siguientes según el calendario laboral y las actualiza si cambias la primera fecha.';
+   bereavementDays.setAttribute('aria-label','Días 2 al '+fixedLeaveDays[slug]+' de disfrute calculados automáticamente');
+  }
   annualGuide.hidden=!annual;
   recessGuide.hidden=!recess;
   if(annual){
@@ -138,12 +145,12 @@ if(form){
   await Promise.all([...slots.children].map(async (row,index)=>{
    const date=dates[index],times=row.querySelectorAll('[type=time]'),full=row.querySelector('[data-mode]').value==='full';times.forEach(t=>t.disabled=full);
    if(!date.value){row.dataset.minutes='0';row.querySelector('.slot-result').textContent='';return;}
-   if(slug==='luto'){
-    date.setCustomValidity('Espera a que se calculen las seis jornadas.');
+   if(Object.hasOwn(fixedLeaveDays,slug)){
+    date.setCustomValidity('Espera a que se calculen las jornadas.');
     row.dataset.minutes='0';
-    row.querySelector('.slot-result').textContent='Calculando las seis jornadas…';
+    row.querySelector('.slot-result').textContent='Calculando las jornadas…';
     try {
-     const params=new URLSearchParams({page:'estimate',kind:'luto',date:date.value});
+     const params=new URLSearchParams({page:'estimate',kind:slug,date:date.value});
      const response=await fetch('/?'+params),data=await response.json();
      if(seq!==sequence)return;
      if(!response.ok)throw new Error(data.error||'No se pudieron calcular las jornadas.');

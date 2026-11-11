@@ -1,6 +1,6 @@
 <?php foreach($slots as $i=>$s): ?>
 <div class="slot-row">
-<label><span data-slot-date-label><?=($selectedCategory['slug']??'')==='luto'?'Primera fecha de la licencia':'Fecha de la jornada'?> *</span>
+<label><span data-slot-date-label><?=isset(WorkCalendar::CONSECUTIVE_LEAVE_DAYS[$selectedCategory['slug']??''])?'Primera fecha de la licencia':'Fecha de la jornada'?> *</span>
     <input type="date" name="slots[<?=$i?>][date]" min="<?=date('Y-m-d',strtotime('-2 years'))?>" value="<?=e($s['date'])?>" <?=$isRecess?'hidden disabled':'required'?>>
     <select aria-label="Fecha de receso escolar" data-recess-date name="slots[<?=$i?>][date]" <?=$isRecess?'required':'hidden disabled'?>>
         <option value="">Selecciona un día hábil</option>

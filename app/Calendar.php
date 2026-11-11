@@ -13,15 +13,18 @@ final class WorkCalendar {
         if (!$this->isBusinessDay($date)) return [];
         return $this->schedule($date)['periods'][(string)$weekday]??[];
     }
-    public function bereavementSlots(string $start, DateTimeImmutable $clock): array {
+    public const CONSECUTIVE_LEAVE_DAYS=['luto'=>6,'matrimonio'=>5];
+
+    public function consecutiveLeaveSlots(string $kind,string $start,DateTimeImmutable $clock): array {
+        $count=self::CONSECUTIVE_LEAVE_DAYS[$kind];
         $latest=$clock->modify('+2 years')->format('Y-m-d');
         ensure(validDate($start) && $start>=$clock->modify('-2 years')->format('Y-m-d') && $start<=$latest,
-            'Seleccione una primera fecha válida para la licencia por luto.');
-        ensure($this->periods($start)!==[],'La primera fecha de la licencia por luto debe ser laborable.');
+            'Seleccione una primera fecha válida para la licencia.');
+        ensure($this->periods($start)!==[],'La primera fecha de la licencia debe ser laborable.');
         $days=[];
-        for($day=new DateTimeImmutable($start);count($days)<6;$day=$day->modify('+1 day')) {
+        for($day=new DateTimeImmutable($start);count($days)<$count;$day=$day->modify('+1 day')) {
             $date=$day->format('Y-m-d');
-            ensure($date<=$latest,'No se encontraron seis jornadas laborables dentro del rango permitido.');
+            ensure($date<=$latest,'No se encontraron suficientes jornadas laborables dentro del rango permitido.');
             if($this->periods($date)!==[]) $days[]=['date'=>$date,'mode'=>'full'];
         }
         return $this->slots($days,$clock);

@@ -63,8 +63,9 @@ final class Workflow {
             if ($ordinary) ensure(in_array($medicalAnswer,['0','1'],true),'Indique si el permiso Ordinario-Remunerado es para una cita médica.');
             $medical=$ordinary && $medicalAnswer==='1';
             $bereavement=$category['slug']==='luto';
-            $slots=$bereavement
-                ?$this->calendar->bereavementSlots((string)($input['slots'][0]['date']??''),$clock)
+            $fixedLeave=isset(WorkCalendar::CONSECUTIVE_LEAVE_DAYS[$category['slug']]);
+            $slots=$fixedLeave
+                ?$this->calendar->consecutiveLeaveSlots($category['slug'],(string)($input['slots'][0]['date']??''),$clock)
                 :$this->calendar->slots($input['slots']??[],$clock);
             $total=array_sum(array_column($slots,'minutes'));
             if($category['slug']==='acto')$this->validateActWorkday($slots,$owner);
@@ -75,7 +76,7 @@ final class Workflow {
             $urgent=new DateTimeImmutable($first['start_at'])<=$clock;
             if ($urgent) ensure(mb_strlen($exception)>=10,'El disfrute ya comenzó. Justifique la urgencia del registro con al menos 10 caracteres.');
             if ($this->calendar->noticeMinutes($clock,new DateTimeImmutable($first['start_at']))<2880) ensure(mb_strlen($exception)>=10,'No se completan 48 horas calendario dentro de días hábiles. Debe justificar la excepción.');
-            if (!$bereavement && $category['slug']!=='cumpleanos' && $category['max_minutes']!==null && (int)$category['policy_confirmed']===1) ensure($total<=(int)$category['max_minutes'],'La duración supera el límite configurado para este tipo.');
+            if (!$fixedLeave && $category['slug']!=='cumpleanos' && $category['max_minutes']!==null && (int)$category['policy_confirmed']===1) ensure($total<=(int)$category['max_minutes'],'La duración supera el límite configurado para este tipo.');
             $relationship=trim($input['relationship']??'');
             if ($category['slug']==='luto') ensure($relationship!=='','Indique el parentesco para la licencia por luto.');
             $existingFiles=$id?(int)row('SELECT COUNT(*) n FROM attachments WHERE request_id=?',[$id])['n']:0;
@@ -86,6 +87,12 @@ final class Workflow {
             $semesters=[];
             foreach ($slots as $s) {
                 foreach ($this->slotSemesters($s) as $semester=>$minutes) $semesters[$semester]=($semesters[$semester]??0)+$minutes;
+                if ($bereavement) {
+                    $conflict=row("SELECT r.id FROM request_slots s JOIN requests r ON r.id=s.request_id
+                        WHERE r.user_id=? AND r.id!=? AND r.status NOT IN ('rejected','cancelled') AND s.date=? LIMIT 1",
+                        [$owner['id'],$id??0,$s['date']]);
+                    ensure(!$conflict,'La jornada de luto del '.date('d/m/Y',strtotime($s['date'])).' ya está registrada en otra solicitud activa.');
+                }
                 $overlap=row("SELECT r.id FROM request_slots s JOIN requests r ON r.id=s.request_id WHERE r.user_id=? AND r.id!=? AND r.status NOT IN ('rejected','cancelled') AND COALESCE(s.start_at,CONCAT(s.date,' ',s.start_time,':00'))<? AND COALESCE(s.end_at,CONCAT(s.date,' ',s.end_time,':00'))>? LIMIT 1",[$owner['id'],$id??0,$s['end_at'],$s['start_at']]);
                 ensure(!$overlap,'El horario se cruza con otra solicitud activa.');
             }

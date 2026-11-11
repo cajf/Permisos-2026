@@ -192,9 +192,10 @@ if ($page!=='login') {
             header('Content-Type: application/json; charset=utf-8');
             ensure(empty($_GET['slot']),'Actualice el formulario: use la jornada laboral configurada.');
             $wf->calendar=new WorkCalendar(isOfficialWorker($u));
-            if(($_GET['kind']??'')==='luto') {
+            $kind=$_GET['kind']??'';
+            if(is_string($kind) && isset(WorkCalendar::CONSECUTIVE_LEAVE_DAYS[$kind])) {
                 try {
-                    $slots=$wf->calendar->bereavementSlots((string)($_GET['date']??''),new DateTimeImmutable());
+                    $slots=$wf->calendar->consecutiveLeaveSlots($kind,(string)($_GET['date']??''),new DateTimeImmutable());
                     echo json_encode(['slots'=>$slots],JSON_THROW_ON_ERROR);
                 } catch(DomainException $error) {
                     http_response_code(422);
