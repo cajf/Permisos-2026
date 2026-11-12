@@ -9,10 +9,32 @@ function listingMatch(array &$where,array &$params,string $column,string $value)
     if($value==='')return;
     $where[]="$column COLLATE utf8mb4_0900_ai_ci LIKE CONVERT(? USING utf8mb4) COLLATE utf8mb4_0900_ai_ci ESCAPE '='";$params[]=listingLike($value);
 }
-function listingRows(string $sql,array $params,array $input): array {
+function listingRows(string $sql,array $params,array $input,int $pageSize=10): array {
     $page=max(1,min(100000,(int)($input['list_page']??1)));
-    $items=rows($sql.' LIMIT 11 OFFSET '.(($page-1)*10),$params);
-    return ['items'=>array_slice($items,0,10),'more'=>count($items)>10,'page'=>$page];
+    $items=rows($sql.' LIMIT '.($pageSize+1).' OFFSET '.(($page-1)*$pageSize),$params);
+    return ['items'=>array_slice($items,0,$pageSize),'more'=>count($items)>$pageSize,'page'=>$page,'page_size'=>$pageSize];
+}
+
+function searchActivityHistory(array $actor,array $input): array {
+    requirePermission($actor,'view.audit');
+    $from=listingText($input,'q_from');
+    $to=listingText($input,'q_to');
+    ensure(($from==='' || validDate($from)) && ($to==='' || validDate($to))
+        && ($from==='' || $to==='' || $from<=$to),'Seleccione un rango de fechas válido.');
+
+    $where=['1=1'];
+    $params=[];
+    if($from!=='') {
+        $where[]='e.created_at>=?';
+        $params[]=$from.' 00:00:00';
+    }
+    if($to!=='') {
+        $where[]='e.created_at<=?';
+        $params[]=$to.' 23:59:59';
+    }
+    listingMatch($where,$params,'p.name',listingText($input,'q_responsible'));
+    return listingRows('SELECT e.*,p.name FROM events e JOIN persons p ON p.id=e.actor_id WHERE '
+        .implode(' AND ',$where).' ORDER BY e.created_at DESC,e.id DESC',$params,$input,50);
 }
 function listingRoles(): array {return ['superadmin'=>'Superadministrador','employee'=>'Funcionario sin roles adicionales','admin'=>'Administrador de Talento Humano','manager'=>'Jefe inmediato','subsecretary'=>'Subsecretario','mayor'=>'Alcalde','payroll'=>'Nómina'];}
 function searchUserDirectory(array $actor,array $input): array {
