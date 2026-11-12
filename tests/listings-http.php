@@ -10,8 +10,12 @@ if(!str_contains(http('page=login')['headers'],'X-TH-Test-Environment: isolated'
 function listingCount(string $html,string $path):int{$dom=new DOMDocument();libxml_use_internal_errors(true);$dom->loadHTML($html);return (new DOMXPath($dom))->query($path)->length;}
 login('qa5');
 foreach(['users','jobs','designations'] as $page){$r=http('page='.$page);ok($r['code']===200&&!str_contains($r['body'],'Fatal error')&&listingCount($r['body'],'//table/tbody/tr')===10,'Diez registros por HTTP: '.$page);}
-$users=http('page=users')['body'];ok(listingCount($users,"//select[@name='q_job']/option")>12&&listingCount($users,"//select[@name='q_role']/option")===8,'Directorio presenta listas de cargos y roles');
-foreach(['q_name=subsecretario','q_username=qa1','q_identification=PRUEBA-1','q_job=Jefe','q_role=payroll'] as $filter)ok(listingCount(http('page=users&'.$filter)['body'],'//table/tbody/tr')===1,'Filtro HTTP del directorio: '.$filter);
+$users=http('page=users')['body'];$accounts=http('page=accounts')['body'];
+ok(listingCount($users,"//select[@name='q_job']/option")>12&&listingCount($accounts,"//select[@name='q_role']/option[@value='payroll']")===1,'Funcionarios presenta cargos y Usuarios presenta roles');
+foreach(['q_name=subsecretario','q_identification=PRUEBA-1','q_job=Jefe'] as $filter)ok(listingCount(http('page=users&'.$filter)['body'],'//table/tbody/tr')===1,'Filtro HTTP de funcionarios: '.$filter);
+foreach(['q_username=qa1','q_role=payroll'] as $filter)ok(listingCount(http('page=accounts&'.$filter)['body'],'//table/tbody/tr')===1,'Filtro HTTP de cuentas: '.$filter);
+$staffHtml=http('page=users&id=1')['body'];
+ok(!str_contains($staffHtml,'name="q_username"')&&!str_contains($staffHtml,'name="q_role"')&&!str_contains($staffHtml,'name="initial_password"'),'Funcionarios no muestra controles de cuentas');
 ok(listingCount(http('page=users&list_page=2')['body'],'//table/tbody/tr')===10&&listingCount(http('page=users&list_page=3')['body'],'//table/tbody/tr')===2,'Navegación de las tres páginas del directorio');
 $jobs=http('page=jobs&q_job=listado%2001&q_code=001&q_grade=09')['body'];ok(listingCount($jobs,'//table/tbody/tr')===1&&str_contains($jobs,'Profesional de listado 01'),'Filtros combinados del catálogo');
 ok(listingCount($jobs,"//select[@name='job_id']/option")===13,'Formulario de grados conserva todos los cargos al filtrar el catálogo');

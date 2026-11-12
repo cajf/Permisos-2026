@@ -96,18 +96,20 @@ try {
                 $personId=saveDirectoryRecord($u,$_POST,empty($_POST['id'])?null:(int)$_POST['id'],true,false);
                 $destination='/?page=users&id='.$personId.'#user-form'; break;
             case 'account_save':
+                requirePermission($u,'view.accounts');
                 $personId=saveDirectoryRecord($u,$_POST,(int)($_POST['id']??0),false,true);
-                $destination='/?page=users&id='.$personId.'#account-form'; break;
+                $destination='/?page=accounts&id='.$personId.'#account-form'; break;
             case 'official_job_category': saveOfficialJobCategory($u,$_POST);$destination='/?page=jobs';break;
             case 'job': saveJob($u,$_POST); $destination='/?page=jobs'; break;
             case 'job_grade': saveJobGrade($u,$_POST); $destination='/?page=jobs'; break;
             case 'designation': saveDesignation($u,$_POST); $destination='/?page=designations'; break;
             case 'reset_password':
+                requirePermission($u,'view.accounts');
                  validatePassword($_POST['initial_password']??'');
                 $targetUser=row('SELECT * FROM user_profiles WHERE id=?',[(int)$_POST['id']]);ensure($targetUser!==null,'Funcionario no encontrado.');ensure(!isSuperadmin($targetUser)||isSuperadmin($u),'Solo un superadministrador puede restablecer esa cuenta.');
                 ensure(!hasRole($targetUser,'labor_records')||isSuperadmin($u),'Solo un superadministrador puede restablecer esa cuenta de Historias Laborales.');
                 run('UPDATE users SET password=?,force_password=1,failures=0,locked_until=NULL WHERE id=?',[password_hash($_POST['initial_password'],PASSWORD_DEFAULT),(int)$_POST['id']]);
-                event((int)$u['id'],'Contraseña restablecida','Funcionario '.(int)$_POST['id']); $destination='/?page=users'; break;
+                event((int)$u['id'],'Contraseña restablecida','Funcionario '.(int)$_POST['id']); $destination='/?page=accounts&id='.(int)$_POST['id'].'#reset-account'; break;
             case 'department':  ensure(trim($_POST['name']??'')!=='','Indique el nombre de la dependencia.'); insert('departments',['name'=>trim($_POST['name'])]); $destination='/?page=users'; break;
             case 'settings':
 

@@ -15,11 +15,11 @@ foreach(['usuarios'=>fn($input)=>searchUserDirectory($admin,$input),'cargos'=>fn
  $key=$label==='resoluciones'?'number':'id';check(!array_intersect(array_column($first['items'],$key),array_column($second['items'],$key)),'Sin duplicados entre páginas de '.$label);
 }
 check(count(searchUserDirectory($admin,['q_name'=>'subsecretario'])['items'])===1,'Directorio filtra nombre sin distinguir mayúsculas');
-check(count(searchUserDirectory($admin,['q_username'=>'qa1'])['items'])===1,'Directorio filtra usuario');
+check(count(searchAccountDirectory($admin,['q_username'=>'qa1'])['items'])===1,'Directorio filtra usuario');
 check(count(searchUserDirectory($admin,['q_identification'=>'PRUEBA-1'])['items'])===1,'Directorio filtra cédula');
 check(count(searchUserDirectory($admin,['q_job'=>'Jefe'])['items'])===1,'Directorio filtra cargo seleccionado');
-check(count(searchUserDirectory($admin,['q_role'=>'payroll'])['items'])===1,'Directorio filtra rol');
-check(count(searchUserDirectory($admin,['q_role'=>'employee'])['items'])===10,'Directorio filtra funcionarios sin roles adicionales');
+check(count(searchAccountDirectory($admin,['q_role'=>'payroll'])['items'])===1,'Directorio filtra rol');
+check(count(searchAccountDirectory($admin,['q_role'=>'employee'])['items'])===10,'Directorio filtra funcionarios sin roles adicionales');
 check(searchUserDirectory($admin,['q_name'=>"' OR 1=1 --"])['items']===[],'Nombre malicioso se trata como texto');
 check(count(searchJobDirectory($admin,['q_job'=>'listado 01','q_code'=>'001','q_grade'=>'09'])['items'])===1,'Catálogo combina cargo, código y grado');
 check(searchJobDirectory($admin,['q_grade'=>'99'])['items']===[],'Grado sin coincidencias no devuelve cargos');
@@ -36,7 +36,7 @@ check(count(searchDesignationHistory($admin,['q_name'=>'otro funcionario','q_fro
 insert('designations',['role'=>'subsecretary','user_id'=>3,'start_date'=>'2025-02-01','created_by'=>5,'created_at'=>now()]);
 check(count(searchDesignationHistory($admin,['q_role'=>'subsecretary','q_from'=>'2026-01-01','q_to'=>'2026-12-31'])['items'])===1,'Vigencia abierta coincide con el intervalo posterior');
 refuses(fn()=>searchDesignationHistory($admin,['q_from'=>'2026-01-02','q_to'=>'2026-01-01']),'Rechaza intervalo invertido de designaciones');
-refuses(fn()=>searchUserDirectory($admin,['q_role'=>'admin OR 1=1']),'Rechaza rol inválido');
+refuses(fn()=>searchAccountDirectory($admin,['q_role'=>'admin OR 1=1']),'Rechaza rol inválido');
 foreach([fn()=>searchUserDirectory($employee,[]),fn()=>searchJobDirectory($employee,[]),fn()=>searchDesignationHistory($employee,[])] as $search)refuses($search,'Consultas administrativas protegidas del funcionario');
 file_put_contents(ROOT.'/.work/listings-test-result.json',json_encode(['database_config'=>$GLOBALS['test_configuration_file'],'checks'=>$checks]));
 echo $checks." comprobaciones de listados correctas.\n";

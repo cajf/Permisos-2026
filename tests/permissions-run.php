@@ -30,9 +30,11 @@ $staff=saveDirectoryRecord($super,array_replace($self,[
 ]),null,true,false);
 check(row('SELECT id FROM users WHERE id=?',[$staff])===null,'Registrar funcionario no crea una cuenta');
 $entry=searchUserDirectory($super,['q_identification'=>'STAFF-ONLY-QA'])['items'][0]??null;
-check($entry && $entry['username']===null,'El directorio incluye al funcionario sin cuenta');
+check($entry && (int)$entry['id']===$staff && !array_key_exists('username',$entry),'El directorio incluye al funcionario sin mostrar datos de cuenta');
+check(!searchAccountDirectory($super,['q_identification'=>'STAFF-ONLY-QA'])['items'],'El directorio de usuarios excluye funcionarios sin cuenta');
 saveDirectoryRecord($super,['username'=>'staff.only.qa','initial_password'=>'StaffTest2026','active'=>1,'roles'=>['payroll']],$staff,false,true);
 $linked=person($staff);
+check(count(searchAccountDirectory($super,['q_username'=>'staff.only.qa','q_role'=>'payroll'])['items'])===1,'El directorio de usuarios filtra por usuario y rol');
 check($linked['name']==='Funcionario sin cuenta QA' && $linked['username']==='staff.only.qa' && roles($linked)===['payroll'],
     'Crear acceso reutiliza la persona y guarda los roles');
 saveDirectoryRecord($super,['username'=>'staff.only.qa','active'=>0,'roles'=>['payroll']],$staff,false,true);
