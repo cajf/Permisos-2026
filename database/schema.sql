@@ -37,7 +37,8 @@ CREATE TABLE IF NOT EXISTS employment_types (
  name VARCHAR(100) NOT NULL PRIMARY KEY
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_bin;
 INSERT INTO employment_types(name) VALUES
- ('Carrera administrativa'),('Libre nombramiento y remoción'),('Provisional'),('Trabajador oficial')
+ ('Carrera administrativa'),('Libre nombramiento y remoción'),('Provisional'),('Trabajador oficial'),
+ ('Elección popular'),('Periodo Fijo')
  ON DUPLICATE KEY UPDATE name=employment_types.name;
 CREATE TABLE IF NOT EXISTS roles (
  code VARCHAR(30) NOT NULL PRIMARY KEY, name VARCHAR(100) NOT NULL UNIQUE

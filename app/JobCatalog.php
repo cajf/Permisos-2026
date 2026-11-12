@@ -5,8 +5,11 @@ declare(strict_types=1);
 function jobCatalog(): array {
     return rows("SELECT j.id job_id,j.title,j.code,j.employment_group,j.official_category_id,c.name job_category,g.id grade_id,COALESCE(g.grade,'') grade FROM jobs j LEFT JOIN job_grades g ON g.job_id=j.id AND j.employment_group='regular' LEFT JOIN official_job_categories c ON c.id=j.official_category_id ORDER BY j.title,g.grade");
 }
+function employmentTypes(): array {
+    return array_column(rows('SELECT name FROM employment_types ORDER BY name'),'name');
+}
 function resolveJob(array $data): array {
-    ensure(in_array($data['appointment_type']??'Carrera administrativa',['Carrera administrativa','Libre nombramiento y remoción','Provisional','Trabajador oficial'],true),'Seleccione un tipo de vinculación válido.');
+    ensure(in_array($data['appointment_type']??'Carrera administrativa',employmentTypes(),true),'Seleccione un tipo de vinculación válido.');
     $job=row('SELECT j.*,c.name job_category FROM jobs j LEFT JOIN official_job_categories c ON c.id=j.official_category_id WHERE j.title=?',[trim($data['job_title']??'')]);
     ensure($job!==null,'Seleccione un cargo registrado.');
     $official=isOfficialWorker($data);
