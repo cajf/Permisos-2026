@@ -92,7 +92,12 @@ try {
             case 'review_cancel': $wf->reviewCancellation($u,(int)$_POST['id'],($_POST['decision']??'')==='approve',trim($_POST['comment']??'')); $destination='/?page=request&id='.(int)$_POST['id']; break;
             case 'act': $wf->act($u,$_POST,validateUploads($_FILES['supports']??[])); $destination='/?page=acts'; break;
             case 'review_act': $wf->reviewAct($u,(int)$_POST['id'],$_POST['decision']??'',trim($_POST['comment']??'')); $destination='/?page=acts'; break;
-            case 'user': saveUser($u,$_POST,empty($_POST['id'])?null:(int)$_POST['id']); $destination='/?page=users'; break;
+            case 'user':
+                $personId=saveDirectoryRecord($u,$_POST,empty($_POST['id'])?null:(int)$_POST['id'],true,false);
+                $destination='/?page=users&id='.$personId.'#user-form'; break;
+            case 'account_save':
+                $personId=saveDirectoryRecord($u,$_POST,(int)($_POST['id']??0),false,true);
+                $destination='/?page=users&id='.$personId.'#account-form'; break;
             case 'official_job_category': saveOfficialJobCategory($u,$_POST);$destination='/?page=jobs';break;
             case 'job': saveJob($u,$_POST); $destination='/?page=jobs'; break;
             case 'job_grade': saveJobGrade($u,$_POST); $destination='/?page=jobs'; break;

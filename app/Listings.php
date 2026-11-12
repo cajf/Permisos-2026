@@ -37,16 +37,25 @@ function searchActivityHistory(array $actor,array $input): array {
         .implode(' AND ',$where).' ORDER BY e.created_at DESC,e.id DESC',$params,$input,50);
 }
 function listingRoles(): array {return ['superadmin'=>'Superadministrador','employee'=>'Funcionario sin roles adicionales','admin'=>'Administrador de Talento Humano','manager'=>'Jefe inmediato','subsecretary'=>'Subsecretario','mayor'=>'Alcalde','payroll'=>'Nómina'];}
+function staffDirectorySource(): string {
+    return "SELECT p.*,e.department_id,e.employment_type AS appointment_type,e.high_rank,
+        j.title AS job_title,j.code,COALESCE(e.grade,'') AS grade,COALESCE(c.name,'') AS job_category,
+        a.username,a.active,COALESCE(a.roles,JSON_ARRAY()) AS roles
+        FROM persons p JOIN person_employments e ON e.person_id=p.id
+        JOIN jobs j ON j.id=e.job_id LEFT JOIN official_job_categories c ON c.id=j.official_category_id
+        LEFT JOIN user_profiles a ON a.id=p.id";
+}
+
 function searchUserDirectory(array $actor,array $input): array {
     requirePermission($actor,'view.users');$where=['1=1'];$params=[];
     foreach(['q_name'=>'u.name','q_username'=>'u.username','q_identification'=>'u.identification'] as $key=>$column)listingMatch($where,$params,$column,listingText($input,$key));
     $job=listingText($input,'q_job');if($job!==''){$where[]='u.job_title=?';$params[]=$job;}
     $role=listingText($input,'q_role');if($role!==''){
         ensure(isset(listingRoles()[$role]),'Seleccione un rol válido.');
-        if($role==='employee')$where[]='NOT EXISTS (SELECT 1 FROM user_roles ur WHERE ur.user_id=u.id)';
+        if($role==='employee')$where[]='u.username IS NOT NULL AND NOT EXISTS (SELECT 1 FROM user_roles ur WHERE ur.user_id=u.id)';
         else{$where[]='EXISTS (SELECT 1 FROM user_roles ur WHERE ur.user_id=u.id AND ur.role_code=?)';$params[]=$role;}
     }
-    return listingRows('SELECT u.*,d.name department FROM user_profiles u JOIN departments d ON d.id=u.department_id WHERE '.implode(' AND ',$where).' ORDER BY u.name,u.id',$params,$input);
+    return listingRows('SELECT u.*,d.name department FROM ('.staffDirectorySource().') u JOIN departments d ON d.id=u.department_id WHERE '.implode(' AND ',$where).' ORDER BY u.name,u.id',$params,$input);
 }
 function searchJobDirectory(array $actor,array $input): array {
     requirePermission($actor,'view.jobs');$where=['1=1'];$params=[];

@@ -25,6 +25,20 @@ check(row("SELECT id FROM events WHERE action='Permisos de rol actualizados'")!=
 insert('jobs',['title'=>'Cargo de prueba RBAC','code'=>'RBAC']);$jobId=(int)db()->lastInsertId();insert('job_grades',['job_id'=>$jobId,'grade'=>'1']);
 $self=person(7);$self['job_title']='Cargo de prueba RBAC';$self['code']='RBAC';$self['grade']='1';$self['roles']=['admin'];
 refuses(fn()=>saveUser($super,$self,7),'No se puede retirar al último superadministrador');
+$staff=saveDirectoryRecord($super,array_replace($self,[
+    'name'=>'Funcionario sin cuenta QA','identification'=>'STAFF-ONLY-QA','email'=>'staff-only@example.test',
+]),null,true,false);
+check(row('SELECT id FROM users WHERE id=?',[$staff])===null,'Registrar funcionario no crea una cuenta');
+$entry=searchUserDirectory($super,['q_identification'=>'STAFF-ONLY-QA'])['items'][0]??null;
+check($entry && $entry['username']===null,'El directorio incluye al funcionario sin cuenta');
+saveDirectoryRecord($super,['username'=>'staff.only.qa','initial_password'=>'StaffTest2026','active'=>1,'roles'=>['payroll']],$staff,false,true);
+$linked=person($staff);
+check($linked['name']==='Funcionario sin cuenta QA' && $linked['username']==='staff.only.qa' && roles($linked)===['payroll'],
+    'Crear acceso reutiliza la persona y guarda los roles');
+saveDirectoryRecord($super,['username'=>'staff.only.qa','active'=>0,'roles'=>['payroll']],$staff,false,true);
+check((int)person($staff)['active']===0,'Desactivar acceso conserva el funcionario');
+refuses(fn()=>saveDirectoryRecord($super,['username'=>$self['username'],'active'=>0,'roles'=>['superadmin']],7,false,true),
+    'El formulario de cuentas protege al último superadministrador');
 $own=testSubmit(7,'ordinario',[slot('2026-11-24','07:30','08:30')]);
 try{$wf->review($super,$own,'approved','');check(false,'Autoaprobación debe fallar');}catch(DomainException $e){check(str_contains($e->getMessage(),'No le corresponde'),'Superadministrador tampoco puede autoaprobar');}
 file_put_contents(ROOT.'/.work/permissions-test-result.json',json_encode(['database_config'=>$GLOBALS['test_configuration_file'],'checks'=>$checks]));
