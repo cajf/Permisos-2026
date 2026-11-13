@@ -30,20 +30,44 @@ final class Workflow {
         foreach (json_decode($slot['segments'],true,512,JSON_THROW_ON_ERROR) as [$a,$b]) $sum+=max(0,(int)((min(strtotime($until),strtotime(strlen($b)>5?$b:$slot['date'].' '.$b))-strtotime(strlen($a)>5?$a:$slot['date'].' '.$a))/60));
         return min((int)$slot['minutes'],$sum);
     }
-    public function quota(int $user,string $semester,?int $exclude=null): int {
+    public function quota(int $user,string $semester,?int $exclude=null,array $proposedSlots=[],int $proposedDailyLimit=510): int {
+        $days=[];
+        $add=function(array $slot,int $limit,?string $until=null) use (&$days) {
+            foreach ($this->slotDays($slot,$until) as $date=>$minutes) {
+                $days[$date]['minutes']=($days[$date]['minutes']??0)+$minutes;
+                $days[$date]['limit']=max($days[$date]['limit']??0,$limit);
+            }
+        };
+        foreach (rows("SELECT s.*,r.status,r.cancelled_at,r.snapshot FROM request_slots s JOIN requests r ON r.id=s.request_id JOIN categories c ON c.id=r.category_id WHERE r.user_id=? AND c.slug='ordinario' AND r.status!='rejected' AND r.id!=? AND NOT (JSON_EXTRACT(r.snapshot,'$.medical_appointment') <=> CAST('true' AS JSON))",[$user,$exclude??0]) as $slot) {
+            $snapshot=json_decode($slot['snapshot']??'{}',true)??[];
+            $limit=intdiv((int)($snapshot['ordinary_quota_minutes']??ordinaryQuotaLimit($snapshot)),3);
+            $add($slot,$limit,$slot['status']==='cancelled'?$slot['cancelled_at']:null);
+        }
+        foreach ($proposedSlots as $slot) $add($slot,$proposedDailyLimit);
         $sum=0;
-        foreach (rows("SELECT s.*,r.status,r.cancelled_at FROM request_slots s JOIN requests r ON r.id=s.request_id JOIN categories c ON c.id=r.category_id WHERE r.user_id=? AND c.slug='ordinario' AND r.status!='rejected' AND r.id!=? AND NOT (JSON_EXTRACT(r.snapshot,'$.medical_appointment') <=> CAST('true' AS JSON))",[$user,$exclude??0]) as $s) $sum+=$this->slotSemesters($s,$s['status']==='cancelled'?$s['cancelled_at']:null)[$semester]??0;
+        foreach ($days as $date=>$day) {
+            $key=substr($date,0,4).'-'.((int)substr($date,5,2)<=6?'1':'2');
+            if ($key===$semester) $sum+=min($day['minutes'],$day['limit']);
+        }
         return $sum;
     }
     public function slotSemesters(array $slot,?string $until=null): array {
+        $result=[];
+        foreach ($this->slotDays($slot,$until) as $date=>$minutes) {
+            $semester=substr($date,0,4).'-'.((int)substr($date,5,2)<=6?'1':'2');
+            $result[$semester]=($result[$semester]??0)+$minutes;
+        }
+        return $result;
+    }
+    private function slotDays(array $slot,?string $until): array {
         $result=[];
         foreach (json_decode($slot['segments'],true,512,JSON_THROW_ON_ERROR) as [$a,$b]) {
             $from=new DateTimeImmutable(strlen($a)>5?$a:$slot['date'].' '.$a);$to=new DateTimeImmutable(strlen($b)>5?$b:$slot['date'].' '.$b);
             if ($until) $to=min($to,new DateTimeImmutable($until));
             for ($at=$from;$at<$to;$at=$next) {
                 $next=min($to,$at->modify('tomorrow')->setTime(0,0));
-                $semester=$at->format('Y').'-'.((int)$at->format('m')<=6?'1':'2');
-                $result[$semester]=($result[$semester]??0)+intdiv($next->getTimestamp()-$at->getTimestamp(),60);
+                $date=$at->format('Y-m-d');
+                $result[$date]=($result[$date]??0)+intdiv($next->getTimestamp()-$at->getTimestamp(),60);
             }
         }
         return $result;
@@ -98,7 +122,10 @@ final class Workflow {
             }
             if ($ordinary) foreach ($semesters as $semester=>$minutes) {
                 ensure(substr($semester,0,4)===$clock->format('Y'),'El Ordinario-Remunerado debe disfrutarse en el año en curso.');
-                if (!$medical) ensure($this->quota((int)$owner['id'],$semester,$id)+$minutes<=ordinaryQuotaLimit($owner),'La solicitud excede el cupo de '.hours(ordinaryQuotaLimit($owner)).' del semestre '.$semester.'.');
+                if (!$medical) {
+                    $limit=ordinaryQuotaLimit($owner);
+                    ensure($this->quota((int)$owner['id'],$semester,$id,$slots,intdiv($limit,3))<=$limit,'La solicitud excede el cupo de '.hours($limit).' del semestre '.$semester.'.');
+                }
             }
             $birthdayYear=null;
             $year=(int)$clock->format('Y');
