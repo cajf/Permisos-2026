@@ -200,6 +200,35 @@ if ($page!=='login') {
             ensure(empty($_GET['slot']),'Actualice el formulario: use la jornada laboral configurada.');
             $wf->calendar=new WorkCalendar(isOfficialWorker($u));
             $kind=$_GET['kind']??'';
+            if ($kind==='ordinary_quota') {
+                try {
+                    $entries=json_decode((string)($_GET['entries']??''),true);
+                    ensure(is_array($entries) && array_is_list($entries),'Revisa las fechas y las franjas.');
+                    $input=[];
+                    foreach ($entries as $entry) {
+                        ensure(is_array($entry) && array_is_list($entry) && count($entry)===3,'Revisa las fechas y las franjas.');
+                        [$date,$start,$end]=$entry;
+                        ensure(is_string($date) && is_string($start) && is_string($end),'Revisa las fechas y las franjas.');
+                        $input[]=['date'=>$date,'start'=>$start,'end'=>$end,'mode'=>$start==='' && $end===''?'full':'hours'];
+                    }
+                    $exclude=(int)($_GET['exclude']??0);
+                    ensure(!$exclude || row("SELECT id FROM requests WHERE id=? AND user_id=? AND status='returned'",[$exclude,$u['id']]),'La solicitud ya no está disponible para corrección.');
+                    $slots=$wf->calendar->slots($input,new DateTimeImmutable());
+                    $semesters=[];
+                    foreach ($slots as $slot) $semesters+= $wf->slotSemesters($slot);
+                    $discount=0;
+                    foreach (array_keys($semesters) as $semester) {
+                        $used=$wf->quota((int)$u['id'],$semester,$exclude);
+                        $withRequest=$wf->quota((int)$u['id'],$semester,$exclude,$slots,intdiv(ordinaryQuotaLimit($u),3));
+                        $discount+=$withRequest-$used;
+                    }
+                    echo json_encode(['minutes'=>$discount],JSON_THROW_ON_ERROR);
+                } catch (DomainException $error) {
+                    http_response_code(422);
+                    echo json_encode(['error'=>$error->getMessage()],JSON_THROW_ON_ERROR);
+                }
+                exit;
+            }
             if(is_string($kind) && isset(WorkCalendar::CONSECUTIVE_LEAVE_DAYS[$kind])) {
                 try {
                     $slots=$wf->calendar->consecutiveLeaveSlots($kind,(string)($_GET['date']??''),new DateTimeImmutable());

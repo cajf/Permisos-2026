@@ -137,11 +137,40 @@ if(form){
   return dates;
  }
  document.querySelector('#allocation-panel').addEventListener('input',updateAllocations);
+ const quotaSummary=document.querySelector('#ordinary-quota-summary');
+ const quotaValue=document.querySelector('#ordinary-quota-value');
+ async function refreshQuota(slug,dates,seq){
+  quotaSummary.hidden=slug!=='ordinario';
+  if(quotaSummary.hidden)return;
+  if(medicalAnswer.value==='1'){quotaValue.textContent=fmt(0)+' · Cita médica exenta';return;}
+  if(medicalAnswer.value!=='0'){quotaValue.textContent='Indica si es una cita médica.';return;}
+  const entries=[...slots.children].map((row,index)=>{
+   const times=[...row.querySelectorAll('[type=time]')].map(input=>input.value);
+   return [dates[index].value,...(row.querySelector('[data-mode]').value==='full'?['','']:times)];
+  });
+  if(entries.some(([date,start,end],index)=>!date ||
+     (slots.children[index].querySelector('[data-mode]').value!=='full' && (!start || !end)))){
+   quotaValue.textContent='Completa las fechas y franjas para calcular el descuento.';return;
+  }
+  quotaValue.textContent='Calculando…';
+  const params=new URLSearchParams({page:'estimate',kind:'ordinary_quota',entries:JSON.stringify(entries)});
+  const editId=document.querySelector('#request-form [name=id]')?.value;
+  if(editId)params.set('exclude',editId);
+  try{
+   const response=await fetch('/?'+params);
+   const data=await response.json();
+   if(seq!==sequence)return;
+   quotaValue.textContent=response.ok?fmt(data.minutes):(data.error||'No se pudo calcular el descuento.');
+  }catch{
+   if(seq===sequence)quotaValue.textContent='No se pudo calcular el descuento.';
+  }
+ }
  async function refresh(){
   updateSupports();
   const seq=++sequence;let total=0;
   const selected=category.selectedOptions[0],slug=selected?.dataset.slug;
   const dates=updateDayFields(slug);
+  void refreshQuota(slug,dates,seq);
   await Promise.all([...slots.children].map(async (row,index)=>{
    const date=dates[index],times=row.querySelectorAll('[type=time]'),full=row.querySelector('[data-mode]').value==='full';times.forEach(t=>t.disabled=full);
    if(!date.value){row.dataset.minutes='0';row.querySelector('.slot-result').textContent='';return;}
@@ -195,7 +224,7 @@ if(form){
   firstRow.querySelectorAll('[data-request-time]').forEach(input=>{input.value=input.defaultValue;});
   refresh();
  });
- birthdayYear.addEventListener('change',refresh);medicalAnswer.addEventListener('change',updateSupports);
+ birthdayYear.addEventListener('change',refresh);medicalAnswer.addEventListener('change',refresh);
  slots.addEventListener('click',e=>{const btn=e.target.closest('.remove-slot');if(btn&&slots.children.length>1){btn.closest('.slot-row').remove();refresh();}});
  addSlot.addEventListener('click',()=>{
   const copy=slots.firstElementChild.cloneNode(true);
