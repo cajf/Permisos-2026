@@ -167,10 +167,15 @@ function saveSchedule(array $actor,array $data): void {
     ensure(validDate($a)&&validDate($b)&&$a<=$b,'Revise la vigencia del horario.');
     ensure($a>=date('Y-m-d'),'Los horarios temporales solo pueden comenzar hoy o en el futuro.');
     $periods=[];
+    $weekdays=[1=>'Lunes',2=>'Martes',3=>'Miércoles',4=>'Jueves',5=>'Viernes'];
     for ($d=1;$d<=5;$d++) {
         $p=[]; for($i=0;$i<3;$i++) { $start=$data['periods'][$d][$i][0]??''; $end=$data['periods'][$d][$i][1]??''; if ($start===''&&$end==='') continue;
             ensure(preg_match('/^(?:[01]\d|2[0-3]):[0-5]\d$/D',$start)===1 && preg_match('/^(?:[01]\d|2[0-3]):[0-5]\d$/D',$end)===1 && $end>$start,'Revise las franjas del horario temporal.');
-            if ($p) ensure($start>=$p[count($p)-1][1],'Las franjas deben estar ordenadas y no superponerse.'); $p[]=[$start,$end];
+            if ($p) {
+                [$previousStart,$previousEnd]=end($p);
+                ensure($start >= $previousEnd, "{$weekdays[$d]}: la franja {$start}–{$end} debe comenzar a las $previousEnd o después. La franja anterior es {$previousStart}–{$previousEnd}.");
+            }
+            $p[]=[$start,$end];
         } ensure(count($p)>0,'Cada día de lunes a viernes debe tener al menos una franja.'); $periods[(string)$d]=$p;
     }
     atomic(function() use($actor,$a,$b,$periods,$data,$group) {
