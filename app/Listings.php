@@ -39,8 +39,8 @@ function searchActivityHistory(array $actor,array $input): array {
 function staffDirectorySource(): string {
     return "SELECT p.*,e.department_id,e.employment_type AS appointment_type,e.high_rank,
         j.title AS job_title,j.code,COALESCE(e.grade,'') AS grade,COALESCE(c.name,'') AS job_category
-        FROM persons p JOIN person_employments e ON e.person_id=p.id
-        JOIN jobs j ON j.id=e.job_id LEFT JOIN official_job_categories c ON c.id=j.official_category_id";
+        FROM persons p LEFT JOIN person_employments e ON e.person_id=p.id
+        LEFT JOIN jobs j ON j.id=e.job_id LEFT JOIN official_job_categories c ON c.id=j.official_category_id";
 }
 
 function searchUserDirectory(array $actor,array $input): array {
@@ -52,8 +52,8 @@ function searchUserDirectory(array $actor,array $input): array {
     $job=listingText($input,'q_job');
     if($job!=='') {$where[]='j.title=?';$params[]=$job;}
     return listingRows('SELECT p.id,p.name,p.identification,j.title AS job_title,d.name AS department,e.employment_type AS appointment_type,
-        COALESCE(c.name,\'\') AS job_category FROM persons p JOIN person_employments e ON e.person_id=p.id
-        JOIN jobs j ON j.id=e.job_id JOIN departments d ON d.id=e.department_id
+        COALESCE(c.name,\'\') AS job_category FROM persons p LEFT JOIN person_employments e ON e.person_id=p.id
+        LEFT JOIN jobs j ON j.id=e.job_id LEFT JOIN departments d ON d.id=e.department_id
         LEFT JOIN official_job_categories c ON c.id=j.official_category_id WHERE '.implode(' AND ',$where).' ORDER BY p.name,p.id',$params,$input);
 }
 

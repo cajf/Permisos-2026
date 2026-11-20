@@ -18,7 +18,7 @@ function saveDirectoryRecord(array $actor,array $data,?int $id,bool $editPerson,
 
         if($editPerson) {
             $data=array_replace($data,resolveJob($data));
-            if(!$id && !isOfficialWorker($data)) ensure($data['code']!=='' && $data['grade']!=='','Complete el código y los grados del cargo.');
+            if(!isOfficialWorker($data) && (!$id || !row('SELECT person_id FROM person_employments WHERE person_id=?',[$id]))) ensure($data['code']!=='' && $data['grade']!=='','Complete el código y los grados del cargo.');
             foreach(['name','identification','email'] as $field) ensure(trim($data[$field]??'')!=='','Complete los campos obligatorios del funcionario.');
             ensure(filter_var($data['email'],FILTER_VALIDATE_EMAIL)!==false,'El correo no es válido.');
             ensure(row('SELECT id FROM departments WHERE id=?',[(int)($data['department_id']??0)])!==null,'Seleccione una dependencia válida.');
@@ -31,7 +31,12 @@ function saveDirectoryRecord(array $actor,array $data,?int $id,bool $editPerson,
                 $id=insert('persons',$person);
                 insert('person_employments',['person_id'=>$id]+$employment);
             } else {
-                saveUserIdentity($id,$person,$employment,[]);
+                saveUserIdentity($id,$person,[],[]);
+                if (row('SELECT person_id FROM person_employments WHERE person_id=?',[$id])) {
+                    saveUserIdentity($id,[],$employment,[]);
+                } else {
+                    insert('person_employments',['person_id'=>$id]+$employment);
+                }
             }
         }
 
@@ -89,16 +94,41 @@ function readImport(string $path,string $extension): array {
         while(($line=fgetcsv($h,0,$delimiter,'"',''))!==false) { $values[]=$line; ensure(count($values)<=1001,'Importe hasta 1.000 funcionarios.'); } fclose($h);
     }
     $head=array_map(fn($s)=>strtolower(trim((string)$s," \t\n\r\0\x0B\xEF\xBB\xBF")),array_shift($values)??[]);
-    $required=['cedula','nombre','usuario','correo','cargo','dependencia','cedula_jefe'];
+    $required=['cedula','nombre','correo'];
     foreach ($required as $key) ensure(in_array($key,$head,true),'Falta la columna '.$key.'. Descargue la plantilla.');
-    ensure(count($head)===count(array_unique($head)),'Hay encabezados repetidos.'); $data=[];
-    foreach ($values as $line) {
+    ensure(count($head)===count(array_unique($head)),'Hay encabezados repetidos.');
+    ensure(!array_diff($head,[...$required,'fecha_nacimiento']),'Use únicamente los campos de la plantilla de funcionarios.');
+    $data=[];$seen=[];
+    foreach ($values as $index=>$line) {
         if (count(array_filter($line,fn($v)=>$v!==null && $v!==''))===0) continue;
         $line=array_slice(array_pad($line,count($head),''),0,count($head));
         foreach ($line as &$v) { $v=trim((string)$v); ensure(!preg_match('/^[=+@]/',$v),'La importación no admite fórmulas. Convierta esas celdas a valores.'); } unset($v);
-        $data[]=array_combine($head,$line);
+        $record=array_combine($head,$line);
+        $number=$index+2;
+        $birth=$record['fecha_nacimiento']??'';
+        if ($extension==='xlsx' && ctype_digit($birth) && (int)$birth>0 && (int)$birth<100000) {
+            $birth=\PhpOffice\PhpSpreadsheet\Shared\Date::excelToDateTimeObject((int)$birth)->format('Y-m-d');
+        }
+        ensure($record['cedula']!=='' && mb_strlen($record['cedula'])<=180 && $record['nombre']!=='' && mb_strlen($record['nombre'])<=180,"Fila $number. Revise la cédula y el nombre completo.");
+        ensure(mb_strlen($record['correo'])<=254 && filter_var($record['correo'],FILTER_VALIDATE_EMAIL)!==false,"Fila $number. Ingrese un correo válido.");
+        ensure($birth==='' || (validDate($birth) && $birth<date('Y-m-d')),"Fila $number. Revise la fecha de nacimiento. Use AAAA-MM-DD.");
+        ensure(!isset($seen[$record['cedula']]),"Fila $number. La cédula se repite en el archivo.");
+        ensure(!row('SELECT id FROM persons WHERE identification=?',[$record['cedula']]),"Fila $number. La cédula ya está registrada.");
+        $seen[$record['cedula']]=true;
+        $data[]=['identification'=>$record['cedula'],'name'=>$record['nombre'],'email'=>$record['correo'],'birth_date'=>$birth?:null];
     }
     ensure(count($data)>0,'No se encontraron funcionarios.'); return $data;
+}
+function importPersons(array $actor,array $people): int {
+    requirePermission($actor,'import.execute');
+    return atomic(function() use($actor,$people) {
+        foreach ($people as $person) {
+            ensure(!row('SELECT id FROM persons WHERE identification=?',[$person['identification']]),'Una cédula del archivo ya está registrada. Revise el archivo nuevamente.');
+            insert('persons',$person);
+        }
+        event((int)$actor['id'],'Importación de funcionarios',count($people).' personas');
+        return count($people);
+    });
 }
 function commitImport(array $actor,array $data): array {
     requirePermission($actor,'import.execute');

@@ -148,12 +148,13 @@ try {
                     event((int)$u['id'],'Matriz actualizada',$detail);
                 }); $destination='/?page=policies'; break;
             case 'import_preview':
+                unset($_SESSION['person_import']);
                  $f=$_FILES['excel']??[];
                 ensure(($f['error']??1)===UPLOAD_ERR_OK && is_uploaded_file($f['tmp_name']) && $f['size']<=5*1024*1024,'Adjunte un XLSX o CSV de hasta 5 MB.');
-                $_SESSION['import']=readImport($f['tmp_name'],strtolower(pathinfo($f['name'],PATHINFO_EXTENSION))); $destination='/?page=import'; break;
+                $_SESSION['person_import']=readImport($f['tmp_name'],strtolower(pathinfo($f['name'],PATHINFO_EXTENSION))); $destination='/?page=import'; break;
             case 'import_commit':
-                 ensure(!empty($_SESSION['import']),'Prepare primero la importación.');
-                $_SESSION['import_passwords']=commitImport($u,$_SESSION['import']); unset($_SESSION['import']); $destination='/?page=import'; break;
+                 ensure(!empty($_SESSION['person_import']),'Prepare primero la importación.');
+                $count=importPersons($u,$_SESSION['person_import']); $_SESSION['flash']="$count funcionarios importados."; unset($_SESSION['person_import']); $destination='/?page=import'; break;
             case 'mail_template_save':
                 saveMailTemplate($u,(string)($_POST['template_key']??''),(string)($_POST['subject']??''),(string)($_POST['message']??''));
                 $_SESSION['flash']='Plantilla guardada. Se aplicará a las nuevas notificaciones de este evento.';redirect('/?page=mail_templates');
@@ -260,7 +261,7 @@ if ($page!=='login') {
         }
         if ($page==='template') {
              header('Content-Type: text/csv; charset=utf-8'); header('Content-Disposition: attachment; filename="plantilla-funcionarios.csv"');
-            echo "\xEF\xBB\xBFcedula;nombre;usuario;correo;cargo;codigo;grado;vinculacion;dependencia;cedula_jefe;alto_rango;fecha_nacimiento\r\n"; exit;
+            echo "\xEF\xBB\xBFcedula;nombre;correo;fecha_nacimiento\r\n"; exit;
         }
         if ($page==='import_passwords') {
              header('Content-Type: text/csv; charset=utf-8'); header('Content-Disposition: attachment; filename="accesos-iniciales.csv"'); $out=fopen('php://output','w');
