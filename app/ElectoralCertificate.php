@@ -13,8 +13,11 @@ final class ElectoralCertificate {
     }
     /** Solo extrae campos contextualizados en líneas legibles, sin corregir dígitos adivinados. */
     public static function parse(array $lines,string $kind='sufragar'): array {
-        $clear=[];
-        foreach ($lines as $line) if (($line['confidence']??0)>=80) $clear[]=self::normalize((string)$line['text']);
+        $clear=[];$numberSafe=[];
+        foreach ($lines as $line) if (($line['confidence']??0)>=80) {
+            $clear[]=self::normalize((string)$line['text']);
+            $numberSafe[]=empty($line['number_uncertain']);
+        }
         $text=implode("\n",$clear);
         $recognized=preg_match('/CERTIFICADO\s+ELECTORAL/',$text) && preg_match('/REGISTRADURIA/',$text) && preg_match('/NACIONAL|COLOMBIA/',$text);
         if($kind==='jurado') $recognized=preg_match('/CERTIFICADO|CONSTANCIA/',$text) && preg_match('/JURADO(?:S)?\s+(?:DE\s+)?VOTACION/',$text) && preg_match('/PREST|SERVICIO|CUMPLIO|EJERCIO/',$text) && preg_match('/REGISTRADURIA/',$text);
@@ -22,7 +25,7 @@ final class ElectoralCertificate {
         $numbers=[];$dates=[];
         foreach ($clear as $i=>$line) {
             // Un identificador de certificado, puesto o mesa nunca se toma como cédula.
-            if (preg_match('/(?:CEDULA(?:\s+DE\s+CIUDADANIA)?|DOCUMENTO(?:\s+DE\s+IDENTIDAD)?|\bC\.?\s*C\.?)\s*(?:N[Oº°.]*)?\s*[:#-]?\s*([0-9][0-9. ]{2,22}[0-9])(?![0-9])/',$line,$m)) {
+            if ($numberSafe[$i] && preg_match('/(?:CEDULA(?:\s+DE\s+CIUDADANIA)?|DOCUMENTO(?:\s+DE\s+IDENTIDAD)?|\bC\.?\s*C\.?|^\s*NUM(?:ERO)?\.?)\s*(?:N[Oº°.]*)?\s*[:#-]?\s*([0-9][0-9. ]{2,22}[0-9])(?![0-9])/',$line,$m)) {
                 if ($n=self::documentNumber($m[1])) $numbers[]=$n;
             }
             if (!preg_match('/ELECCIONES|FECHA\s+(?:DE\s+)?(?:LA\s+)?(?:ELECCION|VOTACION)/',$line)) continue;
@@ -37,14 +40,22 @@ final class ElectoralCertificate {
         return ['recognized'=>true,'documents'=>array_values(array_unique($numbers)),'dates'=>array_values(array_unique($dates))];
     }
     public static function fromTsv(string $tsv,string $kind='sufragar'): array {
-        $lines=[];
+        $lines=[];$previous='';$fragment=0;$uncertain=[];
         foreach(explode("\n",$tsv) as $row) {
             $c=explode("\t",rtrim($row,"\r"),12);
             if(count($c)!==12 || $c[0]!=='5' || trim($c[11])==='') continue;
-            $key=implode('-',array_slice($c,1,4));
+            $line=implode('-',array_slice($c,1,4));
+            // Cortar el fragmento impide unir dígitos separados por una palabra dudosa.
+            if($line!==$previous || (float)$c[10]<80) $fragment++;
+            $previous=$line;
+            if((float)$c[10]<80) {$uncertain[$line]=true;continue;}
+            $key=$line.'-'.$fragment;
             $lines[$key]['text']=($lines[$key]['text']??'').' '.$c[11];
             $lines[$key]['confidence']=min($lines[$key]['confidence']??100,(float)$c[10]);
+            $lines[$key]['source_line']=$line;
         }
+        foreach($lines as &$line) $line['number_uncertain']=isset($uncertain[$line['source_line']]);
+        unset($line);
         return self::parse(array_values($lines),$kind);
     }
     private static function binary(string $name): string {
@@ -59,10 +70,11 @@ final class ElectoralCertificate {
     }
     /** Array de argumentos, sin shell; límites de tiempo y salida para documentos no confiables. */
     private static function command(array $args,string $dir,float $deadline): string {
-        if(!function_exists('proc_open') || microtime(true)>=$deadline) throw new RuntimeException('OCR no disponible');
+        if(!function_exists('proc_open')) throw new RuntimeException('La ejecución de procesos OCR está deshabilitada.');
+        if(microtime(true)>=$deadline) throw new RuntimeException('Se agotó el tiempo máximo de lectura.');
         $out=$dir.'/command.out';$err=$dir.'/command.err';
         $process=@proc_open($args,[0=>['file',PHP_OS_FAMILY==='Windows'?'NUL':'/dev/null','r'],1=>['file',$out,'w'],2=>['file',$err,'w']],$pipes,$dir,null,['bypass_shell'=>true,'suppress_errors'=>true]);
-        if(!is_resource($process)) throw new RuntimeException('OCR no disponible');
+        if(!is_resource($process)) throw new RuntimeException('No se pudo iniciar la herramienta OCR.');
         $exit=-1;
         try {
             do {
@@ -70,41 +82,80 @@ final class ElectoralCertificate {
                 if(!$state['running']) {$exit=$state['exitcode'];break;}
                 clearstatcache(true,$out);
                 clearstatcache(true,$err);
-                if(microtime(true)>=$deadline || (is_file($out)&&filesize($out)>2*1024*1024) || (is_file($err)&&filesize($err)>2*1024*1024)) {proc_terminate($process);throw new RuntimeException('Límite de lectura OCR');}
+                if(microtime(true)>=$deadline) {proc_terminate($process);throw new RuntimeException('Se agotó el tiempo máximo de lectura.');}
+                if((is_file($out)&&filesize($out)>2*1024*1024) || (is_file($err)&&filesize($err)>2*1024*1024)) {proc_terminate($process);throw new RuntimeException('La salida del OCR superó el límite permitido.');}
                 usleep(40000);
             } while(true);
         } finally {proc_close($process);}
-        if($exit!==0) throw new RuntimeException('No se pudo leer el soporte con OCR');
+        if($exit!==0) throw new RuntimeException('La herramienta terminó con un error. Revise su instalación y el idioma español.');
         return (string)file_get_contents($out);
     }
+    private static function enhancedImage(string $path,string $destination): bool {
+        if(!function_exists('imagecreatefromstring')) return false;
+        $size=@getimagesize($path);
+        if(!$size || $size[0]*$size[1]>25000000) return false;
+        $image=@imagecreatefromstring(file_get_contents($path));
+        if(!$image) return false;
+        try {
+            $cropped=imagecropauto($image,IMG_CROP_WHITE);
+            if($cropped) {imagedestroy($image);$image=$cropped;}
+            imagefilter($image,IMG_FILTER_GRAYSCALE);
+            imagefilter($image,IMG_FILTER_CONTRAST,-20);
+            return imagepng($image,$destination);
+        } finally {imagedestroy($image);}
+    }
     public static function readFiles(array $files,string $kind='sufragar'): array {
-        $result=['version'=>1,'kind'=>$kind,'status'=>'manual','checked_at'=>now(),'documents'=>[],'reasons'=>[]];
+        $result=['version'=>2,'kind'=>$kind,'status'=>'manual','checked_at'=>now(),'documents'=>[],'reasons'=>[],'diagnostics'=>[]];
         $dir=ROOT.'/storage/cache/ocr-'.bin2hex(random_bytes(12));
         if(!@mkdir($dir,0700,true)) {$result['reasons'][]='No se pudo preparar la lectura del soporte.';return $result;}
-        $deadline=microtime(true)+35;$pages=0;
+        $deadline=microtime(true)+65;$pages=0;
         try {
             foreach($files as $index=>$file) {
+                $stage='preparación del archivo';
                 try {
                     if($pages>=6) throw new RuntimeException('Límite de páginas OCR');
                     $path=$file['tmp']??attachmentPath($file);
                     $images=[$path];
                     if($file['mime']==='application/pdf') {
+                        $stage='inspección del PDF';
                         $info=self::command([self::binary('pdfinfo'),$path],$dir,min($deadline,microtime(true)+5));
                         if(!preg_match('/^Pages:\s+(\d+)/m',$info,$m)) throw new RuntimeException('No se pudo contar el PDF');
                         if((int)$m[1]>3 || $pages+(int)$m[1]>6) throw new RuntimeException('El PDF supera el límite de lectura automática');
                         $prefix=$dir.'/page-'.$index;
-                        self::command([self::binary('pdftoppm'),'-r','200','-scale-to','2400','-f','1','-l',$m[1],'-png',$path,$prefix],$dir,min($deadline,microtime(true)+10));
+                        $stage='conversión del PDF a imagen';
+                        self::command([self::binary('pdftoppm'),'-r','200','-scale-to','2400','-f','1','-l',$m[1],'-png',$path,$prefix],$dir,min($deadline,microtime(true)+15));
                         $images=glob($prefix.'-*.png');
                         if(!$images) throw new RuntimeException('No se pudo convertir el PDF');
                     }
                     foreach($images as $image) {
                         $pages++;
-                        $tsv=self::command([self::binary('tesseract'),$image,'stdout','-l','spa','--psm','3','tsv'],$dir,min($deadline,microtime(true)+10));
+                        $stage='lectura de texto de la página '.$pages;
+                        $tsv=self::command([self::binary('tesseract'),$image,'stdout','-l','spa','--psm','3','tsv'],$dir,min($deadline,microtime(true)+15));
                         $parsed=self::fromTsv($tsv,$kind);
+                        $passes=1;
+                        if(!$parsed['recognized'] || count($parsed['documents'])!==1 || count($parsed['dates'])!==1) {
+                            $prepared=$dir.'/enhanced-'.$pages.'.png';
+                            $retryImage=self::enhancedImage($image,$prepared)?$prepared:$image;
+                            try {
+                                $retry=self::command([self::binary('tesseract'),$retryImage,'stdout','-l','spa','--psm','11','tsv'],$dir,min($deadline,microtime(true)+15));
+                                $alternative=self::fromTsv($retry,$kind);$passes++;
+                                // Solo combinar lecturas que reconocieron el tipo de documento.
+                                if($alternative['recognized']) {
+                                    $parsed=['recognized'=>true,
+                                        'documents'=>array_values(array_unique(array_merge($parsed['documents'],$alternative['documents']))),
+                                        'dates'=>array_values(array_unique(array_merge($parsed['dates'],$alternative['dates'])))];
+                                }
+                            } catch(RuntimeException $retryError) {
+                                $result['reasons'][]='La segunda lectura de '.$file['original_name'].' no se completó. '.$retryError->getMessage();
+                            }
+                        }
                         $result['documents'][]=$parsed+['sha256'=>$file['sha256'],'file'=>$file['original_name']];
+                        $result['diagnostics'][]=['file'=>$file['original_name'],'page'=>$pages,'passes'=>$passes,'recognized'=>$parsed['recognized'],'document_candidates'=>count($parsed['documents']),'date_candidates'=>count($parsed['dates'])];
                     }
                 } catch(Throwable $e) {
-                    $result['reasons'][]='No fue posible completar la lectura automática de '.$file['original_name'].'. Revise su legibilidad, formato y contenido.';
+                    $detail=$e instanceof RuntimeException?$e->getMessage():'Error interno del procesamiento.';
+                    $result['reasons'][]='No fue posible completar la lectura automática de '.$file['original_name'].' en la etapa de '.$stage.'. '.$detail;
+                    $result['diagnostics'][]=['file'=>$file['original_name'],'stage'=>$stage,'error'=>$detail];
                 }
             }
         } finally {

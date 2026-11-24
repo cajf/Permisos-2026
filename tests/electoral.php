@@ -17,6 +17,17 @@ refuses(fn()=>ElectoralCertificate::validate($report,'1234567890',$dates('2026-1
 refuses(fn()=>ElectoralCertificate::validate($report,'1234567890',[['date'=>'2026-11-02'],['date'=>'2026-11-25']],'2026-10-29'),'Sufragar verifica todas las fechas solicitadas');
 check(!ElectoralCertificate::parse(electoralLines('CERTIFICADO LABORAL CEDULA 1234567890'))['recognized'],'Un documento distinto no se confunde con certificado electoral');
 check(!ElectoralCertificate::parse(electoralLines($text,60))['recognized'],'OCR de baja confianza no bloquea con datos adivinados');
+$numberLabel=str_replace('Cédula No. 1.234.567.890','Núm. 1.234.567.890',$text);
+check(ElectoralCertificate::parse(electoralLines($numberLabel))['documents']===['1234567890'],'Certificado reconocido admite la etiqueta Núm sin confundir mesa o puesto');
+$tsvHeader="level\tpage_num\tblock_num\tpar_num\tline_num\tword_num\tleft\ttop\twidth\theight\tconf\ttext\n";
+$tsv=$tsvHeader;
+$tokens=['REGISTRADURÍA','NACIONAL','CERTIFICADO','ELECTORAL','mancha','ELECCIONES','25','DE','OCTUBRE','DE','2026'];
+foreach($tokens as $i=>$token)$tsv.="5\t1\t1\t1\t1\t".($i+1)."\t0\t0\t10\t10\t".($token==='mancha'?10:99)."\t$token\n";
+$mixed=ElectoralCertificate::fromTsv($tsv);
+check($mixed['recognized'] && $mixed['dates']===['2026-10-25'],'Palabra dudosa no descarta texto electoral legible de la misma línea');
+$tsv=$tsvHeader;
+foreach(['REGISTRADURÍA NACIONAL','CERTIFICADO ELECTORAL','Cédula 1234','x','5678'] as $i=>$token)$tsv.="5\t1\t1\t1\t1\t".($i+1)."\t0\t0\t10\t10\t".($token==='x'?10:99)."\t$token\n";
+check(ElectoralCertificate::fromTsv($tsv)['documents']===[],'No extrae una cédula parcial de una línea con contenido de baja confianza');
 $issueOnly=str_replace('ELECCIONES 25 DE OCTUBRE DE 2026','FECHA DE EXPEDICION 25 DE OCTUBRE DE 2026',$text);
 check(ElectoralCertificate::parse(electoralLines($issueOnly))['dates']===[],'Fecha de expedición no se toma como fecha electoral');
 $numeric=str_replace('25 DE OCTUBRE DE 2026','25/10/2026',$text);
@@ -37,6 +48,7 @@ check(ElectoralCertificate::validate($realPdf,'1234567890',$dates('2026-11-02'),
 $originalOcr=$GLOBALS['config']['electoral_ocr'];$GLOBALS['config']['electoral_ocr']['tesseract']=ROOT.'/.work/motor-inexistente.exe';
 $fallback=ElectoralCertificate::readFiles([$file]);
 check($fallback['status']==='manual' && count($fallback['reasons'])>0,'Ausencia del motor genera revisión manual sin excepción de registro');
+check(str_contains(implode(' ',$fallback['reasons']),'etapa de lectura de texto') && count($fallback['diagnostics'])>0,'Fallo técnico identifica etapa y conserva diagnóstico sin texto OCR íntegro');
 $GLOBALS['config']['electoral_ocr']=$originalOcr;
 $uid=fixtureUser(['name'=>'Solicitante electoral ficticio','identification'=>'1234567890','username'=>'electoral.qa','email'=>'electoral@ejemplo.invalid','password'=>password_hash('PruebaLocal!9876',PASSWORD_DEFAULT),'job_title'=>'Profesional','department_id'=>1,'manager_id'=>2,'roles'=>'[]','force_password'=>0]);
 $input=['category_id'=>cat('sufragar')['id'],'slots'=>[slot('2026-11-17','07:30','08:30')],'justification'=>'Prueba aislada de certificado electoral','exception_reason'=>'Excepción de prueba funcional'];

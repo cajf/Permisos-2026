@@ -13,9 +13,9 @@ La alerta aparece en la bandeja, listados y detalle, y se incorpora al PDF. Cada
 
 ## Alcance de la lectura
 
-Solo se toman campos asociados a etiquetas de cédula y elecciones, con confianza OCR de al menos 80 por palabra de la línea. No se corrigen dígitos por suposición, ni se toma la fecha de expedición como fecha electoral. Se admiten fechas numéricas día mes año y fechas con el mes en español. Los formatos manuscritos, rotados o diferentes pueden requerir revisión manual.
+Se conservan fragmentos consecutivos de palabras con confianza OCR de al menos 80. La cédula exige una línea sin palabras dudosas para evitar aceptar números parciales. Se admiten las etiquetas Cédula, Documento, C.C. y Núm al inicio de una línea de un certificado reconocido. No se corrigen dígitos por suposición ni se toma la fecha de expedición como fecha electoral. Cuando la primera lectura es insuficiente se reintenta con recorte de márgenes blancos, escala de grises, contraste y segmentación de texto disperso. Los formatos manuscritos, rotados o diferentes pueden requerir revisión manual.
 
-Se limita la lectura a tres páginas por PDF, seis páginas en total y 35 segundos por envío. Un documento que supere estos límites pasa a revisión manual. Estos límites son del análisis automático; no cambian los límites generales de carga. Los archivos temporales de OCR se eliminan después de la lectura.
+Se limita la lectura a tres páginas por PDF, seis páginas en total y 65 segundos por envío. Los errores identifican la etapa y el tipo de fallo, incluido tiempo agotado, conversión o ejecución. Se conserva un diagnóstico de pasadas y cantidades de campos candidatos sin guardar el texto OCR íntegro. Un documento que supere los límites pasa a revisión manual. Los archivos temporales de OCR se eliminan después de la lectura.
 
 La lectura no comprueba autenticidad, participación electoral ante la Registraduría ni uso previo del beneficio con el mismo certificado. No sustituye el examen del soporte por los responsables. No se agregaron restricciones de duración ni de reutilización que no se hubieran solicitado.
 
