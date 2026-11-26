@@ -105,7 +105,7 @@ if(form){
    mode.querySelector('option[value=full]').disabled=slug==='acto';
    if(fullOnly)mode.value='full';else if(slug==='acto')mode.value='hours';
    mode.disabled=bereavement;
-   row.querySelector('[data-slot-date-label]').textContent=bereavement?'Primera fecha de la licencia *':'Fecha de la jornada *';
+   row.querySelector('[data-slot-date-label]').textContent=bereavement?(slug==='quinquenio'?'Primera fecha del permiso *':'Primera fecha de la licencia *'):'Fecha de la jornada *';
    row.querySelector('.remove-slot').disabled=bereavement;
    return recess?choice:date;
   });
@@ -116,7 +116,7 @@ if(form){
   bereavementGuide.hidden=!bereavement;
   bereavementDays.replaceChildren();
   if(bereavement){
-   const last=slug==='matrimonio'?'quinto':'sexto';
+   const last={4:'cuarto',5:'quinto',6:'sexto'}[fixedLeaveDays[slug]];
    bereavementGuide.querySelector('h3').textContent='Segundo al '+last+' día de disfrute';
    bereavementGuide.querySelector('p').textContent='La fecha que eliges es el primer día. El sistema calcula las fechas siguientes según el calendario laboral y las actualiza si cambias la primera fecha.';
    bereavementDays.setAttribute('aria-label','Días 2 al '+fixedLeaveDays[slug]+' de disfrute calculados automáticamente');
@@ -125,7 +125,7 @@ if(form){
   recessGuide.hidden=!recess;
   if(annual){
    const balance=available===null?`Sin límite anual para ${year}.`:`Días completos disponibles en ${year}: ${available}.`;
-   const error=rows.length>limit?(limit===0?'No hay días disponibles para esta solicitud.':'Elimina las fechas que superen los días disponibles.'):'';
+   const error=bereavement?(available!==null&&fixedLeaveDays[slug]>available?`Se requieren ${fixedLeaveDays[slug]} días completos disponibles para esta solicitud.`:''):(rows.length>limit?(limit===0?'No hay días disponibles para esta solicitud.':'Elimina las fechas que superen los días disponibles.'):'');
    annualGuide.textContent=balance+(error&&recessCount!==0?' '+error:'');
    if(error)dates[0].setCustomValidity(error);
   }
@@ -191,7 +191,8 @@ if(form){
      row.dataset.minutes=String(data.slots.reduce((sum,day)=>sum+day.minutes,0));
      times[0].value=data.slots[0].start_time;times[1].value=data.slots[0].end_time;
      row.querySelector('.slot-result').textContent=fmt(data.slots[0].minutes);
-     date.setCustomValidity('');
+     const available=annualAvailability[slug]?.[form.dataset.year];
+     date.setCustomValidity(available!=null&&data.slots.length>available?`Se requieren ${fixedLeaveDays[slug]} días completos disponibles para esta solicitud.`:'');
     }catch(error){
      if(seq!==sequence)return;
      const message=error instanceof SyntaxError?'No se pudieron calcular las jornadas.':error.message;

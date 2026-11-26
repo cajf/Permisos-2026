@@ -403,6 +403,7 @@ final class Workflow {
             $r=row('SELECT * FROM requests WHERE id=?',[$id]);
             ensure($r && (int)$r['user_id']===(int)$actor['id'],'No puede cancelar esta solicitud.');
             ensure(in_array($r['status'],['pending','returned','approved'],true),'La solicitud no admite cancelación en su estado actual.');
+            ensure($this->periodState($id)!=='ended','El periodo de disfrute ya terminó en todas las fechas. No se permite cancelar esta solicitud.');
             ensure(mb_strlen(trim($reason))>=5,'Explique el motivo de la cancelación.');
             if ($r['status']==='approved') {
                 $this->approver('subsecretary',$actor);

@@ -13,14 +13,14 @@ final class WorkCalendar {
         if (!$this->isBusinessDay($date)) return [];
         return $this->schedule($date)['periods'][(string)$weekday]??[];
     }
-    public const CONSECUTIVE_LEAVE_DAYS=['luto'=>6,'matrimonio'=>5];
+    public const CONSECUTIVE_LEAVE_DAYS=['luto'=>6,'matrimonio'=>5,'quinquenio'=>4];
 
     public function consecutiveLeaveSlots(string $kind,string $start,DateTimeImmutable $clock): array {
         $count=self::CONSECUTIVE_LEAVE_DAYS[$kind];
         $latest=$clock->modify('+2 years')->format('Y-m-d');
         ensure(validDate($start) && $start>=$clock->modify('-2 years')->format('Y-m-d') && $start<=$latest,
-            'Seleccione una primera fecha válida para la licencia.');
-        ensure($this->periods($start)!==[],'La primera fecha de la licencia debe ser laborable.');
+            'Seleccione una primera fecha válida para el disfrute.');
+        ensure($this->periods($start)!==[],'La primera fecha de disfrute debe ser laborable.');
         $days=[];
         for($day=new DateTimeImmutable($start);count($days)<$count;$day=$day->modify('+1 day')) {
             $date=$day->format('Y-m-d');

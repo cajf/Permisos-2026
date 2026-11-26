@@ -42,8 +42,8 @@ function registerDays(string $type,array $dates,array $fields=[],?int $edit=null
     ],[],$edit,$time??$clock);
 }
 
-foreach (['bienestar','quinquenio'] as $type) {
-    $dates=$type==='bienestar'?['2026-12-01','2026-12-02','2026-12-03']:['2026-12-08','2026-12-09','2026-12-10'];
+foreach (['bienestar'] as $type) {
+    $dates=['2026-12-01','2026-12-02','2026-12-03'];
     AnnualLeave::saveLimit($type,2026,'2');
     blocked(fn()=>registerDays($type,$dates),'quedan 2 día(s)');
     $request=registerDays($type,array_slice($dates,0,2));
@@ -56,6 +56,26 @@ foreach (['bienestar','quinquenio'] as $type) {
     AnnualLeave::saveLimit($type,2026,'');
     verify(AnnualLeave::remaining($workflow,1,$categories[$type],2026)===null,'Vacío elimina el límite de la vigencia');
 }
+insert('holidays',['date'=>'2026-12-07','name'=>'Día no laborable de prueba de Quinquenio']);
+$quinquenioDates=['2026-12-04','2026-12-08','2026-12-09','2026-12-10'];
+foreach ([false,true] as $officialWorker) {
+    $generated=(new WorkCalendar($officialWorker))->consecutiveLeaveSlots('quinquenio',$quinquenioDates[0],$clock);
+    verify(array_column($generated,'date')===$quinquenioDates,'Quinquenio genera cuatro jornadas y omite fines de semana y días no laborales');
+    verify(array_sum(array_column($generated,'minutes'))===4*($officialWorker?480:510),'Quinquenio respeta la duración diaria del tipo de vinculación');
+}
+$changed=(new WorkCalendar())->consecutiveLeaveSlots('quinquenio','2026-12-08',$clock);
+verify(array_column($changed,'date')===['2026-12-08','2026-12-09','2026-12-10','2026-12-11'],'Al cambiar la primera fecha se recalculan las tres siguientes');
+AnnualLeave::saveLimit('quinquenio',2026,'3');
+blocked(fn()=>registerDays('quinquenio',[$quinquenioDates[0]]),'quedan 3 día(s)');
+AnnualLeave::saveLimit('quinquenio',2026,'4');
+$request=registerDays('quinquenio',[$quinquenioDates[0],'2026-12-31']);
+verify(array_column(rows('SELECT date FROM request_slots WHERE request_id=? ORDER BY date',[$request]),'date')===$quinquenioDates,'El servidor calcula las cuatro fechas e ignora fechas adicionales manipuladas');
+blocked(fn()=>registerDays('quinquenio',['2026-12-21']),'quedan 0 día(s)');
+blocked(fn()=>registerDays('bienestar',[$quinquenioDates[2]]),'se cruza');
+run("UPDATE requests SET status='returned' WHERE id=?",[$request]);
+verify(registerDays('quinquenio',[$quinquenioDates[0]],[],$request)===$request,'La corrección de Quinquenio conserva el cupo de sus cuatro jornadas');
+run("UPDATE requests SET status='cancelled',cancelled_at=? WHERE id=?",[$quinquenioDates[0].' 08:00:00',$request]);
+verify(AnnualLeave::remaining($workflow,1,$categories['quinquenio'],2026)===3,'La cancelación parcial libera las tres jornadas de Quinquenio sin disfrute');
 blocked(fn()=>AnnualLeave::saveLimit('bienestar',2026,'1.5'),'número entero');
 blocked(fn()=>registerDays('bienestar',['2027-01-04']),'vigencia 2026');
 blocked(fn()=>registerDays('bienestar',[],['slots'=>[['date'=>'2026-12-04','mode'=>'hours','start'=>'08:00','end'=>'09:00']]]),'Día completo');
@@ -101,4 +121,15 @@ run("UPDATE requests SET status='rejected' WHERE id=?",[$request]);
 saveSchoolBreak($admin,['start_date'=>'2026-12-21','end_date'=>'2026-12-23'],$clock);
 blocked(fn()=>registerDays('receso',[$expected[1]]),'semana de receso');
 verify(registerDays('receso',['2026-12-22'])>0,'La edición sustituye las fechas disponibles y el rechazo libera el cupo');
+$cancelTest=registerDays('bienestar',['2026-11-23','2026-11-24']);
+$boundary=new DateTimeImmutable('2026-11-24 17:00:00');
+verify($workflow->periodState($cancelTest,$boundary->modify('-1 second'))==='ongoing','No termina el disfrute mientras quede tiempo en la última jornada');
+verify($workflow->periodState($cancelTest,$boundary)==='ended','La solicitud termina exactamente al finalizar la última jornada');
+run("UPDATE request_slots SET start_at='2020-01-02 07:30:00',end_at='2020-01-02 17:00:00' WHERE request_id=?",[$cancelTest]);
+foreach (['pending','returned','approved'] as $status) {
+    run('UPDATE requests SET status=? WHERE id=?',[$status,$cancelTest]);
+    blocked(fn()=>$workflow->cancel($employee,$cancelTest,'Cancelación de prueba de un periodo finalizado'),'No se permite cancelar');
+    verify(row('SELECT status FROM requests WHERE id=?',[$cancelTest])['status']===$status,'El bloqueo conserva el estado original de la solicitud');
+}
+
 echo "$checks comprobaciones correctas en MySQL.\n";
