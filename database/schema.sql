@@ -91,6 +91,7 @@ CREATE TABLE IF NOT EXISTS schedules (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_bin;
 CREATE TABLE IF NOT EXISTS acts (
  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY, user_id BIGINT UNSIGNED NOT NULL,
+ origin ENUM('supplementary','bicycle') NULL DEFAULT NULL,
  number VARCHAR(120) NOT NULL, issued_on DATE NOT NULL, expires_on DATE NOT NULL, granted_minutes INT NOT NULL,
  status VARCHAR(30) NOT NULL DEFAULT 'pending', reviewed_by BIGINT UNSIGNED NULL, reviewed_at DATETIME NULL,
  comment LONGTEXT NOT NULL DEFAULT (''), created_at DATETIME NOT NULL,
@@ -113,6 +114,17 @@ CREATE TABLE IF NOT EXISTS requests (
  CONSTRAINT fk_requests_cancel_reviewer FOREIGN KEY (cancellation_assignee_id) REFERENCES users(id),
  KEY idx_request_user(user_id,status), CHECK(total_minutes>0), CHECK(JSON_VALID(snapshot))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_bin;
+-- BEGIN LEGALIZATIONS
+CREATE TABLE IF NOT EXISTS request_legalizations (
+ request_id BIGINT UNSIGNED NOT NULL PRIMARY KEY,
+ legalized TINYINT NOT NULL DEFAULT 0,
+ updated_by BIGINT UNSIGNED NOT NULL, updated_at DATETIME NOT NULL,
+ version INT NOT NULL DEFAULT 1,
+ CONSTRAINT fk_legalization_request FOREIGN KEY (request_id) REFERENCES requests(id),
+ CONSTRAINT fk_legalization_actor FOREIGN KEY (updated_by) REFERENCES users(id),
+ CHECK(legalized IN (0,1)), CHECK(version>0)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_bin;
+-- END LEGALIZATIONS
 CREATE TABLE IF NOT EXISTS request_slots (
  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY, request_id BIGINT UNSIGNED NOT NULL, date DATE NOT NULL,
  start_time VARCHAR(5) NOT NULL, end_time VARCHAR(5) NOT NULL, minutes INT NOT NULL,

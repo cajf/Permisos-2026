@@ -1,5 +1,5 @@
 <p class="page-intro">Consulta los soportes y los límites de cada tipo. Talento Humano puede seleccionar si la carga de soporte es obligatoria y debe validar las reglas marcadas como pendientes.</p>
-<?php $year=(int)date('Y'); foreach(rows('SELECT * FROM categories ORDER BY id') as $c):
+<?php $year=(int)date('Y'); foreach(rows("SELECT * FROM categories WHERE slug!='bici' AND ".visibleCategorySql('')." ORDER BY id") as $c):
     $annual=in_array($c['slug'],AnnualLeave::TYPES,true);
     $annualLimit=$annual?AnnualLeave::limit($c['slug'],$year):null;
 ?>

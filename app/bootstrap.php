@@ -47,6 +47,7 @@ function setting(string $key, string $default = ''): string { return row('SELECT
 function setSetting(string $key, string $value): void { run('INSERT INTO settings(`key`,`value`) VALUES(?,?) ON DUPLICATE KEY UPDATE `value`=?',[$key,$value,$value]); }
 function now(): string { return date('Y-m-d H:i:s'); }
 function e(mixed $s): string { return htmlspecialchars((string)$s,ENT_QUOTES|ENT_SUBSTITUTE,'UTF-8'); }
+function actOriginLabel(?string $origin):string { return match($origin) { 'supplementary'=>'Tiempo suplementario', 'bicycle'=>'Bici usuario', default=>'Sin clasificar — histórico' }; }
 function hours(int $minutes): string { return intdiv($minutes,60).' h '.str_pad((string)($minutes%60),2,'0',STR_PAD_LEFT).' min'; }
 function ensure(bool $ok, string $message): void { if (!$ok) throw new DomainException($message); }
 function roles(array $u): array { return json_decode($u['roles'],true,512,JSON_THROW_ON_ERROR); }
@@ -68,6 +69,7 @@ function validDate(string $s): bool { $d=DateTimeImmutable::createFromFormat('!Y
 function statusLabel(string $s): string { return ['pending'=>'En aprobación','approved'=>'Aprobada','returned'=>'Devuelta para corregir','rejected'=>'Rechazada','cancel_pending'=>'Cancelación en revisión','cancelled'=>'Cancelada','waiting'=>'Pendiente','skipped'=>'Sin efecto','released'=>'Liberado','reserved'=>'Reservado','consumed'=>'Descontado','sent'=>'Enviado','sending'=>'Enviando','failed'=>'Error de envío'][$s]??$s; }
 function roleLabel(string $role): string { return systemRoles()[$role]??$role; }
 function familyLabel(string $s): string { return ['permiso'=>'Permiso','compensatorio'=>'Compensatorio','remunerada'=>'Licencia remunerada','no_remunerada'=>'Licencia no remunerada'][$s]??$s; }
+require_once __DIR__.'/CategoryVisibility.php';
 require_once __DIR__.'/Calendar.php';
 require_once __DIR__.'/AnnualLeave.php';
 require_once __DIR__.'/Workflow.php';
@@ -76,8 +78,10 @@ require_once __DIR__.'/ElectoralCertificate.php';
 require_once __DIR__.'/Designations.php';
 require_once __DIR__.'/JobCatalog.php';
 require_once __DIR__.'/UserIdentity.php';
+require_once __DIR__.'/ActOrigins.php';
 require_once __DIR__.'/Analytics.php';
 require_once __DIR__ . '/Listings.php';
 require_once __DIR__ . '/NotificationMail.php';
 require_once __DIR__ . '/MailTemplates.php';
 require_once __DIR__ . '/Permissions.php';
+require_once __DIR__.'/Legalizations.php';

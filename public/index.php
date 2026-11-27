@@ -79,6 +79,12 @@ try {
                 $id=$action==='labor_records_pdf'?filter_var($_POST['id']??null,FILTER_VALIDATE_INT,['options'=>['min_range'=>1]]):null;
                 ensure($id!==false,'Seleccione un radicado válido.');
                 downloadLaborRecords($u,laborRecordFilters($_GET),$id);
+            case 'legalization_save':
+                ensure(in_array($_POST['legalized']??'0',['0','1'],true),'Marcación no válida.');
+                $version=filter_var($_POST['version']??null,FILTER_VALIDATE_INT,['options'=>['min_range'=>0]]);ensure($version!==false,'Recargue la solicitud antes de guardar.');
+                saveLegalization($u,(int)($_POST['id']??0),($_POST['legalized']??'0')==='1',$version);
+                $destination=($_POST['return_to']??'')==='request'?'/?page=request&id='.(int)$_POST['id']:'/?page=legalizations';
+                break;
             case 'submit':
                 $id=$wf->submit($u,$_POST,validateUploads($_FILES['supports']??[],REQUEST_UPLOAD_MAX_FILES,REQUEST_UPLOAD_MAX_BYTES),empty($_POST['id'])?null:(int)$_POST['id']); $destination='/?page=request&id='.$id; break;
             case 'review': $wf->review($u,(int)$_POST['id'],$_POST['decision']??'',trim($_POST['comment']??''),(string)($_POST['approval_exception_reason']??''),(string)($_POST['electoral_review']??'')); $destination='/?page=request&id='.(int)$_POST['id']; break;
@@ -135,7 +141,7 @@ try {
                 $supports=trim($_POST['supports']??'');
                 ensure(!$supportsRequired || $supports!=='','Describa los soportes requeridos.');
                 $max=trim($_POST['max_hours']??'')!==''?Workflow::hourInput($_POST['max_hours']):null;
-                $c=row('SELECT * FROM categories WHERE id=?',[(int)$_POST['id']]); ensure($c!==null,'Tipo no válido.');
+                $c=row('SELECT * FROM categories WHERE id=?',[(int)$_POST['id']]); ensure($c!==null && !in_array($c['slug'],HIDDEN_LICENSE_SLUGS,true),'Tipo no válido.');
                 if (in_array($c['slug'],['ordinario','cumpleanos'],true)) $max=null;
                 atomic(function() use($supports,$supportsRequired,$max,$c,$u) {
                     run('UPDATE categories SET supports=?,supports_required=?,max_minutes=?,policy_confirmed=?,notes=? WHERE id=?',[$supports,$supportsRequired,$max,isset($_POST['policy_confirmed'])?1:0,trim($_POST['notes']??''),$c['id']]);
@@ -186,9 +192,9 @@ if ($page!=='login') {
             elseif($page==='analytics_export') {
                 [$year,$department]=analyticsSelection($_GET);$metric=analyticsMetric($_GET);$facts=$metric==='approved'?approvedFacts():enjoyedFacts();
                 header('Content-Type: text/csv; charset=utf-8');header('Content-Disposition: attachment; filename="'.($metric==='approved'?'aprobadas':'disfrute').'-power-bi.csv"');echo "\xEF\xBB\xBF";$out=fopen('php://output','w');
-                fputcsv($out,['solicitud_id','vigencia','dependencia_id','dependencia','familia','tipo',$metric==='approved'?'segundos_aprobados':'segundos_disfrutados'],';','"','');
+                fputcsv($out,['solicitud_id','vigencia','dependencia_id','dependencia','familia','tipo','clasificacion_acto','segundos_tiempo_suplementario','segundos_bici_usuario','segundos_sin_clasificar',$metric==='approved'?'segundos_aprobados':'segundos_disfrutados'],';','"','');
                 foreach($facts as $f) if(($year==='all'||$f['year']===(int)$year)&&($department==='all'||$f['department_id']===(int)$department)) {
-                    $values=[$f['request_id'],$f['year'],$f['department_id'],$f['department'],$f['family'],$f['category'],$f['seconds']];$values=array_map(fn($v)=>preg_match('/^[=+\-@\t\r]/',(string)$v)?"'".$v:$v,$values);fputcsv($out,$values,';','"','');
+                    $values=[$f['request_id'],$f['year'],$f['department_id'],$f['department'],$f['family'],$f['category'],$f['act_origin']??'', $f['act_origin_seconds']['supplementary']??0,$f['act_origin_seconds']['bicycle']??0,$f['act_origin_seconds']['unknown']??0,$f['seconds']];$values=array_map(fn($v)=>preg_match('/^[=+\-@\t\r]/',(string)$v)?"'".$v:$v,$values);fputcsv($out,$values,';','"','');
                 }fclose($out);exit;
             }
         }
@@ -271,7 +277,7 @@ if ($page!=='login') {
              $from=$_GET['from']??date('Y-01-01'); $to=$_GET['to']??date('Y-12-31'); ensure(validDate($from)&&validDate($to)&&$from<=$to,'Revise las fechas del reporte.');
             header('Content-Type: text/csv; charset=utf-8'); header('Content-Disposition: attachment; filename="solicitudes.csv"'); echo "\xEF\xBB\xBF"; $out=fopen('php://output','w');
             fputcsv($out,['radicado','funcionario','cedula','dependencia','tipo','estado','minutos','fecha_solicitada','inicio','fin','registro'],';','"','');
-            foreach (rows('SELECT r.*,u.name,u.identification,d.name department,c.name category,s.date,s.start_time,s.end_time,s.minutes FROM requests r JOIN user_profiles u ON u.id=r.user_id JOIN departments d ON d.id=u.department_id JOIN categories c ON c.id=r.category_id JOIN request_slots s ON s.request_id=r.id WHERE s.date BETWEEN ? AND ? ORDER BY r.id,s.date',[$from,$to]) as $r) {
+            foreach (rows('SELECT r.*,u.name,u.identification,d.name department,c.name category,s.date,s.start_time,s.end_time,s.minutes FROM requests r JOIN user_profiles u ON u.id=r.user_id JOIN departments d ON d.id=u.department_id JOIN categories c ON c.id=r.category_id JOIN request_slots s ON s.request_id=r.id WHERE '.visibleCategorySql().' AND s.date BETWEEN ? AND ? ORDER BY r.id,s.date',[$from,$to]) as $r) {
                 $values=['TH-'.$r['id'],$r['name'],$r['identification'],$r['department'],$r['category'],statusLabel($r['status']),$r['minutes'],$r['date'],$r['start_time'],$r['end_time'],$r['created_at']];
                 $values=array_map(fn($v)=>preg_match('/^[=+\-@\t\r]/',(string)$v)?"'".$v:$v,$values); fputcsv($out,$values,';','"','');
             } fclose($out); exit;

@@ -40,7 +40,7 @@
   }
   if(distribution){renderDistribution(data);return;}
   for(const [key,value] of Object.entries(data.counts))board.querySelector(`[data-count="${key}"]`).textContent=value;
-  const tbody=board.querySelector('tbody');tbody.replaceChildren();
+  const tbody=board.querySelector(`[id="analytics-departments-${form.elements.metric.value}"]`);tbody.replaceChildren();
   data.departments.forEach(d=>{const row=document.createElement('tr');[d.name,d.permiso,d.compensatorio,d.licencia,d.total].forEach(v=>row.append(text('td',v)));tbody.append(row);});
   const trend=board.querySelector('.analytics-trend');trend.replaceChildren();
   const max=Math.max(1,...data.trend.map(r=>r.permiso+r.compensatorio+r.licencia));

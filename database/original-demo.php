@@ -7,6 +7,7 @@ function restoreOriginalDemo(): array {
     require_once ROOT.'/database/holidays.php';
     $credentials=atomic(function (): array {
         if (tableExists('attachment_contents')) run('DELETE FROM attachment_contents');
+        if (tableExists('request_legalizations')) run('DELETE FROM request_legalizations');
         foreach (['balance_snapshots','outbox','events','attachments','allocations','approvals','request_slots','requests','acts','schedules','designations','holidays','categories','settings'] as $table) {
             run('DELETE FROM '.mysqlIdentifier($table));
         }

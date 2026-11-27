@@ -82,6 +82,8 @@ final class Workflow {
             if ($id) ensure($old && (int)$old['user_id']===(int)$owner['id'] && $old['status']==='returned','Solo puede corregir una solicitud propia devuelta.');
             $category=row('SELECT * FROM categories WHERE id=?',[(int)($input['category_id']??0)]);
             ensure($category!==null,'Seleccione un tipo de solicitud.');
+            ensure(!in_array($category['slug'],HIDDEN_LICENSE_SLUGS,true),'Este tipo de solicitud no está disponible.');
+            ensure($category['slug']!=='bici','Bici usuario se tramita mediante Disfrute por acto administrativo. Seleccione ese tipo y un acto aprobado por Nómina.');
             $ordinary=$category['slug']==='ordinario';
             $medicalAnswer=$input['medical_appointment']??'';
             if ($ordinary) ensure(in_array($medicalAnswer,['0','1'],true),'Indique si el permiso Ordinario-Remunerado es para una cita médica.');
@@ -232,13 +234,15 @@ final class Workflow {
     public function act(array $u,array $input,array $files): int {
         requirePermission($u,'act.create');
         return atomic(function() use($u,$input,$files) {
+            $origin=$input['origin']??'';
+            ensure(in_array($origin,['supplementary','bicycle'],true),'Seleccione el origen de las horas: tiempo suplementario o bici usuario.');
             $number=trim($input['number']??''); $issued=$input['issued_on']??''; $expires=$input['expires_on']??'';
             ensure($number!=='' && mb_strlen($number)<=120,'Indique el número del acto (hasta 120 caracteres).');
             ensure(validDate($issued)&&validDate($expires)&&$issued<=$expires && $issued<=date('Y-m-d') && $expires>=date('Y-m-d'),'Revise las fechas de expedición y vencimiento.');
             ensure(count($files)>=1,'Adjunte el acto administrativo.');
-            $id=insert('acts',['user_id'=>$u['id'],'number'=>$number,'issued_on'=>$issued,'expires_on'=>$expires,'granted_minutes'=>self::hourInput($input['hours']??''),'created_at'=>now()]);
+            $id=insert('acts',['origin'=>$origin,'user_id'=>$u['id'],'number'=>$number,'issued_on'=>$issued,'expires_on'=>$expires,'granted_minutes'=>self::hourInput($input['hours']??''),'created_at'=>now()]);
             saveUploads($files,(int)$u['id'],null,$id);
-            event((int)$u['id'],'Acto registrado','Acto '.$id.' · '.$number);
+            event((int)$u['id'],'Acto registrado','Acto '.$id.' · '.$number.' · '.actOriginLabel($origin));
             foreach (rows('SELECT * FROM user_profiles WHERE active=1') as $admin) if (hasRole($admin,'payroll') && $admin['id']!==$u['id']) notify((int)$admin['id'],'Acto administrativo por revisar','Hay un acto administrativo pendiente de validación por Nómina.');
             return $id;
         });
@@ -267,6 +271,7 @@ final class Workflow {
         authorizeAction($actor,'review',['decision'=>$decision]);
         atomic(function() use($actor,$id,$decision,$comment,$bulkApprovalId,$exceptionReason,$electoralReview) {
             $r=row('SELECT * FROM requests WHERE id=?',[$id]);
+            if($r)ensureVisibleRequest($r);
             ensure($r && $r['status']==='pending','La solicitud no está pendiente de aprobación.');
             $step=row("SELECT * FROM approvals WHERE request_id=? AND revision=? AND status='waiting' ORDER BY step LIMIT 1",[$id,$r['revision']]);
             ensure($step && (int)$step['assigned_user_id']===(int)$actor['id'] && hasRole($actor,$step['role']) && (int)$r['user_id']!==(int)$actor['id'],'No le corresponde revisar esta etapa.');
@@ -305,7 +310,7 @@ final class Workflow {
             run('UPDATE requests SET status=?,updated_at=? WHERE id=?',[$status,now(),$id]);
             event((int)$actor['id'],'Revisión: '.statusLabel($decision),roleLabel($step['role']).($bulkApprovalId!==null?' · Aprobación masiva':'').' · '.$comment,$id);
             $mailEvent=match($status){'approved'=>'request_approved','returned'=>'request_returned','rejected'=>'request_rejected',default=>'manager_approved'};
-            notifyTemplate((int)$r['user_id'],$mailEvent,['{radicado}'=>'TH-'.str_pad((string)$id,6,'0',STR_PAD_LEFT)]);
+            notifyTemplate((int)$r['user_id'],$mailEvent,['{radicado}'=>'TH-'.str_pad((string)$id,6,'0',STR_PAD_LEFT)],$status==='approved'?legalizationNotice($category['slug']??''):'');
             if ($decision==='approved' && $next) notify((int)$next['assigned_user_id'],'Solicitud pendiente TH-'.$id,'La etapa anterior fue aprobada. Puede revisar la solicitud.'.((($category['slug']??'')==='sufragar' || (($category['slug']??'')==='jurado' && (json_decode($r['snapshot'],true)['jury_role']??'')!=='clavero')) && ElectoralCertificate::needsManual($r)?' ATENCIÓN: revisión manual obligatoria del certificado electoral.':''));
             captureBalances((int)$r['user_id']);
         });
@@ -401,6 +406,7 @@ final class Workflow {
         requirePermission($actor,'request.cancel');
         atomic(function() use($actor,$id,$reason) {
             $r=row('SELECT * FROM requests WHERE id=?',[$id]);
+            if($r)ensureVisibleRequest($r);
             ensure($r && (int)$r['user_id']===(int)$actor['id'],'No puede cancelar esta solicitud.');
             ensure(in_array($r['status'],['pending','returned','approved'],true),'La solicitud no admite cancelación en su estado actual.');
             ensure($this->periodState($id)!=='ended','El periodo de disfrute ya terminó en todas las fechas. No se permite cancelar esta solicitud.');
@@ -423,6 +429,7 @@ final class Workflow {
         $clock??=new DateTimeImmutable();
         atomic(function() use($actor,$id,$approve,$comment,$clock) {
             $r=row('SELECT * FROM requests WHERE id=?',[$id]);
+            if($r)ensureVisibleRequest($r);
             ensure($r && $r['status']==='cancel_pending','No hay una cancelación pendiente.');
             $owner=row('SELECT * FROM user_profiles WHERE id=?',[$r['user_id']]);
             ensure((int)$actor['id']===(int)$r['cancellation_assignee_id'] && hasRole($actor,'subsecretary'),'Solo el subsecretario asignado al solicitar la cancelación puede resolverla.');

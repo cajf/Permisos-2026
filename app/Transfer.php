@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 function applicationTables(bool $legacy=false): array {
     $identity=$legacy?['users']:['persons','users','employment_types','roles','person_employments','user_roles'];
-    return ['departments','official_job_categories','jobs','job_grades',...$identity,'settings','categories','holidays','schedules','acts','requests','request_slots','designations','approvals','allocations','attachments','attachment_contents','events','outbox','balance_snapshots'];
+    return ['departments','official_job_categories','jobs','job_grades',...$identity,'settings','categories','holidays','schedules','acts','requests',...($legacy?[]:['request_legalizations']),'request_slots','designations','approvals','allocations','attachments','attachment_contents','events','outbox','balance_snapshots'];
 }
 function canonicalRows(array $records): string {
     foreach ($records as &$record) {ksort($record);foreach ($record as &$value) if ($value!==null) $value=(string)$value;unset($value);}unset($record);

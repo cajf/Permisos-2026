@@ -1,5 +1,6 @@
 <?php
 $edit=!empty($_GET['id'])?row('SELECT * FROM requests WHERE id=?',[(int)$_GET['id']]):null;
+if($edit)ensureVisibleRequest($edit);
 if ($edit) ensure((int)$edit['user_id']===(int)$u['id'] && $edit['status']==='returned','Solo puede editar solicitudes propias devueltas.');
 $form=$_SERVER['REQUEST_METHOD']==='POST'?$_POST:($edit??[]);
 if($edit && $_SERVER['REQUEST_METHOD']!=='POST') {
@@ -8,7 +9,7 @@ if($edit && $_SERVER['REQUEST_METHOD']!=='POST') {
     $form['medical_appointment']=isset($snapshot['medical_appointment'])?($snapshot['medical_appointment']===true?'1':'0'):'';
 }
 $slots=$form['slots']??($edit?array_map(fn($s)=>['date'=>$s['date'],'start'=>$s['start_time'],'end'=>$s['end_time'],'mode'=>(int)$s['is_full_day']===1?'full':'hours'],rows('SELECT * FROM request_slots WHERE request_id=? ORDER BY date,start_time',[$edit['id']])):[['date'=>'','start'=>isOfficialWorker($u)?'07:00':'07:30','end'=>isOfficialWorker($u)?'09:00':'09:30','mode'=>'hours']]);
-$cats=rows('SELECT * FROM categories ORDER BY id');
+$cats=rows("SELECT * FROM categories WHERE slug!='bici' AND ".visibleCategorySql('')." ORDER BY id");
 $selectedCategory=null;
 foreach($cats as $candidate) if((int)$candidate['id']===(int)($form['category_id']??0)) $selectedCategory=$candidate;
 if(($selectedCategory['slug']??'')==='acto')foreach($slots as &$slotForAct)$slotForAct['mode']='hours';unset($slotForAct);
@@ -75,19 +76,19 @@ foreach(rows("SELECT * FROM acts WHERE user_id=? AND status='approved' ORDER BY 
 <?php if(!$availableActs): ?><p>No tienes actos vigentes con saldo disponible. <a href="/?page=acts">Consultar actos administrativos</a></p><?php endif; ?>
 <?php foreach($availableActs as $i=>$act): ?>
 <div class="allocation-row">
-    <div><strong><?=e($act['number'])?></strong><small>Vence <?=e($act['expires_on'])?> · Disponible <?=e(hours($act['available_minutes']))?></small></div>
+    <div><strong><?=e($act['number'])?></strong><small><?=e(actOriginLabel($act['origin']??null))?> · Vence <?=e($act['expires_on'])?> · Disponible <?=e(hours($act['available_minutes']))?></small></div>
     <input type="hidden" name="allocations[<?=$i?>][id]" value="<?=(int)$act['id']?>">
-    <label>Horas a usar<input type="number" name="allocations[<?=$i?>][hours]" data-allocation-hours min="0" max="<?=e($act['available_minutes']/60)?>" step="0.05" value="<?=e($allocationValues[(int)$act['id']]??'0')?>"></label>
+    <label>Horas a usar<input type="number" name="allocations[<?=$i?>][hours]" data-allocation-hours data-origin="<?=e(actOriginKey($act['origin']??null))?>" min="0" max="<?=e($act['available_minutes']/60)?>" step="0.05" value="<?=e($allocationValues[(int)$act['id']]??'0')?>"></label>
 </div>
 <?php endforeach; ?>
 <h3>Sin horas disponibles para asignar</h3>
 <?php if(!$unavailableActs): ?><p>No hay actos en este grupo.</p><?php endif; ?>
 <ul class="plain-list">
 <?php foreach($unavailableActs as $act): ?>
-<li><strong><?=e($act['number'])?></strong><span><?=$act['expires_on']<$today?'Vencido el '.e($act['expires_on']):'Horas totalmente asignadas o reservadas'?></span></li>
+<li><strong><?=e($act['number'])?> · <?=e(actOriginLabel($act['origin']??null))?></strong><span><?=$act['expires_on']<$today?'Vencido el '.e($act['expires_on']):'Horas totalmente asignadas o reservadas'?></span></li>
 <?php endforeach; ?>
 </ul>
 </section>
 <section class="panel form-panel"><h2><span class="section-number">04</span> Documentos de soporte</h2><p class="alert warning" id="electoral-guide" hidden>Para Sufragar, el sistema leerá el certificado electoral colombiano y contrastará cédula y fecha de elecciones. El disfrute debe estar entre el día siguiente y el día 30 calendario. Una inconsistencia detectada impide el envío; si no puede leer el soporte, se registrará con revisión manual obligatoria.</p><p id="supports-guide" class="muted">Selecciona un tipo para consultar los soportes.</p><label class="upload-zone"><?=icon('download')?><strong id="supports-label"><?=$selectedCategory?($supportRequired?'Selecciona tus archivos *':'Selecciona tus archivos (opcional)'):'Selecciona tus archivos'?></strong><span>PDF, JPG o PNG · Hasta 2 MB por archivo · Máximo 5 por solicitud</span><input name="supports[]" type="file" accept=".pdf,.jpg,.jpeg,.png" multiple data-existing-supports="<?=$existingSupports?>" <?=$supportRequired && !$existingSupports?'required':''?>></label><p class="fine" id="supports-retention-note" hidden>Si hay un error de validación, los archivos seguirán seleccionados mientras mantengas este formulario abierto. Corrige los datos y vuelve a enviar.</p><?php if($edit): ?><p class="fine">Los soportes existentes se conservarán junto con los nuevos.</p><?php endif; ?></section>
 <div class="form-actions"><a class="button secondary" href="/?page=requests">Volver</a><button class="button" type="submit">Enviar a aprobación <?=icon('arrow')?></button></div></div>
-<aside class="request-summary panel"><span class="eyebrow">RESUMEN DEL TRÁMITE</span><h2>Tu solicitud</h2><div class="summary-total" id="total-minutes" aria-live="polite">0 h 00 min</div><span class="muted">Tiempo laborable solicitado</span><div id="ordinary-quota-summary" hidden><hr><p><strong>Descuento estimado del cupo semestral</strong></p><p id="ordinary-quota-value" aria-live="polite"></p></div><hr><p><strong>Ruta de aprobación</strong></p><p id="route-guide" data-high-rank="<?=e($u['high_rank'])?>">Selecciona el tipo y las fechas.</p><hr><p><strong>Antes de enviar</strong></p><p class="fine">Revisa las fechas y los soportes. Las novedades se enviarán a <?=e($u['email'])?>.</p><p class="fine">Las citas médicas con soporte están exentas del cupo semestral de Ordinario-Remunerado.</p></aside></form>
+<aside class="request-summary panel"><span class="eyebrow">RESUMEN DEL TRÁMITE</span><h2>Tu solicitud</h2><div class="summary-total" id="total-minutes" aria-live="polite">0 h 00 min</div><span class="muted">Tiempo laborable solicitado</span><div id="act-origin-summary" hidden><p><strong>Origen del compensatorio</strong></p><p data-act-origin-label aria-live="polite"></p></div><div id="ordinary-quota-summary" hidden><hr><p><strong>Descuento estimado del cupo semestral</strong></p><p id="ordinary-quota-value" aria-live="polite"></p></div><hr><p><strong>Ruta de aprobación</strong></p><p id="route-guide" data-high-rank="<?=e($u['high_rank'])?>">Selecciona el tipo y las fechas.</p><hr><p><strong>Antes de enviar</strong></p><p class="fine">Revisa las fechas y los soportes. Las novedades se enviarán a <?=e($u['email'])?>.</p><p class="fine">Las citas médicas con soporte están exentas del cupo semestral de Ordinario-Remunerado.</p></aside></form>

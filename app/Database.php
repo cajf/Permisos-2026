@@ -36,6 +36,16 @@ function mysqlSchemaParts(): array {
 function executeMysqlSchema(PDO $pdo,string $schema): void {
     foreach (explode(';',$schema) as $statement) if (trim($statement)!=='') $pdo->exec($statement);
 }
+/** Conserva los actos históricos sin atribuirles un origen no verificado. */
+function migrateActOrigin(PDO $pdo):void {
+    $exists=$pdo->query("SELECT COUNT(*) FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name='acts' AND column_name='origin'")->fetchColumn();
+    if (!$exists) $pdo->exec("ALTER TABLE acts ADD COLUMN origin ENUM('supplementary','bicycle') NULL DEFAULT NULL");
+}
+function installLegalizationSchema(PDO $pdo):void {
+    preg_match('/-- BEGIN LEGALIZATIONS(.*?)-- END LEGALIZATIONS/s',file_get_contents(__DIR__.'/../database/schema.sql'),$match);
+    if(empty($match[1]))throw new RuntimeException('No se encuentra el esquema de legalizaciones.');
+    executeMysqlSchema($pdo,$match[1]);
+}
 function installMysqlSchema(PDO $pdo,bool $legacy=false): void {
     [$catalog,$identity,$application,$profiles]=mysqlSchemaParts();
     if ($legacy) {
@@ -43,6 +53,7 @@ function installMysqlSchema(PDO $pdo,bool $legacy=false): void {
         $profiles='';
     }
     executeMysqlSchema($pdo,$catalog.$identity.$application.$profiles);
+    migrateActOrigin($pdo);
 }
 function legacyUserSchema(PDO $pdo): bool {
     return (bool)$pdo->query("SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='users' AND COLUMN_NAME='identification'")->fetchColumn();

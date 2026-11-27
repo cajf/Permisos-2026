@@ -22,6 +22,7 @@ function approvedFacts(?DateTimeImmutable $clock=null): array {
 function requestAnalyticsFacts(bool $approved,?DateTimeImmutable $clock=null): array {
     $clock??=new DateTimeImmutable();$facts=[];
     $where=$approved?"r.status IN ('approved','cancel_pending')":"r.status IN ('approved','cancel_pending','cancelled') AND s.date<=?";
+    $where=visibleCategorySql().' AND ('.$where.')';
     $sql="SELECT r.id,r.status,r.cancelled_at,r.department_id,c.family,c.name category,c.slug,d.name department,s.date,s.segments,(JSON_EXTRACT(r.snapshot,'$.medical_appointment') <=> CAST('true' AS JSON)) medical_appointment FROM requests r JOIN categories c ON c.id=r.category_id JOIN request_slots s ON s.request_id=r.id LEFT JOIN departments d ON d.id=r.department_id WHERE $where AND EXISTS(SELECT 1 FROM approvals a WHERE a.request_id=r.id AND a.revision=r.revision AND a.status='approved' AND a.step=(SELECT MAX(b.step) FROM approvals b WHERE b.request_id=r.id AND b.revision=r.revision)) ORDER BY r.id,s.date,s.start_time";
     foreach(rows($sql,$approved?[]:[$clock->format('Y-m-d')]) as $slot) {
         $cap=$clock;
@@ -37,13 +38,25 @@ function requestAnalyticsFacts(bool $approved,?DateTimeImmutable $clock=null): a
             while($from<$to) {
                 $year=(int)$from->format('Y');$next=min($to,new DateTimeImmutable(($year+1).'-01-01 00:00:00'));
                 $key=$slot['id'].'-'.$year;
-                $facts[$key]??=['request_id'=>(int)$slot['id'],'year'=>$year,'department_id'=>(int)($slot['department_id']??0),'department'=>$slot['department']??'Sin dependencia histórica','family'=>$slot['family'],'category'=>$slot['category'],'seconds'=>0];
+                $facts[$key]??=['request_id'=>(int)$slot['id'],'year'=>$year,'department_id'=>(int)($slot['department_id']??0),'department'=>$slot['department']??'Sin dependencia histórica','family'=>$slot['family'],'category'=>$slot['category'],'slug'=>$slot['slug'],'seconds'=>0];
                 $facts[$key]['ordinary']=$slot['slug']==='ordinario';
                 $facts[$key]['medical_appointment']=(bool)$slot['medical_appointment'];
                 $facts[$key]['seconds']+=$next->getTimestamp()-$from->getTimestamp();$from=$next;
             }
         }
     }
+    $allocations=[];
+    foreach(rows('SELECT l.request_id,l.minutes,a.origin FROM allocations l JOIN acts a ON a.id=l.act_id ORDER BY l.request_id,l.id') as $a) $allocations[(int)$a['request_id']][]=$a;
+    $offsets=[];
+    foreach($facts as &$fact) {
+        $id=$fact['request_id'];$items=$allocations[$id]??[];
+        $fact['act_origin']=null;$fact['act_origin_seconds']=null;
+        if($fact['slug']==='acto' || isset($allocations[$id])) {
+            $fact['act_origin']=actRequestOrigin($items);
+            $fact['act_origin_seconds']=actOriginSeconds($items,$offsets[$id]??0,$fact['seconds']);
+            $offsets[$id]=($offsets[$id]??0)+$fact['seconds'];
+        }
+    }unset($fact);
     return array_values($facts);
 }
 function analyticsSelection(array $input): array {
@@ -55,6 +68,7 @@ function analyticsSelection(array $input): array {
 function analyticsData(array $input,?DateTimeImmutable $clock=null): array {
     [$year,$department]=analyticsSelection($input);$clock??=new DateTimeImmutable();$metric=analyticsMetric($input);$facts=$metric==='approved'?approvedFacts($clock):enjoyedFacts($clock);
     $counts=['total'=>[],'permiso'=>[],'compensatorio'=>[],'licencia'=>[]];$byDepartment=[];$byYear=[];$years=[(int)$clock->format('Y')];$departments=[];$ordinary=[];
+    $actOrigins=['requests'=>['supplementary'=>[],'bicycle'=>[],'mixed'=>[],'unknown'=>[]],'seconds'=>['supplementary'=>0,'bicycle'=>0,'unknown'=>0]];
     foreach(rows('SELECT id,name FROM departments ORDER BY name') as $d) $departments[(int)$d['id']]=$d['name'];
     foreach($facts as $f) {
         $years[]=$f['year'];$departments[$f['department_id']]??=$f['department'];
@@ -65,6 +79,10 @@ function analyticsData(array $input,?DateTimeImmutable $clock=null): array {
         $byYear[$f['year']][$family]++;
         if($year!=='all' && $f['year']!==(int)$year) continue;
         $id=$f['request_id'];$counts['total'][$id]=true;$counts[$family][$id]=true;
+        if($f['act_origin']!==null) {
+            $actOrigins['requests'][$f['act_origin']][$id]=true;
+            foreach($f['act_origin_seconds'] as $origin=>$seconds) $actOrigins['seconds'][$origin]+=$seconds;
+        }
         if($metric==='approved' && $f['ordinary']) $ordinary[$id]=$f['medical_appointment'];
         $key=$f['department_id'];
         $byDepartment[$key]??=['id'=>$key,'name'=>$f['department'],'permiso'=>[],'compensatorio'=>[],'licencia'=>[],'total'=>[]];
@@ -75,7 +93,8 @@ function analyticsData(array $input,?DateTimeImmutable $clock=null): array {
     // Incluye dependencias sin disfrute para evitar confundir ausencia con información oculta.
     foreach($departments as $id=>$name) if(($department==='all'||$id===(int)$department)&&!isset($byDepartment[$id]))$byDepartment[$id]=['id'=>$id,'name'=>$name,'permiso'=>0,'compensatorio'=>0,'licencia'=>0,'total'=>0];
     usort($byDepartment,fn($a,$b)=>$b['total']<=>$a['total']?:strcmp($a['name'],$b['name']));ksort($byYear);$years=array_values(array_unique($years));rsort($years);
-    return ['generated_at'=>$clock->format('Y-m-d H:i:s'),'timezone'=>'America/Bogota','year'=>$year,'department'=>$department,'counts'=>$counts,'medical'=>['total'=>count($ordinary),'appointments'=>count(array_filter($ordinary))],'departments'=>array_values($byDepartment),'trend'=>array_values($byYear),'years'=>$years,'department_options'=>array_map(fn($id,$name)=>['id'=>$id,'name'=>$name],array_keys($departments),array_values($departments))];
+    foreach($actOrigins['requests'] as &$set)$set=count($set);unset($set);
+    return ['generated_at'=>$clock->format('Y-m-d H:i:s'),'timezone'=>'America/Bogota','year'=>$year,'department'=>$department,'counts'=>$counts,'act_origins'=>$actOrigins,'medical'=>['total'=>count($ordinary),'appointments'=>count(array_filter($ordinary))],'departments'=>array_values($byDepartment),'trend'=>array_values($byYear),'years'=>$years,'department_options'=>array_map(fn($id,$name)=>['id'=>$id,'name'=>$name],array_keys($departments),array_values($departments))];
 }
 function analyticsMetric(array $input): string {
     $metric=$input['metric']??'enjoyed';ensure(in_array($metric,['enjoyed','approved'],true),'Seleccione un tablero válido.');return $metric;

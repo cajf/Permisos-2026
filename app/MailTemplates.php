@@ -40,8 +40,9 @@ function renderMailTemplate(string $key,array $values): array {
     if(!str_contains($template['text'],'{enlace}'))$text.="\n\nIngrese a la aplicación:\n".$GLOBALS['config']['base_url'];
     return ['subject'=>$subject,'text'=>$text];
 }
-function notifyTemplate(int $userId,string $key,array $values): void {
+function notifyTemplate(int $userId,string $key,array $values,string $additionalText=''): void {
     $mail=renderMailTemplate($key,$values);
+    if($additionalText!=='')$mail['text'].="\n\n".$additionalText;
     // Se congela únicamente el mensaje de la plantilla, nunca motivos o comentarios del trámite.
     $body=json_encode(['mail_template_version'=>1,'event'=>$key,'text'=>$mail['text']],JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR);
     notify($userId,$mail['subject'],$body);

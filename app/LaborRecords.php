@@ -14,7 +14,7 @@ function laborRecordFilters(array $input): array {
 function laborRecordQuery(array $filters,?int $id=null,?int $page=null): PDOStatement {
     $sql="SELECT r.*,p.name AS person_name,p.identification,c.name AS category,c.family
         FROM requests r JOIN persons p ON p.id=r.user_id JOIN categories c ON c.id=r.category_id
-        WHERE r.created_at>=? AND r.created_at<=? AND r.status IN ('approved','cancel_pending')
+        WHERE ".visibleCategorySql()." AND r.created_at>=? AND r.created_at<=? AND r.status IN ('approved','cancel_pending')
         AND EXISTS (SELECT 1 FROM approvals a WHERE a.request_id=r.id AND a.revision=r.revision
             AND a.status='approved' AND a.step=(SELECT MAX(b.step) FROM approvals b WHERE b.request_id=r.id AND b.revision=r.revision))";
     $params=[$filters['from'].' 00:00:00',$filters['to'].' 23:59:59'];

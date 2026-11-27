@@ -69,6 +69,9 @@ function attachmentPath(array $attachment,?PDO $pdo=null,?string $directory=null
     return $path;
 }
 function canReadRequest(array $u,array $r): bool {
+    $category=row('SELECT slug FROM categories WHERE id=?',[$r['category_id']]);
+    if(!$category || in_array($category['slug'],HIDDEN_LICENSE_SLUGS,true))return false;
+    if(canManageLegalizations($u) && in_array($r['status'],['approved','cancel_pending'],true) && row("SELECT id FROM categories WHERE id=? AND slug IN ('luto','matrimonio')",[$r['category_id']]))return true;
     return (int)$r['user_id']===(int)$u['id'] || can($u,'data.requests_all') || (int)($r['cancellation_assignee_id']??0)===(int)$u['id'] || row('SELECT id FROM approvals WHERE request_id=? AND (assigned_user_id=? OR acted_by=?)',[$r['id'],$u['id'],$u['id']])!==null;
 }
 function requestPdf(array $r): string {

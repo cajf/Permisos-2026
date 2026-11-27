@@ -81,13 +81,16 @@ if(form){
  function updateAllocations(){
   const panel=document.querySelector('#allocation-panel'),message=document.querySelector('#allocation-summary'),inputs=[...panel.querySelectorAll('[data-allocation-hours]')];
   inputs.forEach(input=>input.setCustomValidity(''));
-  if(category.selectedOptions[0]?.dataset.slug!=='acto')return;
+  const originSummary=document.querySelector('#act-origin-summary');originSummary.hidden=category.selectedOptions[0]?.dataset.slug!=='acto';
+  if(originSummary.hidden)return;
   const allocated=inputs.reduce((sum,input)=>sum+Math.round(Number(input.value||0)*60),0),requested=[...slots.children].reduce((sum,row)=>sum+Number(row.dataset.minutes||0),0),limit=Number(panel.dataset.dailyLimit);
   const days={};for(const row of slots.children){const date=row.querySelector('[type=date]').value;if(date)days[date]=(days[date]||0)+Number(row.dataset.minutes||0);}let error='';
   const exceeded=Object.keys(days).find(date=>days[date]>limit);
   if(exceeded)error=`El ${exceeded} supera el máximo de ${fmt(limit)} por jornada.`;
   else if(allocated!==requested)error='La suma de los actos debe coincidir con el tiempo solicitado.';
-  message.textContent=`Seleccionado en actos: ${fmt(allocated)} · Solicitado: ${fmt(requested)} · Máximo diario: ${fmt(limit)}${error?' · '+error:''}`;
+  const origins=[...new Set(inputs.filter(input=>Number(input.value)>0).map(input=>input.dataset.origin))],origin=origins.length>1?'Mixta':({supplementary:'Tiempo suplementario',bicycle:'Bici usuario',unknown:'Sin clasificar — histórico'}[origins[0]]||'Sin actos seleccionados');
+  originSummary.querySelector('[data-act-origin-label]').textContent=origin;
+  message.textContent=`Origen: ${origin} · Seleccionado en actos: ${fmt(allocated)} · Solicitado: ${fmt(requested)} · Máximo diario: ${fmt(limit)}${error?' · '+error:''}`;
   message.className=error?'alert warning':'alert success';
   if(error&&inputs.length)inputs[0].setCustomValidity(error);
  }
