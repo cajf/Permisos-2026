@@ -1,6 +1,26 @@
 """CLI local: PP-OCRv4 detecta; PP-OCRv5 reconoce. Sin red ni base de datos."""
-import sys,json,re,unicodedata
+import sys,json,re,unicodedata,os
 from pathlib import Path
+# Evitar que el OOM killer reinicie el portal en alojamientos de 512 MB.
+# La comprobación precede las importaciones de NumPy/OpenCV y la carga de modelos.
+def sufficient_memory():
+    limits=[]
+    if sys.platform.startswith('linux'):
+        for filename in ['/sys/fs/cgroup/memory.max','/sys/fs/cgroup/memory/memory.limit_in_bytes']:
+            try:
+                value=Path(filename).read_text().strip()
+                if value.isdigit() and int(value)<2**60:limits.append(int(value))
+            except OSError:pass
+        if not limits and os.environ.get('RENDER')=='true':return False
+        if not limits:
+            try:
+                for line in Path('/proc/meminfo').read_text().splitlines():
+                    if line.startswith('MemTotal:'):limits.append(int(line.split()[1])*1024)
+            except OSError:pass
+    return not limits or min(limits)>=1024*1024*1024
+if not sufficient_memory():
+    print(json.dumps({'unavailable':'memory','lines':[],'observed_lines':[]}))
+    raise SystemExit(0)
 import numpy as np
 from rapidocr_onnxruntime import RapidOCR
 from PIL import Image,ImageOps

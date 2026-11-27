@@ -42,7 +42,7 @@ if(form){
    showSubmitError('Cada soporte nuevo debe pesar máximo 2 MB.');return;
   }
   const payload=new FormData(form);
-  sending=true;sendButton.disabled=true;sendButton.textContent='Enviando solicitud…';
+  sending=true;sendButton.disabled=true;sendButton.textContent='Procesando solicitud y soportes…';
   if(submitError)submitError.hidden=true;
   try{
    const response=await fetch(form.getAttribute('action')||window.location.href,{method:'POST',body:payload,credentials:'same-origin'});
@@ -50,7 +50,7 @@ if(form){
    const page=new DOMParser().parseFromString(await response.text(),'text/html');
    const validation=page.querySelector('#main > .alert.error');
    if(validation)showSubmitError(validation.textContent.trim());
-   else showSubmitError('No se pudo confirmar el envío. Los archivos siguen seleccionados. Consulta Mis solicitudes antes de volver a intentar.');
+   else showSubmitError(response.status>=500?'El servidor interrumpió el procesamiento. Los archivos siguen seleccionados. Consulta Mis solicitudes antes de volver a intentar.':'No se pudo confirmar el envío. Los archivos siguen seleccionados. Consulta Mis solicitudes antes de volver a intentar.');
   }catch{
    showSubmitError('No se pudo confirmar el envío. Los archivos siguen seleccionados. Revisa la conexión y consulta Mis solicitudes antes de volver a intentar.');
   }finally{sending=false;sendButton.disabled=false;sendButton.innerHTML=sendLabel;}

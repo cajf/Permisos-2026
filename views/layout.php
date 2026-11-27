@@ -25,7 +25,6 @@ function requestTable(array $list,bool $selectable=false,array $failures=[],arra
   if(($electoralCategory==='sufragar' || ($electoralCategory==='jurado' && (json_decode($r['snapshot'],true)['jury_role']??'')!=='clavero'))) {
    $electoralReport=ElectoralCertificate::report($r)??['status'=>'manual'];
    echo '<tr><td colspan="'.($selectable?'7':'6').'"><div class="alert '.(ElectoralCertificate::needsManual($r)?'electoral-alert':'success').'" role="status"><strong>'.e(ElectoralCertificate::summary($electoralReport)).'</strong>';
-   require ROOT.'/views/electoral-preview.php';
    if($selectable && ElectoralCertificate::needsManual($r)) echo '<label>Revisión manual de TH-'.str_pad((string)$r['id'],6,'0',STR_PAD_LEFT).'<textarea name="electoral_reviews['.(int)$r['id'].']" maxlength="1500" rows="2" placeholder="Registre la cédula, fecha de elecciones y comprobación del plazo de disfrute (30 días calendario para sufragar o 45 días hábiles para jurado)."></textarea></label>';
    echo '</div></td></tr>';
   }
@@ -40,7 +39,7 @@ function requestTable(array $list,bool $selectable=false,array $failures=[],arra
 }
 ?>
 <?php function renderTestEnvironmentNotice(): void { ?><div class="alert warning"><strong>Ambiente de pruebas</strong><br>Esta aplicación es de uso exclusivo para pruebas.</div><?php } ?>
-<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title><?=e($titles[$page]??'Talento Humano')?> · Bucaramanga</title><link rel="stylesheet" href="/assets/app.css?v=analytics-panels-1"><script src="/assets/app.js?v=quinquenio-consecutive-1" defer></script></head>
+<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title><?=e($titles[$page]??'Talento Humano')?> · Bucaramanga</title><link rel="stylesheet" href="/assets/app.css?v=analytics-panels-1"><script src="/assets/app.js?v=ocr-submit-resources-1" defer></script></head>
 <body>
 <?php if ($page==='login'): ?>
 <main class="login-shell"><section class="login-story"><a class="brand brand-image" href="/"><img src="/assets/alcaldia-bucaramanga.png" alt="Alcaldía de Bucaramanga" width="96" height="81"></a><div><p class="eyebrow">GESTIÓN DEL TALENTO HUMANO</p><h1>Tu tiempo,<br>bien gestionado.</h1><p>Un solo espacio para solicitar permisos, compensatorios y licencias, y seguir cada paso de su aprobación.</p><div class="login-decoration" aria-hidden="true"><span>01</span><div>Solicita<span>Registra las fechas y tus soportes.</span></div><span>02</span><div>Haz seguimiento<span>Consulta las decisiones del trámite.</span></div><span>03</span><div>Descarga<span>Conserva la constancia con sus anexos.</span></div></div></div><p class="login-foot">Administración municipal · Bucaramanga, Santander</p></section>

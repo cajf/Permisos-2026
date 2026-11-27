@@ -77,8 +77,6 @@ final class Workflow {
         $this->calendar=new WorkCalendar(isOfficialWorker($owner));
         $clock??=new DateTimeImmutable();
         $electoral=ElectoralCertificate::prepare($owner,$input,$files,$id);
-        // Solo vive en esta petición; permite mostrar lo leído si el registro falla.
-        $GLOBALS['temporary_electoral_report']=$electoral;
         return atomic(function() use($owner,$input,$files,$id,$clock,$electoral) {
             $old=$id?row('SELECT * FROM requests WHERE id=?',[$id]):null;
             if ($id) ensure($old && (int)$old['user_id']===(int)$owner['id'] && $old['status']==='returned','Solo puede corregir una solicitud propia devuelta.');

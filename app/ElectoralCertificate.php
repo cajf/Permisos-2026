@@ -3,8 +3,6 @@ declare(strict_types=1);
 
 /** Lectura auxiliar local. No verifica autenticidad ante la Registraduría. */
 final class ElectoralCertificate {
-    // Desactivar para retirar el diagnóstico temporal de las vistas.
-    public const SHOW_TEMPORARY_DETAILS=true;
     public static function normalize(string $text): string {
         return strtoupper(strtr($text,['á'=>'a','é'=>'e','í'=>'i','ó'=>'o','ú'=>'u','ü'=>'u','ñ'=>'n','Á'=>'A','É'=>'E','Í'=>'I','Ó'=>'O','Ú'=>'U','Ü'=>'U','Ñ'=>'N']));
     }
@@ -24,7 +22,6 @@ final class ElectoralCertificate {
         $text=implode("\n",$clear);
         $recognized=preg_match('/CERTIFICADO\s+ELECTORAL/',$text) && preg_match('/REGISTRADURIA/',$text) && preg_match('/NACIONAL|COLOMBIA/',$text);
         if($kind==='jurado') $recognized=preg_match('/CERTIFICADO|CONSTANCIA/',$text) && preg_match('/JURADO(?:S)?\s+(?:DE\s+)?VOTACION/',$text) && preg_match('/PREST|SERVICIO|CUMPLIO|EJERCIO/',$text) && preg_match('/REGISTRADURIA/',$text);
-        if (!$recognized) return ['recognized'=>false,'documents'=>[],'dates'=>[],'read_fields'=>$readFields];
         $numbers=[];$dates=[];
         foreach ($clear as $i=>$line) {
             // Un identificador de certificado, puesto o mesa nunca se toma como cédula.
@@ -40,7 +37,9 @@ final class ElectoralCertificate {
             }
             if (preg_match_all('/\b(\d{1,2})[\/.-](\d{1,2})[\/.-](20\d{2})\b/',$context,$matches,PREG_SET_ORDER)) foreach($matches as $m) if(checkdate((int)$m[2],(int)$m[1],(int)$m[3])) $dates[]=sprintf('%04d-%02d-%02d',$m[3],$m[2],$m[1]);
         }
-        return ['recognized'=>true,'documents'=>array_values(array_unique($numbers)),'dates'=>array_values(array_unique($dates)),'read_fields'=>$readFields];
+        $numbers=array_values(array_unique($numbers));$dates=array_values(array_unique($dates));
+        return ['recognized'=>(bool)$recognized,'documents'=>$recognized?$numbers:[],'dates'=>$recognized?$dates:[],'read_fields'=>$readFields,
+            'field_status'=>['certificate_type'=>$recognized?'read':'missing','document_number'=>count($numbers)===1?'read':($numbers?'ambiguous':'missing'),'election_date'=>count($dates)===1?'read':($dates?'ambiguous':'missing')]];
     }
     /** Texto observado para diagnóstico, incluso dudoso. Nunca alimenta la validación. */
     private static function observedFields(array $lines):array {
@@ -191,6 +190,8 @@ final class ElectoralCertificate {
         return $scores[$best]>$scores[0]*1.15?$best:0;
     }
     public static function readFiles(array $files,string $kind='sufragar'): array {
+        // Windows cuenta también la espera del proceso externo: evitar el límite de 30 s.
+        if(function_exists('set_time_limit'))set_time_limit(150);
         $result=['version'=>3,'kind'=>$kind,'status'=>'manual','checked_at'=>now(),'documents'=>[],'reasons'=>[],'diagnostics'=>[]];
         $dir=ROOT.'/storage/cache/ocr-'.bin2hex(random_bytes(12));
         if(!@mkdir($dir,0700,true)) {$result['reasons'][]='No se pudo preparar la lectura del soporte.';return $result;}
@@ -225,6 +226,7 @@ final class ElectoralCertificate {
                             try {
                                 $retry=self::command([self::binary('tesseract'),$retryImage,'stdout','-l','spa','--psm','11','tsv'],$dir,min($deadline,microtime(true)+15));
                                 $alternative=self::fromTsv($retry,$kind);$passes++;
+                                $combinedStatus=self::combinedFieldStatus($parsed,$alternative);
                                 $readFields=[];
                                 foreach(['certificate_type','document_number','election_date'] as $field) $readFields[$field]=array_values(array_unique(array_merge($parsed['read_fields'][$field]??[],$alternative['read_fields'][$field]??[])));
                                 // Solo combinar lecturas que reconocieron el tipo de documento.
@@ -234,6 +236,7 @@ final class ElectoralCertificate {
                                         'dates'=>array_values(array_unique(array_merge($parsed['dates'],$alternative['dates'])))];
                                 }
                                 $parsed['read_fields']=$readFields;
+                                $parsed['field_status']=$combinedStatus;
                             } catch(RuntimeException $retryError) {
                                 $result['reasons'][]='La segunda lectura de '.$file['original_name'].' no se completó. '.$retryError->getMessage();
                             }
@@ -245,14 +248,22 @@ final class ElectoralCertificate {
                                     $models=$GLOBALS['config']['electoral_ocr']['models']??(PHP_OS_FAMILY==='Windows'?ROOT.'/.runtime/ocr/models':'/opt/ocr/models');
                                     $output=self::command([self::binary('python'),ROOT.'/scripts/ocr/read.py',$image,$models],$dir,$deadline);
                                     $pp=json_decode($output,true,512,JSON_THROW_ON_ERROR);
+                                    if(($pp['unavailable']??'')==='memory') {
+                                        $result['second_stage_unavailable']='memory';
+                                        $result['reasons'][]='El alojamiento no dispone de memoria suficiente para la segunda etapa OCR. Revisión manual obligatoria.';
+                                        throw new RuntimeException('Memoria insuficiente para PP-OCR');
+                                    }
                                     $second=self::parse($pp['lines'],$kind,$pp['observed_lines']);
                                     $documents=array_values(array_unique(array_merge($parsed['documents'],$second['documents'])));
                                     $dates=array_values(array_unique(array_merge($parsed['dates'],$second['dates'])));
                                     $conflict=count($documents)>1 || count($dates)>1;
+                                    $fieldStatus=self::combinedFieldStatus($parsed,$second);
+                                    $conflict=$conflict || in_array('ambiguous',$fieldStatus,true);
                                     foreach(['certificate_type','document_number','election_date'] as $field) $parsed['read_fields'][$field]=array_values(array_unique(array_merge($parsed['read_fields'][$field]??[],$second['read_fields'][$field]??[])));
                                     $parsed['recognized']=$parsed['recognized'] || $second['recognized'];
                                     $parsed['documents']=$conflict?[]:$documents;$parsed['dates']=$conflict?[]:$dates;
                                     $parsed['second_stage']=$pp['engine'];
+                                    $parsed['field_status']=$fieldStatus;
                                     if($conflict)$result['reasons'][]='Los motores OCR encontraron valores distintos. Revisión manual obligatoria.';
                                     $passes++;
                                 } catch(Throwable $error) {
@@ -327,9 +338,41 @@ final class ElectoralCertificate {
     public static function needsManual(array $request): bool {
         return (self::report($request)['status']??'manual')!=='verified';
     }
+    public static function combinedFieldStatus(array $first,array $second):array {
+        $status=['certificate_type'=>!empty($first['recognized'])||!empty($second['recognized'])?'read':'missing'];
+        foreach(['document_number'=>'documents','election_date'=>'dates'] as $field=>$key) {
+            $values=array_unique(array_merge($first[$key]??[],$second[$key]??[]));
+            $states=[$first['field_status'][$field]??'missing',$second['field_status'][$field]??'missing'];
+            $status[$field]=count($values)>1||in_array('ambiguous',$states,true)?'ambiguous':(count($values)===1||in_array('read',$states,true)?'read':'missing');
+        }
+        return $status;
+    }
+    public static function manualReviewDetails(array $report):string {
+        $labels=['certificate_type'=>'tipo de certificado','document_number'=>'cédula','election_date'=>'fecha de elecciones'];$details=[];
+        $documents=$report['documents']??[];
+        if(!$documents)return 'No fue posible leer con certeza el tipo de certificado, la cédula ni la fecha de elecciones.';
+        foreach($documents as $index=>$document) {
+            $fallback=['certificate_type'=>!empty($document['recognized'])?'read':'missing'];
+            foreach(['document_number'=>'documents','election_date'=>'dates'] as $field=>$key) $fallback[$field]=count($document[$key]??[])===1?'read':(empty($document[$key])?'missing':'ambiguous');
+            $states=($document['field_status']??[])+$fallback;$missing=[];$ambiguous=[];
+            foreach($labels as $field=>$label) {
+                if($states[$field]==='ambiguous')$ambiguous[]=$label;
+                elseif($states[$field]!=='read')$missing[]=$label;
+            }
+            $prefix=count($documents)>1?'Soporte '.($index+1).': ':'';
+            if($missing)$details[]=$prefix.'No fue posible leer con certeza: '.implode(', ',$missing).'.';
+            if($ambiguous)$details[]=$prefix.'Lectura ambigua o contradictoria: '.implode(', ',$ambiguous).'.';
+        }
+        foreach(['documents'=>'cédula','dates'=>'fecha de elecciones'] as $key=>$label) {
+            $values=[];foreach($documents as $document)$values=array_merge($values,$document[$key]??[]);
+            if(count(array_unique($values))>1)$details[]='Revise '.$label.': hay valores distintos entre las lecturas de los soportes.';
+        }
+        return $details?implode(' ',array_unique($details)):'Los datos leídos no pudieron confirmarse conjuntamente. Revise el certificado completo y el plazo de disfrute.';
+    }
     public static function summary(array $report): string {
+        $resources=($report['second_stage_unavailable']??'')==='memory'?' La segunda etapa OCR no pudo ejecutarse por memoria insuficiente en el alojamiento.':'';
         return ($report['status']??'manual')==='verified'
             ?'Lectura OCR completada: cédula coincidente; elecciones '.$report['election_date'].'; disfrute permitido hasta '.$report['valid_until'].'. La lectura no certifica autenticidad.'
-            :'REVISIÓN MANUAL OBLIGATORIA DEL CERTIFICADO ELECTORAL'.(($report['kind']??'')==='jurado'?' O CONSTANCIA DE JURADO':'').'. '.implode(' ',array_unique($report['reasons']??['No existe una validación automática de este soporte.']));
+            :'REVISIÓN MANUAL OBLIGATORIA DEL CERTIFICADO ELECTORAL'.(($report['kind']??'')==='jurado'?' O CONSTANCIA DE JURADO':'').'. '.self::manualReviewDetails($report).$resources.' Compruebe los datos indicados contra el soporte original y verifique el plazo de disfrute.';
     }
 }
