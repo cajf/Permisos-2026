@@ -1,10 +1,20 @@
-FROM php:8.4-apache
+FROM python:3.12-slim-bookworm AS ocr
+COPY scripts/ocr/requirements.txt /tmp/ocr-requirements.txt
+RUN python -m venv /opt/ocr && /opt/ocr/bin/pip install --no-cache-dir -r /tmp/ocr-requirements.txt
+COPY scripts/ocr/download_models.py /tmp/download_models.py
+RUN /opt/ocr/bin/python /tmp/download_models.py /opt/ocr/models
+FROM php:8.4-apache-bookworm
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libpng-dev libjpeg62-turbo-dev libfreetype6-dev libzip-dev libicu-dev libonig-dev libcurl4-openssl-dev unzip tesseract-ocr tesseract-ocr-spa poppler-utils \
+    libpng-dev libjpeg62-turbo-dev libfreetype6-dev libzip-dev libicu-dev libonig-dev libcurl4-openssl-dev unzip tesseract-ocr tesseract-ocr-spa poppler-utils libgl1 libglib2.0-0 libgomp1 libexpat1 libsqlite3-0 libbz2-1.0 liblzma5 libffi8 libreadline8 \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install -j2 pdo_mysql gd zip intl mbstring curl \
     && rm -rf /var/lib/apt/lists/*
 COPY --from=composer:2 /usr/bin/composer /usr/local/bin/composer
+COPY --from=ocr /opt/ocr /opt/ocr
+COPY --from=ocr /usr/local/bin/python3.12 /usr/local/bin/python3.12
+COPY --from=ocr /usr/local/lib/libpython3.12.so.1.0 /usr/local/lib/libpython3.12.so.1.0
+COPY --from=ocr /usr/local/lib/python3.12 /usr/local/lib/python3.12
+RUN ldconfig
 WORKDIR /var/www/app
 COPY composer.json composer.lock ./
 RUN composer install --no-dev --prefer-dist --no-interaction --no-progress --classmap-authoritative --no-scripts \
@@ -15,6 +25,7 @@ COPY database/ database/
 COPY public/ public/
 COPY views/ views/
 COPY scripts/mail-worker.php scripts/mail-worker-smtp.php scripts/
+COPY scripts/ocr/ scripts/ocr/
 COPY docker/start-app.sh /usr/local/bin/start-app.sh
 COPY docs/manual.pdf docs/manual.pdf
 COPY docker/apache.conf /etc/apache2/sites-available/000-default.conf

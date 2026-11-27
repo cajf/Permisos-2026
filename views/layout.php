@@ -25,6 +25,7 @@ function requestTable(array $list,bool $selectable=false,array $failures=[],arra
   if(($electoralCategory==='sufragar' || ($electoralCategory==='jurado' && (json_decode($r['snapshot'],true)['jury_role']??'')!=='clavero'))) {
    $electoralReport=ElectoralCertificate::report($r)??['status'=>'manual'];
    echo '<tr><td colspan="'.($selectable?'7':'6').'"><div class="alert '.(ElectoralCertificate::needsManual($r)?'electoral-alert':'success').'" role="status"><strong>'.e(ElectoralCertificate::summary($electoralReport)).'</strong>';
+   require ROOT.'/views/electoral-preview.php';
    if($selectable && ElectoralCertificate::needsManual($r)) echo '<label>Revisión manual de TH-'.str_pad((string)$r['id'],6,'0',STR_PAD_LEFT).'<textarea name="electoral_reviews['.(int)$r['id'].']" maxlength="1500" rows="2" placeholder="Registre la cédula, fecha de elecciones y comprobación del plazo de disfrute (30 días calendario para sufragar o 45 días hábiles para jurado)."></textarea></label>';
    echo '</div></td></tr>';
   }

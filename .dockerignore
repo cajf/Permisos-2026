@@ -16,6 +16,8 @@
 !scripts/
 !scripts/mail-worker.php
 !scripts/mail-worker-smtp.php
+!scripts/ocr/
+!scripts/ocr/**
 !docs/
 !docs/manual.pdf
 !docker/

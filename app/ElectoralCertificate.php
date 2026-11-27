@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 /** Lectura auxiliar local. No verifica autenticidad ante la Registraduría. */
 final class ElectoralCertificate {
+    // Desactivar para retirar el diagnóstico temporal de las vistas.
+    public const SHOW_TEMPORARY_DETAILS=true;
     public static function normalize(string $text): string {
         return strtoupper(strtr($text,['á'=>'a','é'=>'e','í'=>'i','ó'=>'o','ú'=>'u','ü'=>'u','ñ'=>'n','Á'=>'A','É'=>'E','Í'=>'I','Ó'=>'O','Ú'=>'U','Ü'=>'U','Ñ'=>'N']));
     }
@@ -12,7 +14,8 @@ final class ElectoralCertificate {
         return strlen($digits)>=4 && strlen($digits)<=12 ? ltrim($digits,'0') : null;
     }
     /** Solo extrae campos contextualizados en líneas legibles, sin corregir dígitos adivinados. */
-    public static function parse(array $lines,string $kind='sufragar'): array {
+    public static function parse(array $lines,string $kind='sufragar',?array $observedLines=null): array {
+        $readFields=self::observedFields($observedLines??array_column($lines,'text'));
         $clear=[];$numberSafe=[];
         foreach ($lines as $line) if (($line['confidence']??0)>=80) {
             $clear[]=self::normalize((string)$line['text']);
@@ -21,7 +24,7 @@ final class ElectoralCertificate {
         $text=implode("\n",$clear);
         $recognized=preg_match('/CERTIFICADO\s+ELECTORAL/',$text) && preg_match('/REGISTRADURIA/',$text) && preg_match('/NACIONAL|COLOMBIA/',$text);
         if($kind==='jurado') $recognized=preg_match('/CERTIFICADO|CONSTANCIA/',$text) && preg_match('/JURADO(?:S)?\s+(?:DE\s+)?VOTACION/',$text) && preg_match('/PREST|SERVICIO|CUMPLIO|EJERCIO/',$text) && preg_match('/REGISTRADURIA/',$text);
-        if (!$recognized) return ['recognized'=>false,'documents'=>[],'dates'=>[]];
+        if (!$recognized) return ['recognized'=>false,'documents'=>[],'dates'=>[],'read_fields'=>$readFields];
         $numbers=[];$dates=[];
         foreach ($clear as $i=>$line) {
             // Un identificador de certificado, puesto o mesa nunca se toma como cédula.
@@ -37,14 +40,34 @@ final class ElectoralCertificate {
             }
             if (preg_match_all('/\b(\d{1,2})[\/.-](\d{1,2})[\/.-](20\d{2})\b/',$context,$matches,PREG_SET_ORDER)) foreach($matches as $m) if(checkdate((int)$m[2],(int)$m[1],(int)$m[3])) $dates[]=sprintf('%04d-%02d-%02d',$m[3],$m[2],$m[1]);
         }
-        return ['recognized'=>true,'documents'=>array_values(array_unique($numbers)),'dates'=>array_values(array_unique($dates))];
+        return ['recognized'=>true,'documents'=>array_values(array_unique($numbers)),'dates'=>array_values(array_unique($dates)),'read_fields'=>$readFields];
+    }
+    /** Texto observado para diagnóstico, incluso dudoso. Nunca alimenta la validación. */
+    private static function observedFields(array $lines):array {
+        $fields=['certificate_type'=>[],'document_number'=>[],'election_date'=>[]];
+        $patterns=[
+            'certificate_type'=>'/\b(?:CERTIFICADO|CONSTANCIA)\b.*?(?=\b(?:CEDULA|CÉDULA|DOCUMENTO|ELECCIONES|FECHA|NOMBRES?)\b|$)/iu',
+            'document_number'=>'/(?:\bC[ÉE]DULA\b|\bDOCUMENTO\b|\bC\.?\s*C\.?\s|^\s*N[ÚU]M(?:ERO)?\.?).*?(?=\b(?:NOMBRES?|APELLIDOS?|MESA|PUESTO|ZONA|ELECCIONES|FECHA)\b|$)/iu',
+            'election_date'=>'/(?:\bELECCIONES\b|\bFECHA\s+(?:DE\s+)?(?:LA\s+)?(?:ELECCI[ÓO]N|VOTACI[ÓO]N)\b).*?(?=\b(?:C[ÉE]DULA|DOCUMENTO|NOMBRES?|EXPEDICI[ÓO]N)\b|$)/iu',
+        ];
+        foreach($lines as $index=>$text) foreach($patterns as $field=>$pattern) {
+            if(preg_match($pattern,(string)$text,$match)) {
+                $value=trim($match[0]);
+                // Los campos pueden estar debajo de su etiqueta en otro renglón.
+                if($field!=='certificate_type' && !preg_match('/[0-9]/',$value) && isset($lines[$index+1]) && preg_match('/^\s*[0-9]/',(string)$lines[$index+1])) $value.=' '.trim($lines[$index+1]);
+                if($value!=='')$fields[$field][]=mb_substr($value,0,240);
+            }
+        }
+        foreach($fields as &$values)$values=array_values(array_unique($values));
+        return $fields;
     }
     public static function fromTsv(string $tsv,string $kind='sufragar'): array {
-        $lines=[];$previous='';$fragment=0;$uncertain=[];
+        $lines=[];$previous='';$fragment=0;$uncertain=[];$words=[];
         foreach(explode("\n",$tsv) as $row) {
             $c=explode("\t",rtrim($row,"\r"),12);
             if(count($c)!==12 || $c[0]!=='5' || trim($c[11])==='') continue;
             $line=implode('-',array_slice($c,1,4));
+            $words[$line][]=['text'=>$c[11],'confidence'=>(float)$c[10]];
             // Cortar el fragmento impide unir dígitos separados por una palabra dudosa.
             if($line!==$previous || (float)$c[10]<80) $fragment++;
             $previous=$line;
@@ -56,11 +79,29 @@ final class ElectoralCertificate {
         }
         foreach($lines as &$line) $line['number_uncertain']=isset($uncertain[$line['source_line']]);
         unset($line);
-        return self::parse(array_values($lines),$kind);
+        // Evaluar cada campo por separado: una mancha en el nombre no invalida
+        // una cédula legible. Nunca eliminar un token dudoso dentro del campo.
+        foreach($words as $tokens) {
+            $count=count($tokens);
+            for($i=0;$i<$count;$i++) {
+                $label=self::normalize($tokens[$i]['text']);
+                if(!preg_match('/^(?:CEDULA|DOCUMENTO|C\.?C\.?|NUM(?:ERO)?\.?|ELECCIONES|FECHA)[:.]?$/D',$label)) continue;
+                $field=[];
+                for($j=$i;$j<$count;$j++) {
+                    if($j>$i && preg_match('/^(?:NOMBRES?|APELLIDOS?|MESA|PUESTO|ZONA|EXPEDICION|CEDULA|DOCUMENTO|ELECCIONES)[:.]?$/D',self::normalize($tokens[$j]['text']))) break;
+                    $field[]=$tokens[$j];
+                }
+                if(min(array_column($field,'confidence'))<80) continue;
+                $lines[]=['text'=>implode(' ',array_column($field,'text')),'confidence'=>min(array_column($field,'confidence'))];
+            }
+        }
+        $observed=array_map(fn($tokens)=>implode(' ',array_column($tokens,'text')),array_values($words));
+        return self::parse(array_values($lines),$kind,$observed);
     }
     private static function binary(string $name): string {
         $configured=$GLOBALS['config']['electoral_ocr'][$name]??'';
         if($configured!=='') return $configured;
+        if($name==='python') return PHP_OS_FAMILY==='Windows'?ROOT.'/.runtime/ocr/Scripts/python.exe':'/opt/ocr/bin/python';
         if(PHP_OS_FAMILY==='Windows') {
             if($name==='tesseract') return ROOT.'/.runtime/tesseract/tesseract.exe';
             $local=ROOT.'/.runtime/poppler/'.$name.'.exe';
@@ -97,18 +138,63 @@ final class ElectoralCertificate {
         $image=@imagecreatefromstring(file_get_contents($path));
         if(!$image) return false;
         try {
+            // Aplanar transparencias antes de convertir a grises: fondo blanco.
+            $flat=imagecreatetruecolor(imagesx($image),imagesy($image));
+            imagefill($flat,0,0,imagecolorallocate($flat,255,255,255));
+            imagecopy($flat,$image,0,0,0,0,imagesx($image),imagesy($image));
+            imagedestroy($image);$image=$flat;
             $cropped=imagecropauto($image,IMG_CROP_WHITE);
             if($cropped) {imagedestroy($image);$image=$cropped;}
             imagefilter($image,IMG_FILTER_GRAYSCALE);
             imagefilter($image,IMG_FILTER_CONTRAST,-20);
+            // Corregir inclinaciones pequeñas con una proyección horizontal.
+            // El muestreo acotado evita analizar millones de píxeles en PHP.
+            $angle=self::skewAngle($image);
+            if($angle!==0) {
+                $rotated=imagerotate($image,$angle,imagecolorallocate($image,255,255,255));
+                if($rotated) {imagedestroy($image);$image=$rotated;}
+            }
+            $scale=min(2,2400/max(imagesx($image),imagesy($image)));
+            if($scale>1.1) {
+                $scaled=imagescale($image,(int)round(imagesx($image)*$scale),(int)round(imagesy($image)*$scale),IMG_BICUBIC_FIXED);
+                if($scaled) {imagedestroy($image);$image=$scaled;}
+            }
+            // Conservar un margen permite segmentar texto cercano al borde.
+            $bordered=imagecreatetruecolor(imagesx($image)+40,imagesy($image)+40);
+            imagefill($bordered,0,0,imagecolorallocate($bordered,255,255,255));
+            imagecopy($bordered,$image,20,20,0,0,imagesx($image),imagesy($image));
+            imagedestroy($image);$image=$bordered;
             return imagepng($image,$destination);
         } finally {imagedestroy($image);}
     }
+    private static function skewAngle(GdImage $image): int {
+        $scale=min(1,700/imagesx($image),700/imagesy($image));
+        $width=max(1,(int)round(imagesx($image)*$scale));
+        $sample=imagescale($image,$width,max(1,(int)round(imagesy($image)*$scale)));
+        if(!$sample) return 0;
+        $points=[];
+        for($y=0;$y<imagesy($sample);$y+=3) for($x=0;$x<$width;$x+=3) {
+            if((imagecolorat($sample,$x,$y)&255)<100) $points[]=[$x,$y];
+        }
+        imagedestroy($sample);
+        if(count($points)<100) return 0;
+        $scores=[];
+        for($angle=-4;$angle<=4;$angle++) {
+            $r=deg2rad($angle);$bins=[];
+            foreach($points as [$x,$y]) {
+                $bin=(int)round(($y*cos($r)-$x*sin($r))/3);
+                $bins[$bin]=($bins[$bin]??0)+1;
+            }
+            $scores[$angle]=array_sum(array_map(fn($n)=>$n*$n,$bins));
+        }
+        $best=(int)array_search(max($scores),$scores,true);
+        return $scores[$best]>$scores[0]*1.15?$best:0;
+    }
     public static function readFiles(array $files,string $kind='sufragar'): array {
-        $result=['version'=>2,'kind'=>$kind,'status'=>'manual','checked_at'=>now(),'documents'=>[],'reasons'=>[],'diagnostics'=>[]];
+        $result=['version'=>3,'kind'=>$kind,'status'=>'manual','checked_at'=>now(),'documents'=>[],'reasons'=>[],'diagnostics'=>[]];
         $dir=ROOT.'/storage/cache/ocr-'.bin2hex(random_bytes(12));
         if(!@mkdir($dir,0700,true)) {$result['reasons'][]='No se pudo preparar la lectura del soporte.';return $result;}
-        $deadline=microtime(true)+65;$pages=0;
+        $deadline=microtime(true)+110;$pages=0;
         try {
             foreach($files as $index=>$file) {
                 $stage='preparación del archivo';
@@ -123,7 +209,7 @@ final class ElectoralCertificate {
                         if((int)$m[1]>3 || $pages+(int)$m[1]>6) throw new RuntimeException('El PDF supera el límite de lectura automática');
                         $prefix=$dir.'/page-'.$index;
                         $stage='conversión del PDF a imagen';
-                        self::command([self::binary('pdftoppm'),'-r','200','-scale-to','2400','-f','1','-l',$m[1],'-png',$path,$prefix],$dir,min($deadline,microtime(true)+15));
+                        self::command([self::binary('pdftoppm'),'-r','300','-scale-to','3600','-f','1','-l',$m[1],'-png',$path,$prefix],$dir,min($deadline,microtime(true)+15));
                         $images=glob($prefix.'-*.png');
                         if(!$images) throw new RuntimeException('No se pudo convertir el PDF');
                     }
@@ -139,14 +225,42 @@ final class ElectoralCertificate {
                             try {
                                 $retry=self::command([self::binary('tesseract'),$retryImage,'stdout','-l','spa','--psm','11','tsv'],$dir,min($deadline,microtime(true)+15));
                                 $alternative=self::fromTsv($retry,$kind);$passes++;
+                                $readFields=[];
+                                foreach(['certificate_type','document_number','election_date'] as $field) $readFields[$field]=array_values(array_unique(array_merge($parsed['read_fields'][$field]??[],$alternative['read_fields'][$field]??[])));
                                 // Solo combinar lecturas que reconocieron el tipo de documento.
                                 if($alternative['recognized']) {
                                     $parsed=['recognized'=>true,
                                         'documents'=>array_values(array_unique(array_merge($parsed['documents'],$alternative['documents']))),
                                         'dates'=>array_values(array_unique(array_merge($parsed['dates'],$alternative['dates'])))];
                                 }
+                                $parsed['read_fields']=$readFields;
                             } catch(RuntimeException $retryError) {
                                 $result['reasons'][]='La segunda lectura de '.$file['original_name'].' no se completó. '.$retryError->getMessage();
+                            }
+                        }
+                        if(!$parsed['recognized'] || count($parsed['documents'])!==1 || count($parsed['dates'])!==1) {
+                            $lock=fopen(ROOT.'/storage/cache/ppocr.lock','c');
+                            if($lock && flock($lock,LOCK_EX|LOCK_NB)) {
+                                try {
+                                    $models=$GLOBALS['config']['electoral_ocr']['models']??(PHP_OS_FAMILY==='Windows'?ROOT.'/.runtime/ocr/models':'/opt/ocr/models');
+                                    $output=self::command([self::binary('python'),ROOT.'/scripts/ocr/read.py',$image,$models],$dir,$deadline);
+                                    $pp=json_decode($output,true,512,JSON_THROW_ON_ERROR);
+                                    $second=self::parse($pp['lines'],$kind,$pp['observed_lines']);
+                                    $documents=array_values(array_unique(array_merge($parsed['documents'],$second['documents'])));
+                                    $dates=array_values(array_unique(array_merge($parsed['dates'],$second['dates'])));
+                                    $conflict=count($documents)>1 || count($dates)>1;
+                                    foreach(['certificate_type','document_number','election_date'] as $field) $parsed['read_fields'][$field]=array_values(array_unique(array_merge($parsed['read_fields'][$field]??[],$second['read_fields'][$field]??[])));
+                                    $parsed['recognized']=$parsed['recognized'] || $second['recognized'];
+                                    $parsed['documents']=$conflict?[]:$documents;$parsed['dates']=$conflict?[]:$dates;
+                                    $parsed['second_stage']=$pp['engine'];
+                                    if($conflict)$result['reasons'][]='Los motores OCR encontraron valores distintos. Revisión manual obligatoria.';
+                                    $passes++;
+                                } catch(Throwable $error) {
+                                    $result['reasons'][]='La segunda etapa PP-OCR no pudo completarse; requiere revisión manual.';
+                                } finally {flock($lock,LOCK_UN);fclose($lock);}
+                            } else {
+                                if($lock)fclose($lock);
+                                $result['reasons'][]='La segunda etapa OCR está ocupada; requiere revisión manual.';
                             }
                         }
                         $result['documents'][]=$parsed+['sha256'=>$file['sha256'],'file'=>$file['original_name']];
