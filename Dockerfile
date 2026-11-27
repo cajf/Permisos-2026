@@ -14,7 +14,10 @@ COPY --from=ocr /opt/ocr /opt/ocr
 COPY --from=ocr /usr/local/bin/python3.12 /usr/local/bin/python3.12
 COPY --from=ocr /usr/local/lib/libpython3.12.so.1.0 /usr/local/lib/libpython3.12.so.1.0
 COPY --from=ocr /usr/local/lib/python3.12 /usr/local/lib/python3.12
-RUN ldconfig
+RUN ln -s python3.12 /usr/local/bin/python3 \
+    && ln -s python3.12 /usr/local/bin/python \
+    && ldconfig \
+    && /opt/ocr/bin/python --version
 WORKDIR /var/www/app
 COPY composer.json composer.lock ./
 RUN composer install --no-dev --prefer-dist --no-interaction --no-progress --classmap-authoritative --no-scripts \
