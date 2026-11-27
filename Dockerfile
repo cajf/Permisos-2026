@@ -26,6 +26,7 @@ COPY public/ public/
 COPY views/ views/
 COPY scripts/mail-worker.php scripts/mail-worker-smtp.php scripts/
 COPY scripts/ocr/ scripts/ocr/
+RUN /opt/ocr/bin/python scripts/ocr/selftest.py /opt/ocr/models
 COPY docker/start-app.sh /usr/local/bin/start-app.sh
 COPY docs/manual.pdf docs/manual.pdf
 COPY docker/apache.conf /etc/apache2/sites-available/000-default.conf
