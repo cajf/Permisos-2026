@@ -1,6 +1,12 @@
 # OCR electoral en dos etapas
 
-Tesseract se ejecuta primero. Cuando no identifica inequívocamente tipo, cédula y fecha, se ejecuta el proceso Python local `scripts/ocr/read.py`, con detección PP-OCRv4 y reconocimiento PP-OCRv5. No se consulta una API externa. Los valores contradictorios entre etapas quedan para revisión manual; no se seleccionan usando la cédula de la cuenta.
+Tesseract se ejecuta primero. Cuando no identifica inequívocamente tipo, cédula y fecha, se ejecuta el proceso Python local `scripts/ocr/read.py`, con detección PP-OCRv4 y reconocimiento PP-OCRv5. La segunda etapa lee la cabecera institucional y las regiones correspondientes a etiquetas localizadas por Tesseract, incluyendo el valor contiguo de la cédula y la fecha. Si no hay etiquetas suficientes, explora como máximo doce regiones de cabecera; nunca recorre ilimitadamente el documento con el reconocedor avanzado. No se consulta una API externa. Los valores contradictorios entre etapas quedan para revisión manual; no se seleccionan usando la cédula de la cuenta.
+
+## Reutilización de lecturas
+
+La caché privada `storage/cache/ocr-readings` usa la huella SHA-256 calculada a partir de los bytes reales de cada soporte. La clave incluye el funcionario, la base de datos, el tipo electoral, la configuración y versión del OCR y el límite de memoria de Linux. Los cambios de archivos, motor, tipo o funcionario no reutilizan una lectura anterior. Se conserva la lectura completa hasta siete días; las lecturas parciales se reutilizan solo cinco minutos antes de reintentar. La caché está limitada a 256 entradas, con directorio privado y escritura atómica. No se guardan contraseñas ni autorizaciones en ella.
+
+La lectura reutilizada se somete nuevamente a las validaciones de identidad, plazo, calendario, cupos y cruces de la solicitud actual. No se reutiliza una aprobación. El archivo debe volver a aportarse o estar adjunto a una corrección autorizada. Esta caché comienza a poblarse con la actualización; no convierte automáticamente los informes históricos. En Render es local a la instancia y puede perderse tras reinicios o despliegues, lo que solo obliga a releer el archivo.
 
 La alerta de revisión manual indica los campos que no se pudieron leer con certeza o presentan lecturas ambiguas. El mensaje temporal con texto OCR fue retirado. Los informes ya guardados no se releen automáticamente; cuando no conservan información por campo, se recomienda revisar los datos no confirmados disponibles en su informe original.
 

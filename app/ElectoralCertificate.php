@@ -189,7 +189,42 @@ final class ElectoralCertificate {
         $best=(int)array_search(max($scores),$scores,true);
         return $scores[$best]>$scores[0]*1.15?$best:0;
     }
-    public static function readFiles(array $files,string $kind='sufragar'): array {
+    public static function readFiles(array $files,string $kind='sufragar',?int $ownerId=null): array {
+        $cacheDir=ROOT.'/storage/cache/ocr-readings';
+        $scope=$GLOBALS['config']['mysql']??[];
+        $version=hash('sha256',hash_file('sha256',__FILE__).hash_file('sha256',ROOT.'/scripts/ocr/read.py').hash_file('sha256',ROOT.'/scripts/ocr/download_models.py').hash_file('sha256',ROOT.'/scripts/ocr/requirements.txt'));
+        $fingerprints=[];
+        foreach($files as $file) {
+            $path=$file['tmp']??attachmentPath($file);
+            $fingerprint=is_file($path)?hash_file('sha256',$path):false;
+            if(!$fingerprint)return self::processFiles($files,$kind);
+            $fingerprints[]=[$fingerprint,$file['mime']];
+        }
+        if(!$files)return self::processFiles($files,$kind);
+        $key=hash('sha256',serialize([$version,$ownerId??0,$scope['host']??'',$scope['port']??'',$scope['database']??'',$kind,$fingerprints,$GLOBALS['config']['electoral_ocr']??[],PHP_OS_FAMILY,@file_get_contents('/sys/fs/cgroup/memory.max'),@file_get_contents('/sys/fs/cgroup/memory/memory.limit_in_bytes')]));
+        $path=$cacheDir.'/'.$key.'.json';
+        if(is_file($path)) {
+            $cached=json_decode((string)@file_get_contents($path),true);
+            if(is_array($cached) && ($cached['expires']??0)>time() && is_array($cached['report']['documents']??null) && is_array($cached['names']??null) && count($cached['names'])===count($files)) {
+                $report=$cached['report'];$report['cache_hit']=true;
+                $names=array_combine($cached['names'],array_column($files,'original_name'));
+                foreach(['documents','diagnostics'] as $section)foreach($report[$section]??[] as $i=>$item)if(isset($item['file'],$names[$item['file']]))$report[$section][$i]['file']=$names[$item['file']];
+                return $report;
+            }
+        }
+        $report=self::processFiles($files,$kind);$report['cache_hit']=false;
+        if(!empty($report['documents']) && (is_dir($cacheDir)||@mkdir($cacheDir,0700,true))) {
+            $complete=empty($report['reasons']);
+            foreach($report['documents'] as $document)$complete=$complete && $document['recognized'] && count($document['documents'])===1 && count($document['dates'])===1;
+            $payload=json_encode(['expires'=>time()+($complete?604800:300),'names'=>array_column($files,'original_name'),'report'=>$report],JSON_UNESCAPED_UNICODE|JSON_INVALID_UTF8_SUBSTITUTE);
+            $temporary=$path.'.'.bin2hex(random_bytes(5)).'.tmp';
+            if(@file_put_contents($temporary,$payload,LOCK_EX)!==false){@chmod($temporary,0600);if(!@rename($temporary,$path))@unlink($temporary);}
+            $entries=glob($cacheDir.'/*.json')?:[];
+            if(count($entries)>256){usort($entries,fn($a,$b)=>filemtime($a)<=>filemtime($b));foreach(array_slice($entries,0,count($entries)-256) as $old)@unlink($old);}
+        }
+        return $report;
+    }
+    private static function processFiles(array $files,string $kind): array {
         // Windows cuenta también la espera del proceso externo: evitar el límite de 30 s.
         if(function_exists('set_time_limit'))set_time_limit(150);
         $result=['version'=>3,'kind'=>$kind,'status'=>'manual','checked_at'=>now(),'documents'=>[],'reasons'=>[],'diagnostics'=>[]];
@@ -218,6 +253,7 @@ final class ElectoralCertificate {
                         $pages++;
                         $stage='lectura de texto de la página '.$pages;
                         $tsv=self::command([self::binary('tesseract'),$image,'stdout','-l','spa','--psm','3','tsv'],$dir,min($deadline,microtime(true)+15));
+                        $anchors=$dir.'/anchors-'.$pages.'.tsv';file_put_contents($anchors,$tsv);
                         $parsed=self::fromTsv($tsv,$kind);
                         $passes=1;
                         if(!$parsed['recognized'] || count($parsed['documents'])!==1 || count($parsed['dates'])!==1) {
@@ -246,7 +282,7 @@ final class ElectoralCertificate {
                             if($lock && flock($lock,LOCK_EX|LOCK_NB)) {
                                 try {
                                     $models=$GLOBALS['config']['electoral_ocr']['models']??(PHP_OS_FAMILY==='Windows'?ROOT.'/.runtime/ocr/models':'/opt/ocr/models');
-                                    $output=self::command([self::binary('python'),ROOT.'/scripts/ocr/read.py',$image,$models],$dir,$deadline);
+                                    $output=self::command([self::binary('python'),ROOT.'/scripts/ocr/read.py',$image,$models,$anchors],$dir,$deadline);
                                     $pp=json_decode($output,true,512,JSON_THROW_ON_ERROR);
                                     if(($pp['unavailable']??'')==='memory') {
                                         $result['second_stage_unavailable']='memory';
@@ -298,7 +334,7 @@ final class ElectoralCertificate {
             ensure($old && (int)$old['user_id']===(int)$owner['id'] && $old['status']==='returned','Solo puede corregir una solicitud propia devuelta.');
             $files=array_merge(rows('SELECT * FROM attachments WHERE request_id=?',[$id]),$files);
         }
-        return self::readFiles($files,($category['slug']==='jurado'?'jurado':'sufragar'));
+        return self::readFiles($files,($category['slug']==='jurado'?'jurado':'sufragar'),(int)$owner['id']);
     }
     public static function validate(array $report,string $identification,array $slots,?string $today=null): array {
         $expected=self::documentNumber($identification);$valid=[];

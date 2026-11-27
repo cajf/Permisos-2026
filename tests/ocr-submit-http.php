@@ -33,6 +33,12 @@ try {
         ensure($xp->query('//*[@id="main"]/div[contains(concat(" ",normalize-space(@class)," ")," error ")]')->length>0,'El formulario no recibió el motivo de validación');
         ensure((int)row('SELECT COUNT(*) n FROM requests')['n']===0,'La solicitud rechazada dejó un registro parcial');
         echo 'OK POST con OCR real devolvió validación visible y sin registro parcial en '.round(microtime(true)-$start,1)." s, con límite inicial de PHP de 30 s.\n";
+        $cached=ElectoralCertificate::readFiles([['tmp'=>realpath($argv[1]),'mime'=>'image/jpeg','original_name'=>'certificado-prueba.jpeg']],'sufragar',1);
+        ensure(($cached['cache_hit']??false)===true,'El envío HTTP no guardó una lectura reutilizable');
+        $start=microtime(true);$repeated=postHttp($fields+['supports[0]'=>new CURLFile(realpath($argv[1]),'image/jpeg','certificado-prueba.jpeg')]);
+        ensure($repeated['status']===200 && str_contains($repeated['body'],'30 días calendario'),'La lectura reutilizada no conservó la validación del plazo');
+        ensure((int)row('SELECT COUNT(*) n FROM requests')['n']===0,'La lectura reutilizada permitió una solicitud fuera de plazo');
+        echo 'OK POST repetido reutiliza lectura y mantiene la validación del plazo en '.round(microtime(true)-$start,3)." s.\n";
     }
     $blank=ROOT.'/.work/ocr-post-blank.png';$image=imagecreatetruecolor(500,150);imagefill($image,0,0,0xffffff);imagepng($image,$blank);imagedestroy($image);
     $reply=postHttp($fields+['supports[0]'=>new CURLFile($blank,'image/png','soporte-sin-texto.png')]);
